@@ -8,6 +8,9 @@ import type { ChatMessage, ChatResponse, ToolDef, ToolCallHandler, StreamTextHan
 const STORAGE_KEY = 'dg-agent-settings';
 const MAX_TOOL_ITERATIONS = 5;
 
+// Free tier proxy URL (Cloudflare Worker)
+const FREE_PROXY_URL = 'https://dg-agent-proxy.0xnull.workers.dev';
+
 // ---------------------------------------------------------------------------
 // Config helpers — reads from the same localStorage key as app.js
 // ---------------------------------------------------------------------------
@@ -21,7 +24,7 @@ function loadSettings(): Partial<AppSettings> {
 }
 
 function getActiveProvider(): string {
-  return loadSettings().provider || 'deepseek';
+  return loadSettings().provider || 'free';
 }
 
 function getProviderConfig(providerId: string): Record<string, string> {
@@ -394,9 +397,13 @@ export async function chat(
   const providerId = getActiveProvider();
   const config = getProviderConfig(providerId);
 
-  // DeepSeek / Qwen: inject their base URLs, then use OpenAI-compatible path
+  // Resolve base URLs per provider
   const resolvedConfig = { ...config };
-  if (providerId === 'deepseek' && !resolvedConfig.baseUrl) {
+  if (providerId === 'free') {
+    resolvedConfig.baseUrl = FREE_PROXY_URL;
+    resolvedConfig.apiKey = 'free';
+    resolvedConfig.model = 'deepseek-chat';
+  } else if (providerId === 'deepseek' && !resolvedConfig.baseUrl) {
     resolvedConfig.baseUrl = 'https://api.deepseek.com/v1';
     resolvedConfig.model = resolvedConfig.model || 'deepseek-chat';
   } else if (providerId === 'qwen' && !resolvedConfig.baseUrl) {
@@ -408,6 +415,7 @@ export async function chat(
     switch (providerId) {
       case 'gemini':
         return await chatGemini(messages, systemPrompt, tools, onToolCall, onStreamText, resolvedConfig);
+      case 'free':
       case 'deepseek':
       case 'qwen':
       case 'openai':

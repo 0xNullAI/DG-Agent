@@ -23,6 +23,12 @@ let openDropdown: string | null = null; // which dropdown is open
 // -- Providers --
 const PROVIDERS: ProviderDef[] = [
   {
+    id: 'free',
+    name: '免费体验',
+    hint: '无需 API Key，每分钟限 10 条',
+    fields: [],
+  },
+  {
     id: 'deepseek',
     name: 'DeepSeek',
     fields: [
@@ -394,6 +400,9 @@ function renderSettingsConfig(providerId: string): void {
     hint.textContent = provider.hint;
     container.appendChild(hint);
   }
+
+  // Free tier: no config needed
+  if (provider.fields.length === 0) return;
 
   provider.fields.forEach((f) => {
     const group = document.createElement('div');
@@ -829,7 +838,7 @@ function loadAllSettings(): AppSettings {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (raw) return JSON.parse(raw) as AppSettings;
   } catch (_) { /* */ }
-  return { provider: 'deepseek', configs: {}, presetId: 'gentle', customPrompt: '' };
+  return { provider: 'free', configs: {}, presetId: 'gentle', customPrompt: '' };
 }
 
 export function getProviderConfig(): Record<string, string> & { provider: string } {
