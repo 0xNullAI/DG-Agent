@@ -21,7 +21,7 @@ function loadSettings(): Partial<AppSettings> {
 }
 
 function getActiveProvider(): string {
-  return loadSettings().provider || 'gemini';
+  return loadSettings().provider || 'deepseek';
 }
 
 function getProviderConfig(providerId: string): Record<string, string> {
@@ -79,21 +79,6 @@ function toOpenAITools(tools: ToolDef[]): OpenAIToolDef[] | undefined {
   }));
 }
 
-interface AnthropicToolDef {
-  name: string;
-  description: string;
-  input_schema: ToolDef['parameters'];
-}
-
-/** Unified tool def -> Anthropic tools array */
-function toAnthropicTools(tools: ToolDef[]): AnthropicToolDef[] | undefined {
-  if (!tools || tools.length === 0) return undefined;
-  return tools.map((t) => ({
-    name: t.name,
-    description: t.description,
-    input_schema: t.parameters,
-  }));
-}
 
 // ---------------------------------------------------------------------------
 // Gemini provider
@@ -111,7 +96,8 @@ async function chatGemini(
   const apiKey = config.apiKey;
   if (!apiKey) throw new Error('Gemini API key is required. Gemini offers free API keys at https://aistudio.google.com/apikey');
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  const baseUrl = (config.baseUrl || 'https://generativelanguage.googleapis.com').replace(/\/+$/, '');
+  const url = `${baseUrl}/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
   // Build Gemini contents from messages
   function buildContents(msgs: ChatMessage[]): Array<{ role: string; parts: any[] }> {
@@ -392,102 +378,6 @@ async function chatOpenAI(
 }
 
 // ---------------------------------------------------------------------------
-// Anthropic provider
-// ---------------------------------------------------------------------------
-
-async function chatAnthropic(
-  messages: ChatMessage[],
-  systemPrompt: string,
-  tools: ToolDef[],
-  onToolCall: ToolCallHandler,
-  onStreamText: StreamTextHandler | undefined,
-  config: Record<string, string>,
-): Promise<ChatResponse> {
-  const model = config.model || 'claude-sonnet-4-20250514';
-  const apiKey = config.apiKey;
-  if (!apiKey) throw new Error('Anthropic API key is required');
-
-  const url = 'https://api.anthropic.com/v1/messages';
-
-  function buildMessages(msgs: ChatMessage[]): Array<{ role: string; content: string | unknown[] }> {
-    const out: Array<{ role: string; content: string | unknown[] }> = [];
-    for (const m of msgs) {
-      if (typeof m.content === 'string') {
-        out.push({ role: m.role, content: m.content });
-      } else if (Array.isArray(m.content)) {
-        out.push({ role: m.role, content: m.content });
-      }
-    }
-    return out;
-  }
-
-  let conversationMsgs: ChatMessage[] = [...messages];
-
-  for (let iter = 0; iter < MAX_TOOL_ITERATIONS; iter++) {
-    const body: Record<string, any> = {
-      model,
-      max_tokens: 4096,
-      messages: buildMessages(conversationMsgs),
-    };
-    if (systemPrompt) body.system = systemPrompt;
-    const antTools = toAnthropicTools(tools);
-    if (antTools) body.tools = antTools;
-
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify(body),
-    });
-
-    if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Anthropic API error ${res.status}: ${err}`);
-    }
-
-    const data = await res.json();
-    const contentBlocks: any[] = data.content || [];
-
-    // Extract text blocks
-    const textParts: string[] = contentBlocks.filter((b: any) => b.type === 'text').map((b: any) => b.text as string);
-    const toolUseBlocks: any[] = contentBlocks.filter((b: any) => b.type === 'tool_use');
-
-    if (toolUseBlocks.length > 0 && onToolCall) {
-      // Add the full assistant response to conversation
-      conversationMsgs.push({ role: 'assistant', content: contentBlocks });
-
-      // Execute tools and build tool_result blocks
-      const toolResultBlocks: any[] = [];
-      for (const tu of toolUseBlocks) {
-        let result: string;
-        try {
-          result = await onToolCall(tu.name, tu.input);
-        } catch (e: unknown) {
-          result = JSON.stringify({ error: e instanceof Error ? e.message : String(e) });
-        }
-        toolResultBlocks.push({
-          type: 'tool_result',
-          tool_use_id: tu.id,
-          content: typeof result === 'string' ? result : JSON.stringify(result),
-        });
-      }
-      conversationMsgs.push({ role: 'user', content: toolResultBlocks });
-      continue;
-    }
-
-    const text = textParts.join('');
-    if (onStreamText) onStreamText(text);
-    return { role: 'assistant', content: text };
-  }
-
-  return { role: 'assistant', content: '[Max tool-calling iterations reached]' };
-}
-
-// ---------------------------------------------------------------------------
 // Main chat entry point
 // ---------------------------------------------------------------------------
 
@@ -504,17 +394,25 @@ export async function chat(
   const providerId = getActiveProvider();
   const config = getProviderConfig(providerId);
 
+  // DeepSeek / Qwen: inject their base URLs, then use OpenAI-compatible path
+  const resolvedConfig = { ...config };
+  if (providerId === 'deepseek' && !resolvedConfig.baseUrl) {
+    resolvedConfig.baseUrl = 'https://api.deepseek.com/v1';
+    resolvedConfig.model = resolvedConfig.model || 'deepseek-chat';
+  } else if (providerId === 'qwen' && !resolvedConfig.baseUrl) {
+    resolvedConfig.baseUrl = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+    resolvedConfig.model = resolvedConfig.model || 'qwen-plus';
+  }
+
   try {
     switch (providerId) {
       case 'gemini':
-        return await chatGemini(messages, systemPrompt, tools, onToolCall, onStreamText, config);
+        return await chatGemini(messages, systemPrompt, tools, onToolCall, onStreamText, resolvedConfig);
+      case 'deepseek':
+      case 'qwen':
       case 'openai':
-        return await chatOpenAI(messages, systemPrompt, tools, onToolCall, onStreamText, config);
-      case 'anthropic':
-        return await chatAnthropic(messages, systemPrompt, tools, onToolCall, onStreamText, config);
       default:
-        // Fallback: treat unknown providers as OpenAI-compatible
-        return await chatOpenAI(messages, systemPrompt, tools, onToolCall, onStreamText, config);
+        return await chatOpenAI(messages, systemPrompt, tools, onToolCall, onStreamText, resolvedConfig);
     }
   } catch (err: unknown) {
     console.error(`[ai-service] ${providerId} error:`, err);

@@ -24,30 +24,40 @@ let openDropdown: string | null = null; // which dropdown is open
 const PROVIDERS: ProviderDef[] = [
   {
     id: 'gemini',
-    name: 'Google Gemini',
-    hint: '免费 API Key → aistudio.google.com/apikey',
+    name: 'Gemini',
+    hint: '免费 API Key → aistudio.google.com/apikey（国内需代理）',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'AIza...' },
       { key: 'model', label: '模型', type: 'text', placeholder: 'gemini-2.5-flash' },
+      { key: 'baseUrl', label: 'Base URL（可选，用于代理）', type: 'url', placeholder: 'https://generativelanguage.googleapis.com' },
+    ],
+  },
+  {
+    id: 'deepseek',
+    name: 'DeepSeek',
+    hint: '国内直连，注册即送额度 → platform.deepseek.com',
+    fields: [
+      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...' },
+      { key: 'model', label: '模型', type: 'text', placeholder: 'deepseek-chat' },
+    ],
+  },
+  {
+    id: 'qwen',
+    name: '通义千问',
+    hint: '阿里云百万免费 Token → bailian.console.aliyun.com',
+    fields: [
+      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...' },
+      { key: 'model', label: '模型', type: 'text', placeholder: 'qwen-plus' },
     ],
   },
   {
     id: 'openai',
-    name: 'OpenAI 兼容',
-    hint: '支持 OpenAI / DeepSeek / Groq / OpenRouter 等',
+    name: 'OpenAI',
+    hint: '支持 OpenAI / Groq / OpenRouter 等兼容服务',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...' },
       { key: 'model', label: '模型', type: 'text', placeholder: 'gpt-4o-mini' },
       { key: 'baseUrl', label: 'Base URL', type: 'url', placeholder: 'https://api.openai.com/v1' },
-    ],
-  },
-  {
-    id: 'anthropic',
-    name: 'Anthropic Claude',
-    hint: '',
-    fields: [
-      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-ant-...' },
-      { key: 'model', label: '模型', type: 'text', placeholder: 'claude-sonnet-4-20250514' },
     ],
   },
 ];
@@ -807,7 +817,7 @@ function loadAllSettings(): AppSettings {
     const raw = localStorage.getItem(SETTINGS_STORAGE_KEY);
     if (raw) return JSON.parse(raw) as AppSettings;
   } catch (_) { /* */ }
-  return { provider: 'gemini', configs: {}, presetId: 'gentle', customPrompt: '' };
+  return { provider: 'deepseek', configs: {}, presetId: 'gentle', customPrompt: '' };
 }
 
 export function getProviderConfig(): Record<string, string> & { provider: string } {
