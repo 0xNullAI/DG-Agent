@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   const themeBtn = document.getElementById('btn-theme');
   if (themeBtn) themeBtn.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
   const metaTheme = document.getElementById('meta-theme') as HTMLMetaElement | null;
-  if (metaTheme) metaTheme.content = savedTheme === 'dark' ? '#1a1a2e' : '#f5f5f7';
+  if (metaTheme) metaTheme.content = savedTheme === 'dark' ? '#0a0a0a' : '#fff5f7';
 
   // Populate preset selector & provider radio buttons
   renderPresetSelect();
@@ -142,7 +142,7 @@ function toggleTheme(): void {
 
   // Update meta theme color
   const meta = document.getElementById('meta-theme') as HTMLMetaElement | null;
-  if (meta) meta.content = next === 'dark' ? '#1a1a2e' : '#f5f5f7';
+  if (meta) meta.content = next === 'dark' ? '#0a0a0a' : '#fff5f7';
 
   // Save preference
   localStorage.setItem('dg-agent-theme', next);

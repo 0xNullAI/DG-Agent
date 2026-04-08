@@ -230,11 +230,11 @@ html, body {
 
 #provider-quick:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.15);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
 }
 
 [data-theme="dark"] #provider-quick:focus {
-  box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.25);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 /* ---------- Status dot ---------- */
@@ -314,12 +314,12 @@ html, body {
 }
 
 [data-theme="dark"] .strength-bar {
-  background: #0d1b36;
+  background: #1a1a10;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .strength-bar {
-    background: #0d1b36;
+    background: #1a1a10;
   }
 }
 
@@ -471,7 +471,7 @@ html, body {
 /* ---------- Tool notification ---------- */
 .tool-notification {
   align-self: center;
-  background: rgba(0, 122, 255, 0.08);
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 4px 14px;
@@ -484,26 +484,26 @@ html, body {
 }
 
 [data-theme="dark"] .tool-notification {
-  background: rgba(108, 99, 255, 0.12);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .tool-notification {
-    background: rgba(108, 99, 255, 0.12);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
   }
 }
 
 .tool-notification:hover {
-  background: rgba(0, 122, 255, 0.15);
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 [data-theme="dark"] .tool-notification:hover {
-  background: rgba(108, 99, 255, 0.22);
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .tool-notification:hover {
-    background: rgba(108, 99, 255, 0.22);
+    background: color-mix(in srgb, var(--accent) 22%, transparent);
   }
 }
 
@@ -626,18 +626,18 @@ html, body {
 }
 
 #user-input:focus {
-  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.2), var(--shadow);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent), var(--shadow);
 }
 
 [data-theme="dark"] #user-input:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.25);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) #user-input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.25);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
   }
 }
 
@@ -649,19 +649,19 @@ html, body {
   height: 40px;
   padding: 0 18px;
   background: var(--highlight);
-  color: #fff;
+  color: var(--user-text);
   font-size: 14px;
   font-weight: 600;
   border: none;
   border-radius: var(--radius);
   cursor: pointer;
-  transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s;
+  transition: background-color 0.2s, transform 0.1s, box-shadow 0.2s, color 0.2s;
   white-space: nowrap;
 }
 
 #btn-send:hover {
-  background: #d13354;
-  box-shadow: 0 2px 8px rgba(233, 69, 96, 0.3);
+  filter: brightness(1.1);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--highlight) 35%, transparent);
 }
 
 #btn-send:active {
@@ -675,12 +675,12 @@ html, body {
 }
 
 [data-theme="dark"] #btn-send:disabled {
-  background: #4a3040;
+  background: #2a2a20;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) #btn-send:disabled {
-    background: #4a3040;
+    background: #2a2a20;
   }
 }
 
@@ -842,7 +842,7 @@ html, body {
 .provider-option input[type="radio"]:checked + label {
   background: var(--accent);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--user-text);
 }
 
 .provider-option label:hover {
@@ -881,7 +881,7 @@ html, body {
 
 .preset-card.active {
   border-color: var(--highlight);
-  background: rgba(233, 69, 96, 0.08);
+  background: color-mix(in srgb, var(--highlight) 10%, transparent);
   box-shadow: 0 0 0 1px var(--highlight);
 }
 
@@ -982,7 +982,7 @@ html, body {
 }
 
 .saved-prompt-del:hover {
-  background: rgba(233, 69, 96, 0.15);
+  background: color-mix(in srgb, var(--highlight) 15%, transparent);
   color: var(--highlight);
 }
 
@@ -1008,19 +1008,19 @@ html, body {
   color: var(--text-muted);
   margin-top: 4px;
   padding: 6px 12px;
-  background: rgba(233, 69, 96, 0.06);
+  background: color-mix(in srgb, var(--highlight) 8%, transparent);
   border-radius: var(--radius-sm);
   border-left: 3px solid var(--highlight);
   transition: background-color 0.2s, color 0.2s;
 }
 
 [data-theme="dark"] .provider-hint {
-  background: rgba(233, 69, 96, 0.1);
+  background: color-mix(in srgb, var(--highlight) 12%, transparent);
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .provider-hint {
-    background: rgba(233, 69, 96, 0.1);
+    background: color-mix(in srgb, var(--highlight) 12%, transparent);
   }
 }
 
@@ -1065,21 +1065,7 @@ html, body {
 .setting-group select:focus,
 .setting-group textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.12);
-}
-
-[data-theme="dark"] .setting-group input:focus,
-[data-theme="dark"] .setting-group select:focus,
-[data-theme="dark"] .setting-group textarea:focus {
-  box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.2);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .setting-group input:focus,
-  :root:not([data-theme="light"]) .setting-group select:focus,
-  :root:not([data-theme="light"]) .setting-group textarea:focus {
-    box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.2);
-  }
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 15%, transparent);
 }
 
 .setting-group textarea {
@@ -1219,7 +1205,7 @@ html, body {
 }
 
 .history-item-del:hover {
-  background: rgba(233, 69, 96, 0.15);
+  background: color-mix(in srgb, var(--highlight) 15%, transparent);
   color: var(--highlight);
 }
 
@@ -1264,6 +1250,32 @@ html, body {
 }
 
 /* ---------- Responsive ---------- */
+
+/* Wide screens – expand max width */
+@media (min-width: 1200px) {
+  :root {
+    --max-w: 960px;
+  }
+}
+
+@media (min-width: 1600px) {
+  :root {
+    --max-w: 1080px;
+  }
+}
+
+/* Tablet portrait (768–1023) */
+@media (max-width: 1023px) {
+  :root {
+    --max-w: 100%;
+  }
+
+  #app {
+    box-shadow: none;
+  }
+}
+
+/* Phone / small tablet (< 768) */
 @media (max-width: 767px) {
   :root {
     --topbar-h: 48px;
@@ -1344,6 +1356,133 @@ html, body {
 
   .channel span:first-child {
     font-size: 12px;
+  }
+
+  #preset-select {
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  }
+
+  #disclaimer {
+    font-size: 10px;
+    padding: 4px 12px;
+  }
+}
+
+/* Small phone (< 400) */
+@media (max-width: 399px) {
+  html {
+    font-size: 13px;
+  }
+
+  #topbar {
+    padding: 0 8px;
+  }
+
+  .topbar-left h1 {
+    font-size: 14px;
+  }
+
+  .topbar-right {
+    gap: 2px;
+  }
+
+  .topbar-right button {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  #provider-quick {
+    max-width: 72px;
+    font-size: 11px;
+    padding: 0 6px;
+  }
+
+  .message {
+    max-width: 95%;
+  }
+
+  #preset-select {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Landscape phone – reduce vertical space, ensure input visible */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root {
+    --topbar-h: 40px;
+    --max-w: 100%;
+  }
+
+  #app {
+    box-shadow: none;
+  }
+
+  #topbar {
+    padding: 0 12px;
+  }
+
+  .topbar-left h1 {
+    font-size: 15px;
+  }
+
+  .topbar-right button {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+
+  #device-bar {
+    padding: 4px 12px;
+  }
+
+  #chat-container {
+    padding: 8px 16px;
+  }
+
+  #input-area {
+    padding: 6px 12px;
+  }
+
+  #user-input {
+    min-height: 34px;
+    max-height: 80px;
+    padding: 6px 12px;
+  }
+
+  #btn-send {
+    height: 34px;
+    padding: 0 14px;
+  }
+
+  .modal-content {
+    max-height: 95vh;
+    width: 80%;
+  }
+
+  #disclaimer {
+    display: none;
+  }
+}
+
+/* Safe area insets for notched phones */
+@supports (padding: env(safe-area-inset-bottom)) {
+  #input-area {
+    padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  }
+
+  #disclaimer {
+    padding-bottom: calc(6px + env(safe-area-inset-bottom));
+  }
+
+  #history-drawer {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  @media (max-width: 767px) {
+    #input-area {
+      padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    }
   }
 }
 
