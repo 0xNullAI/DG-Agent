@@ -24,8 +24,6 @@ const DEEPSEEK_API = 'https://api.deepseek.com/v1/chat/completions';
 const MAX_REQUESTS_PER_MINUTE = 10;
 const ALLOWED_ORIGINS = [
   'https://0xnullai.github.io',
-  'http://localhost:5173',
-  'http://localhost:4173',
 ];
 
 export default {
