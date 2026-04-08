@@ -20,8 +20,9 @@ export const DEVICE_SUFFIX = `
 - 可用波形预设：breath(呼吸/渐强渐弱)、tide(潮汐/波浪起伏)、pulse_low(低脉冲/轻柔)、pulse_mid(中脉冲/适中)、pulse_high(高脉冲/强烈)、tap(轻拍/节奏感)
 - 可通过 design_wave 自定义任意波形组合，每步可设频率(10-1000ms)、强度(0-100)、重复次数
 - 操作流程：设置强度(set_strength) → 发送波形(send_wave)
-- 只在用户明确要求操作设备、或你需要确认设备参数时才调用工具，普通聊天不要调用任何工具
-- 不要在每次回复时都调用 get_status，只在需要时调用一次即可
+- 重要：只在用户明确要求操作设备时才调用工具。普通聊天、问候、闲聊绝对不要调用任何工具
+- 绝对不要连续多次调用同一个工具。get_status 最多调用一次，拿到结果后必须直接用文字回复用户
+- 每次回复中工具调用总数不应超过3次
 - 随时关注用户的反馈和感受，及时调整强度和波形
 - 善于将语言描述与设备操作结合，用文字营造氛围的同时配合实际的体感刺激`;
 
@@ -298,7 +299,11 @@ export async function executeTool(name: string, args: Record<string, any>): Prom
 
       case 'get_status': {
         const status = bt.getStatus();
-        return JSON.stringify({ success: true, ...status });
+        return JSON.stringify({
+          success: true,
+          ...status,
+          _hint: '状态已获取，请直接根据此结果回复用户，不要再次调用任何工具。',
+        });
       }
 
       default:

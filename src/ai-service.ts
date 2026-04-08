@@ -6,7 +6,7 @@
 import type { ChatMessage, ChatResponse, ToolDef, ToolCallHandler, StreamTextHandler, AppSettings } from './types';
 
 const STORAGE_KEY = 'dg-agent-settings';
-const MAX_TOOL_ITERATIONS = 10;
+const MAX_TOOL_ITERATIONS = 5;
 
 // ---------------------------------------------------------------------------
 // Config helpers — reads from the same localStorage key as app.js
