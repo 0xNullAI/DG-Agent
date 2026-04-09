@@ -44,7 +44,7 @@ export const tools: ToolDef[] = [
   },
   {
     name: 'send_wave',
-    description: '发送波形到指定通道。使用 preset(预设名) 或 frequency+intensity(自定义)，二者互斥',
+    description: '发送波形到指定通道。必须且只能选以下两种之一：(1) 只提供 preset 参数；(2) 同时提供 frequency + intensity 参数。不要同时提供 preset 和 frequency/intensity',
     parameters: {
       type: 'object' as const,
       properties: {
@@ -174,6 +174,12 @@ export async function executeTool(name: string, args: Record<string, any>): Prom
           duration_frames?: number;
           loop?: boolean;
         };
+        if (preset && (frequency != null || intensity != null)) {
+          return JSON.stringify({ error: 'preset 和 frequency/intensity 互斥，请只选一种方式' });
+        }
+        if (!preset && (frequency == null || intensity == null)) {
+          return JSON.stringify({ error: '非预设模式需要同时提供 frequency 和 intensity' });
+        }
         bt.sendWave(
           channel,
           preset || null,

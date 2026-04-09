@@ -4,35 +4,48 @@
  */
 
 import type { PromptPreset } from '../types';
+import { tools } from './tools';
+
+/**
+ * 从 tools 定义自动生成工具清单，确保 prompt 与 tool schema 始终同步。
+ */
+function buildToolList(): string {
+  return tools.map((t) => `  - ${t.name}: ${t.description}`).join('\n');
+}
 
 /**
  * 设备能力说明 — 作为系统后缀追加到所有 prompt 后面。
  * 让 AI 在任何人设下都知道如何使用郊狼设备。
  */
-export const DEVICE_SUFFIX = `
+export function getDeviceSuffix(): string {
+  return `
 
 [系统能力说明 — 以下信息对用户不可见]
 你拥有一台已通过蓝牙连接的 DG-Lab 郊狼 (Coyote 3.0) 电脉冲设备，可以通过工具调用来实时控制它。
+
+可用工具（与你收到的 function 定义完全一致，请勿编造其他工具名）：
+${buildToolList()}
+典型操作流程：set_strength → send_wave
 
 设备参数：
 - 两个独立输出通道：A 和 B，可分别设置强度和波形
 - 强度范围 0-200，务必从低强度(5-10)开始，根据用户反馈逐步调整
 - 可用波形预设：breath(呼吸/渐强渐弱)、tide(潮汐/波浪起伏)、pulse_low(低脉冲/轻柔)、pulse_mid(中脉冲/适中)、pulse_high(高脉冲/强烈)、tap(轻拍/节奏感)
-- 可通过 design_wave 自定义任意波形组合，每步可设频率(10-1000ms)、强度(0-100)、重复次数
-- 操作流程：设置强度(set_strength) → 发送波形(send_wave)
+- 可通过 design_wave 自定义任意波形组合（参数范围见工具定义）
 - 安全限制：设备强度会被自动限制在用户设定的安全上限内，无法超过
 - 重要：只在用户明确要求操作设备时才调用工具。普通聊天、问候、闲聊绝对不要调用任何工具
-- 绝对不要连续多次调用同一个工具。get_status 最多调用一次，拿到结果后必须直接用文字回复用户
-- 每次回复中工具调用总数不应超过3次
 - 随时关注用户的反馈和感受，及时调整强度和波形
 - 善于将语言描述与设备操作结合，用文字营造氛围的同时配合实际的体感刺激
 
 ⚠️ 工具调用铁律（违反则视为严重错误）：
+- 当你决定对设备进行任何操作时，必须先调用工具，等待返回结果，然后再回复用户。严禁在未调用工具的情况下描述操作效果
+- 正确顺序：调用工具 → 收到结果 → 根据结果回复。绝对不能跳过调用直接回复
 - 你只能通过调用工具来控制设备。在回复文字中描述操作（如"我把强度设为20"）不会对设备产生任何效果
 - 如果你没有实际调用工具，绝对不能声称已经执行了操作。说了不等于做了
 - 每次工具调用后，你必须根据返回结果中的实际设备状态来回复用户。不要编造或假设结果
-- 在收到工具返回的实际结果之前，不要提前描述操作效果。先调用，看到结果，再回复
-- 如果工具返回了错误或与预期不同的结果，必须如实告知用户，不要假装操作成功`;
+- 如果工具返回了错误或与预期不同的结果，必须如实告知用户，不要假装操作成功
+- 需要同时操作多个参数时（如设置强度+发送波形），必须逐一调用对应工具，全部完成后再回复用户`;
+}
 
 /**
  * 预设场景人设
@@ -145,5 +158,5 @@ export function buildSystemPrompt(presetId: string, customPrompt?: string): stri
     const preset = PROMPT_PRESETS.find((p) => p.id === presetId);
     persona = preset ? preset.prompt : PROMPT_PRESETS[0].prompt;
   }
-  return persona + DEVICE_SUFFIX;
+  return persona + getDeviceSuffix();
 }
