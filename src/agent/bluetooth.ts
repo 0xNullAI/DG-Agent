@@ -3,7 +3,7 @@
  * Pure ES module implementing the full BLE protocol.
  */
 
-import type { DeviceState, Channel, WavePreset, WaveFrame, WaveStep } from './types';
+import type { DeviceState, Channel, WavePreset, WaveFrame, WaveStep } from '../types';
 
 // ---------------------------------------------------------------------------
 // Minimal Web Bluetooth type declarations (not in standard DOM lib)

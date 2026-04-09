@@ -1069,7 +1069,19 @@ html, body {
     max-width: 130px;
   }
 
-  #pill-scene-icon { font-size: 13px; }
+  #pill-scene-icon { font-size: 16px; }
+  #pill-scene-label, #pill-scene .pill-arrow { display: none; }
+  #pill-scene { min-width: auto; max-width: none; padding: 0 8px; }
+
+  .provider-tabs {
+    flex-wrap: wrap;
+  }
+  .provider-tab {
+    flex: 0 0 calc(50% - 2px);
+  }
+  .provider-tab:first-child {
+    flex: 0 0 100%;
+  }
 
   .icon-btn { width: 34px; height: 34px; }
 

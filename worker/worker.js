@@ -4,20 +4,20 @@
  * Rate-limited proxy to DeepSeek API.
  * API key stored as Worker secret, not exposed to frontend.
  *
+ * Uses in-memory rate limiting (no KV dependency).
+ * Note: each Worker isolate has its own counter map, so limits
+ * are approximate across multiple edge locations — acceptable
+ * for a lightweight abuse guard.
+ *
  * Environment variables (set via wrangler secret):
  *   DEEPSEEK_API_KEY  — your DeepSeek API key
- *
- * KV namespace binding:
- *   RATE_LIMIT        — for per-IP rate limiting
  *
  * Deploy:
  *   1. npm install -g wrangler
  *   2. cd worker
  *   3. wrangler login
- *   4. wrangler kv namespace create RATE_LIMIT
- *   5. Update wrangler.toml with the KV namespace ID
- *   6. wrangler secret put DEEPSEEK_API_KEY
- *   7. wrangler deploy
+ *   4. wrangler secret put DEEPSEEK_API_KEY
+ *   5. wrangler deploy
  */
 
 const DEEPSEEK_API = 'https://api.deepseek.com/v1/chat/completions';
@@ -25,6 +25,20 @@ const MAX_REQUESTS_PER_MINUTE = 10;
 const ALLOWED_ORIGINS = [
   'https://0xnullai.github.io',
 ];
+
+// In-memory rate limit map: ip -> { minute, count }
+const rateLimitMap = new Map();
+
+// Periodic cleanup to prevent memory leak (every 5 minutes)
+let lastCleanup = 0;
+function cleanupRateLimitMap() {
+  const now = Math.floor(Date.now() / 60000);
+  if (now - lastCleanup < 5) return;
+  lastCleanup = now;
+  for (const [key, val] of rateLimitMap) {
+    if (val.minute < now - 1) rateLimitMap.delete(key);
+  }
+}
 
 export default {
   async fetch(request, env) {
@@ -44,32 +58,25 @@ export default {
       return corsResponse(request, jsonResponse({ error: '来源不被允许' }, 403));
     }
 
-    // Rate limiting by IP
+    // Rate limiting by IP (in-memory)
     const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
-    const rateKey = `rate:${ip}`;
-    const now = Math.floor(Date.now() / 60000); // current minute
+    const now = Math.floor(Date.now() / 60000);
 
-    try {
-      const stored = await env.RATE_LIMIT.get(rateKey, 'json');
-      let count = 0;
-      if (stored && stored.minute === now) {
-        count = stored.count;
-      }
+    cleanupRateLimitMap();
 
-      if (count >= MAX_REQUESTS_PER_MINUTE) {
-        return corsResponse(request, jsonResponse({
-          error: `请求过于频繁，每分钟最多 ${MAX_REQUESTS_PER_MINUTE} 条，请稍后再试。`
-        }, 429));
-      }
-
-      // Increment counter
-      await env.RATE_LIMIT.put(rateKey, JSON.stringify({ minute: now, count: count + 1 }), {
-        expirationTtl: 120, // auto-expire after 2 minutes
-      });
-    } catch (e) {
-      // If KV fails, allow the request (fail open)
-      console.error('Rate limit check failed:', e);
+    const entry = rateLimitMap.get(ip);
+    let count = 0;
+    if (entry && entry.minute === now) {
+      count = entry.count;
     }
+
+    if (count >= MAX_REQUESTS_PER_MINUTE) {
+      return corsResponse(request, jsonResponse({
+        error: `请求过于频繁，每分钟最多 ${MAX_REQUESTS_PER_MINUTE} 条，请稍后再试。`
+      }, 429));
+    }
+
+    rateLimitMap.set(ip, { minute: now, count: count + 1 });
 
     // Parse and sanitize request body
     let body;

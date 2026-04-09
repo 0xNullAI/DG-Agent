@@ -3,7 +3,7 @@
  * Browser-only (no backend); all API calls use fetch directly.
  */
 
-import type { ChatMessage, ChatResponse, ToolDef, ToolCallHandler, StreamTextHandler, AppSettings } from './types';
+import type { ChatMessage, ChatResponse, ToolDef, ToolCallHandler, StreamTextHandler, AppSettings } from '../types';
 
 const STORAGE_KEY = 'dg-agent-settings';
 const MAX_TOOL_ITERATIONS = 5;

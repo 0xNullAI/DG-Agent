@@ -1,10 +1,9 @@
 /**
- * tools.ts — Tool definitions and executor for Coyote device control.
+ * prompts.ts — System prompts and persona presets for DG-Agent.
+ * Separated from tool execution for easier management.
  */
 
-import type { PromptPreset, ToolDef, WaveStep } from './types';
-import * as bt from './bluetooth';
-
+import type { PromptPreset } from '../types';
 
 /**
  * 设备能力说明 — 作为系统后缀追加到所有 prompt 后面。
@@ -26,7 +25,14 @@ export const DEVICE_SUFFIX = `
 - 绝对不要连续多次调用同一个工具。get_status 最多调用一次，拿到结果后必须直接用文字回复用户
 - 每次回复中工具调用总数不应超过3次
 - 随时关注用户的反馈和感受，及时调整强度和波形
-- 善于将语言描述与设备操作结合，用文字营造氛围的同时配合实际的体感刺激`;
+- 善于将语言描述与设备操作结合，用文字营造氛围的同时配合实际的体感刺激
+
+⚠️ 工具调用铁律（违反则视为严重错误）：
+- 你只能通过调用工具来控制设备。在回复文字中描述操作（如"我把强度设为20"）不会对设备产生任何效果
+- 如果你没有实际调用工具，绝对不能声称已经执行了操作。说了不等于做了
+- 每次工具调用后，你必须根据返回结果中的实际设备状态来回复用户。不要编造或假设结果
+- 在收到工具返回的实际结果之前，不要提前描述操作效果。先调用，看到结果，再回复
+- 如果工具返回了错误或与预期不同的结果，必须如实告知用户，不要假装操作成功`;
 
 /**
  * 预设场景人设
@@ -140,192 +146,4 @@ export function buildSystemPrompt(presetId: string, customPrompt?: string): stri
     persona = preset ? preset.prompt : PROMPT_PRESETS[0].prompt;
   }
   return persona + DEVICE_SUFFIX;
-}
-
-export const tools: ToolDef[] = [
-  {
-    name: 'set_strength',
-    description: '设置指定通道的绝对强度值',
-    parameters: {
-      type: 'object' as const,
-      properties: {
-        channel: { type: 'string', enum: ['A', 'B'], description: '通道 A 或 B' },
-        value: { type: 'integer', minimum: 0, maximum: 200, description: '强度值 0-200' },
-      },
-      required: ['channel', 'value'],
-    },
-  },
-  {
-    name: 'add_strength',
-    description: '相对调整指定通道的强度',
-    parameters: {
-      type: 'object' as const,
-      properties: {
-        channel: { type: 'string', enum: ['A', 'B'], description: '通道' },
-        delta: { type: 'integer', description: '变化量，正数增加，负数减少。最终值会被限制在安全上限内' },
-      },
-      required: ['channel', 'delta'],
-    },
-  },
-  {
-    name: 'set_strength_limit',
-    description: '设置两个通道的强度上限（会持久保存到设备）',
-    parameters: {
-      type: 'object' as const,
-      properties: {
-        limit_a: { type: 'integer', minimum: 0, maximum: 200 },
-        limit_b: { type: 'integer', minimum: 0, maximum: 200 },
-      },
-      required: ['limit_a', 'limit_b'],
-    },
-  },
-  {
-    name: 'send_wave',
-    description: '发送波形到指定通道。使用 preset(预设名) 或 frequency+intensity(自定义)，二者互斥',
-    parameters: {
-      type: 'object' as const,
-      properties: {
-        channel: { type: 'string', enum: ['A', 'B'] },
-        preset: {
-          type: 'string',
-          enum: ['breath', 'tide', 'pulse_low', 'pulse_mid', 'pulse_high', 'tap'],
-          description: '预设波形名',
-        },
-        frequency: { type: 'integer', minimum: 10, maximum: 1000, description: '自定义频率(ms)，与preset二选一' },
-        intensity: { type: 'integer', minimum: 0, maximum: 100, description: '自定义强度百分比' },
-        duration_frames: { type: 'integer', default: 10, description: '自定义波形帧数，每帧100ms' },
-        loop: { type: 'boolean', default: true },
-      },
-      required: ['channel'],
-    },
-  },
-  {
-    name: 'design_wave',
-    description:
-      '设计自定义波形。steps为步骤数组，每步包含freq(频率ms,10-1000)、intensity(0-100)、repeat(重复次数,默认1)',
-    parameters: {
-      type: 'object' as const,
-      properties: {
-        channel: { type: 'string', enum: ['A', 'B'] },
-        steps: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              freq: { type: 'integer' },
-              intensity: { type: 'integer' },
-              repeat: { type: 'integer', description: '该步骤的重复次数，默认1' },
-            },
-            required: ['freq', 'intensity'],
-          },
-        },
-        loop: { type: 'boolean', default: true },
-      },
-      required: ['channel', 'steps'],
-    },
-  },
-  {
-    name: 'stop_wave',
-    description: '停止波形输出',
-    parameters: {
-      type: 'object' as const,
-      properties: {
-        channel: { type: 'string', enum: ['A', 'B'], description: '指定通道，不填则停止所有' },
-      },
-    },
-  },
-  {
-    name: 'get_status',
-    description: '获取设备当前状态（连接状态、强度、电量、波形状态等）',
-    parameters: { type: 'object' as const, properties: {} },
-  },
-];
-
-/**
- * Execute a tool call by name. Returns a JSON string result.
- * @param name - tool name
- * @param args - tool arguments
- */
-export async function executeTool(name: string, args: Record<string, any>): Promise<string> {
-  try {
-    switch (name) {
-      case 'set_strength': {
-        const { channel, value } = args as { channel: string; value: number };
-        const limits = bt.getStrengthLimits();
-        const limit = channel.toUpperCase() === 'A' ? limits.limitA : limits.limitB;
-        const safeValue = Math.min(Math.max(0, value), limit);
-        bt.setStrength(channel, safeValue);
-        return JSON.stringify({ success: true, channel, value: safeValue, limited: safeValue < value });
-      }
-
-      case 'add_strength': {
-        const { channel, delta } = args as { channel: string; delta: number };
-        const status = bt.getStatus();
-        const limits = bt.getStrengthLimits();
-        const current = channel.toUpperCase() === 'A' ? status.strengthA : status.strengthB;
-        const limit = channel.toUpperCase() === 'A' ? limits.limitA : limits.limitB;
-        const desired = current + delta;
-        const clamped = Math.min(Math.max(0, desired), limit);
-        const safeDelta = clamped - current;
-        if (safeDelta !== 0) {
-          bt.addStrength(channel, safeDelta);
-        }
-        return JSON.stringify({ success: true, channel, delta: safeDelta, resultStrength: clamped, limited: safeDelta !== delta });
-      }
-
-      case 'set_strength_limit': {
-        const { limit_a, limit_b } = args as { limit_a: number; limit_b: number };
-        bt.setStrengthLimit(limit_a, limit_b);
-        return JSON.stringify({ success: true, limit_a, limit_b });
-      }
-
-      case 'send_wave': {
-        const { channel, preset, frequency, intensity, duration_frames, loop } = args as {
-          channel: string;
-          preset?: string;
-          frequency?: number;
-          intensity?: number;
-          duration_frames?: number;
-          loop?: boolean;
-        };
-        bt.sendWave(
-          channel,
-          preset || null,
-          frequency || null,
-          intensity || null,
-          duration_frames || 10,
-          loop !== false
-        );
-        return JSON.stringify({ success: true, channel, preset, frequency, intensity, loop: loop !== false });
-      }
-
-      case 'design_wave': {
-        const { channel, steps, loop } = args as { channel: string; steps: WaveStep[]; loop?: boolean };
-        bt.designWave(channel, steps, loop !== false);
-        return JSON.stringify({ success: true, channel, stepsCount: steps.length, loop: loop !== false });
-      }
-
-      case 'stop_wave': {
-        const { channel } = args as { channel?: string };
-        bt.stopWave(channel || null);
-        return JSON.stringify({ success: true, channel: channel || 'all' });
-      }
-
-      case 'get_status': {
-        const status = bt.getStatus();
-        return JSON.stringify({
-          success: true,
-          ...status,
-          _hint: '状态已获取，请直接根据此结果回复用户，不要再次调用任何工具。',
-        });
-      }
-
-      default:
-        return JSON.stringify({ error: `Unknown tool: ${name}` });
-    }
-  } catch (err: unknown) {
-    console.error(`[tools] Error executing ${name}:`, err);
-    const message = err instanceof Error ? err.message : String(err);
-    return JSON.stringify({ error: message });
-  }
 }

@@ -2,7 +2,7 @@
  * history.ts -- Chat history persistence using localStorage
  */
 
-import type { ConversationRecord } from './types';
+import type { ConversationRecord } from '../types';
 
 const STORAGE_KEY = 'dg-agent-history';
 const MAX_CONVERSATIONS = 50;
