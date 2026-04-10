@@ -27,7 +27,7 @@
 
 | 服务商 | 国内直连 | 说明 |
 |--------|---------|------|
-| 🆓 **免费体验** (推荐) | ✅ | 无需 API Key，每分钟限 10 条 |
+| 🆓 **免费体验** (推荐) | ✅ | 无需 API Key，可切换国际(Cloudflare)/国内(阿里云)线路，每分钟限 10 条 |
 | 🟣 **通义千问** | ✅ | [bailian.console.aliyun.com](https://bailian.console.aliyun.com) |
 | ⚫ **OpenAI** | ❌ 需代理 | [platform.openai.com](https://platform.openai.com) |
 | 🔧 **自定义** | — | 自定义模型、API Key 和接口地址，兼容 OpenAI API 格式 |

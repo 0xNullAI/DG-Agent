@@ -951,7 +951,8 @@ html, body {
 
 .setting-group input[type="text"],
 .setting-group input[type="password"],
-.setting-group input[type="url"] {
+.setting-group input[type="url"],
+.setting-group select {
   width: 100%;
   padding: 10px 12px;
   background: var(--bg);
@@ -964,7 +965,8 @@ html, body {
   transition: border-color var(--transition), box-shadow var(--transition);
 }
 
-.setting-group input:focus {
+.setting-group input:focus,
+.setting-group select:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-soft);
 }

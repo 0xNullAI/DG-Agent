@@ -49,7 +49,7 @@ export function updateCurrentAiLabel(): void {
 export function saveCurrentSettings(): void {
   const saved = loadSettings();
 
-  const inputs = document.querySelectorAll('.provider-cfg-input') as NodeListOf<HTMLInputElement>;
+  const inputs = document.querySelectorAll<HTMLInputElement | HTMLSelectElement>('.provider-cfg-input');
   if (inputs.length > 0) {
     const currentCfg: Record<string, string> = {};
     inputs.forEach((inp) => { currentCfg[inp.dataset.key!] = inp.value; });
@@ -157,16 +157,31 @@ function renderConfig(providerId: string): void {
     label.textContent = f.label;
     label.htmlFor = `cfg-${f.key}`;
 
-    const input = document.createElement('input');
-    input.type = f.type || 'text';
-    input.id = `cfg-${f.key}`;
-    input.dataset.provider = providerId;
-    input.dataset.key = f.key;
-    input.placeholder = f.placeholder || '';
-    input.value = values[f.key] || '';
-    input.classList.add('provider-cfg-input');
+    let control: HTMLInputElement | HTMLSelectElement;
+    if (f.type === 'select' && f.options) {
+      const select = document.createElement('select');
+      const currentVal = values[f.key] || f.default || f.options[0].value;
+      f.options.forEach((opt) => {
+        const o = document.createElement('option');
+        o.value = opt.value;
+        o.textContent = opt.label;
+        if (opt.value === currentVal) o.selected = true;
+        select.appendChild(o);
+      });
+      control = select;
+    } else {
+      const input = document.createElement('input');
+      input.type = f.type || 'text';
+      input.placeholder = f.placeholder || '';
+      input.value = values[f.key] || f.default || '';
+      control = input;
+    }
+    control.id = `cfg-${f.key}`;
+    control.dataset.provider = providerId;
+    control.dataset.key = f.key;
+    control.classList.add('provider-cfg-input');
     group.appendChild(label);
-    group.appendChild(input);
+    group.appendChild(control);
     container.appendChild(group);
   });
 

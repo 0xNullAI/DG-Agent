@@ -142,7 +142,9 @@ export interface ProviderField {
   key: string;
   label: string;
   type: string;
-  placeholder: string;
+  placeholder?: string;
+  options?: { value: string; label: string }[];
+  default?: string;
 }
 
 /** Provider definition for UI */

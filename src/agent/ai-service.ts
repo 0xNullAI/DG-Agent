@@ -8,6 +8,7 @@ import { loadSettings } from './providers';
 
 const MAX_TOOL_ITERATIONS = 20;
 const FREE_PROXY_URL = 'https://dg-agent-proxy.0xnullai.workers.dev';
+const FREE_PROXY_URL_CN = 'https://dg-agent-proxy-eloracuikl.cn-hangzhou.fcapp.run';
 
 // ---------------------------------------------------------------------------
 // Responses API — tool format
@@ -263,7 +264,8 @@ export async function chat(
   const config = { ...(settings.configs?.[providerId] || {}) };
 
   if (providerId === 'free') {
-    config.baseUrl = FREE_PROXY_URL;
+    const region = config.region || 'intl';
+    config.baseUrl = region === 'cn' ? FREE_PROXY_URL_CN : FREE_PROXY_URL;
     config.apiKey = 'free';
     config.model = 'qwen3.6-plus';
   } else if (providerId === 'qwen' && !config.baseUrl) {
