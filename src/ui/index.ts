@@ -314,6 +314,7 @@ export function boot(): void {
     onUserMessage: (text) => chat.addUserMessage(text),
     onAssistantStream: (text, msgId) => chat.addAssistantMessage(text, msgId),
     onAssistantFinalize: (msgId) => chat.finalizeAssistantMessage(msgId),
+    onAssistantDiscard: (msgId) => chat.removeAssistantMessage(msgId),
     onToolCall: (name, args, result) => chat.addToolNotification(name, args, result),
     onTypingStart: () => chat.showTyping(),
     onTypingEnd: () => chat.hideTyping(),

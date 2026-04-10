@@ -95,6 +95,13 @@ export function getItemText(item: ConversationItem): { role: 'user' | 'assistant
 export interface ChatCallbacks {
   onToolCall: (name: string, args: Record<string, unknown>) => Promise<string>;
   onStreamText?: (chunk: string) => void;
+  /**
+   * Called when the in-progress streamed assistant reply must be discarded
+   * (e.g. hallucination detected). The implementation should remove the
+   * current bubble from the UI and reset its streaming buffer so the next
+   * iteration starts a fresh assistant message.
+   */
+  onDiscardStream?: () => void;
 }
 
 // ---------------------------------------------------------------------------

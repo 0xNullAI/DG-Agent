@@ -30,6 +30,8 @@ export interface ConversationCallbacks {
   onUserMessage: (text: string) => void;
   onAssistantStream: (text: string, msgId?: string) => string;
   onAssistantFinalize: (msgId: string) => void;
+  /** Discard a streamed-but-not-yet-finalized assistant bubble (hallucination guard). */
+  onAssistantDiscard: (msgId: string) => void;
   onToolCall: (name: string, args: Record<string, unknown>, result: string) => void;
   onTypingStart: () => void;
   onTypingEnd: () => void;
@@ -126,6 +128,7 @@ export async function sendMessage(text: string, customPrompt: string): Promise<v
       itemsForLLM,
       systemPrompt,
       tools,
+      buildFirstTurnInstruction(),
       {
         onToolCall: async (toolName: string, toolArgs: Record<string, unknown>) => {
           callbacks!.onTypingEnd();
@@ -150,6 +153,14 @@ export async function sendMessage(text: string, customPrompt: string): Promise<v
           callbacks!.onTypingEnd();
           streamedText += chunk;
           currentMsgId = callbacks!.onAssistantStream(streamedText, currentMsgId || undefined);
+        },
+        onDiscardStream: () => {
+          if (currentMsgId) {
+            callbacks!.onAssistantDiscard(currentMsgId);
+          }
+          streamedText = '';
+          currentMsgId = null;
+          callbacks!.onTypingStart();
         },
       },
     );
@@ -224,13 +235,22 @@ function buildUserContextSuffix(): string {
     `  • 连接：${conn}\n` +
     `  • 电量：${battery}\n` +
     `  • A 通道：强度 ${s.strengthA}/${s.limitA}，波形${s.waveActiveA ? '活跃' : '停止'}\n` +
-    `  • B 通道：强度 ${s.strengthB}/${s.limitB}，波形${s.waveActiveB ? '活跃' : '停止'}\n` +
-    `\n【强制要求 — 违反视为严重错误】\n` +
-    `本轮回复你【必须】调用至少一个工具，绝无例外！不调用工具就直接回复文字是被严格禁止的行为。\n` +
+    `  • B 通道：强度 ${s.strengthB}/${s.limitB}，波形${s.waveActiveB ? '活跃' : '停止'}`
+  );
+}
+
+/**
+ * 仅在本轮第一次 LLM 调用时附加的强制指令。后续工具循环迭代不再注入，
+ * 避免模型在拿到工具结果后还反复"惯性调用"工具导致死循环。
+ */
+function buildFirstTurnInstruction(): string {
+  return (
+    `\n\n[本轮硬性要求 — 仅本轮首次响应生效]\n` +
+    `本次响应你【必须】先调用至少一个工具，再生成文字回复：\n` +
     `- 涉及设备操作 → 调用对应的操作工具（play / stop / add_strength / design_wave / set_strength_limit）\n` +
-    `- 用户询问状态 → 调用 get_status\n` +
-    `- 普通聊天、问候、闲聊、情感交流等任何场景 → 也必须调用 get_status，然后再根据结果回复用户\n` +
-    `再次强调：本轮不允许"零工具调用"的纯文字回复。先调工具，再说话。`
+    `- 用户询问状态、或你需要确认当前设备情况 → 调用 get_status\n` +
+    `- 普通聊天、问候、闲聊场景 → 调用 get_status 作为兜底\n` +
+    `注意：拿到工具结果后请直接给出最终回复，不要为了凑数再次调用工具。add_strength 本轮最多 2 次。`
   );
 }
 

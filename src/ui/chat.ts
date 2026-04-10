@@ -97,6 +97,12 @@ export function finalizeAssistantMessage(id: string): void {
   if (el) el.classList.add('complete');
 }
 
+/** Remove an assistant message bubble entirely (used to discard hallucinated replies). */
+export function removeAssistantMessage(id: string): void {
+  const el = document.getElementById(id);
+  if (el) el.remove();
+}
+
 /** Add a compact, collapsible tool-call notification. */
 export function addToolNotification(toolName: string, args: Record<string, unknown>, result: string): void {
   const el = document.createElement('div');
