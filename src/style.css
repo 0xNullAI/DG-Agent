@@ -1526,3 +1526,47 @@ body.safety-notice-open {
     width: 100%;
   }
 }
+
+/* ---------- Update banner (new deployment notice) ---------- */
+.update-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 36px;
+  padding: 8px 44px 8px 16px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: filter 0.15s ease;
+}
+.update-banner:hover { filter: brightness(1.08); }
+.update-banner-text { pointer-events: none; }
+.update-banner-close {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  border-radius: 4px;
+  opacity: 0.85;
+}
+.update-banner-close:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.18);
+}
