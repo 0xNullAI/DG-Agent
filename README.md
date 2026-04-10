@@ -47,8 +47,7 @@
 ```
 你：轻轻试一下 A 通道
 AI：好的，我先用很轻的力度让你感受一下~
-    🔧 set_strength(channel: A, value: 8)
-    🔧 send_wave(channel: A, preset: breath)
+    🔧 play(channel: A, strength: 8, preset: breath)
 AI：已经开始了哦，是很轻柔的呼吸波形，感觉怎么样？
 ```
 
@@ -68,12 +67,11 @@ AI：已经开始了哦，是很轻柔的呼吸波形，感觉怎么样？
 
 | 工具 | 说明 | 示例 |
 |------|------|------|
-| ⚡ `set_strength` | 设置通道强度 (0~200) | `set_strength("A", 10)` |
-| ➕ `add_strength` | 增减强度 | `add_strength("A", 5)` |
-| 🔒 `set_strength_limit` | 设置强度软上限 | `set_strength_limit(50, 50)` |
-| 🌊 `send_wave` | 发送预设波形 | `send_wave("A", preset="breath")` |
-| 🎨 `design_wave` | 设计多步变化波形 | `design_wave("A", steps=[...])` |
-| ⏹️ `stop_wave` | 停止波形输出 | `stop_wave("A")` |
+| ▶️ `play` | 一次设定通道的强度和波形（开始/调整刺激的核心入口） | `play("A", strength=10, preset="breath")` |
+| ⏹️ `stop` | 一次关闭通道：强度归零 + 停止波形 | `stop("A")` / `stop()` 全关 |
+| ➕ `add_strength` | 不换波形，微调强度（边缘控制常用） | `add_strength("A", 3)` |
+| 🎨 `design_wave` | 设定强度并播放自定义多步波形 | `design_wave("A", strength=15, steps=[...])` |
+| 🔒 `set_strength_limit` | 设置 A/B 强度软上限 | `set_strength_limit(50, 50)` |
 | 📊 `get_status` | 查询设备状态 | `get_status()` |
 
 ## 🖥️ 浏览器支持
