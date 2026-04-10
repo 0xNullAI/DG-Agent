@@ -13,6 +13,7 @@ import * as dropdowns from './dropdowns';
 import * as settings from './settings';
 import * as sidebar from './sidebar';
 import { updateDeviceUI } from './device';
+import { initUpdateCheck } from './update-check';
 
 // ---------------------------------------------------------------------------
 // DOM helper (shared across ui modules)
@@ -410,4 +411,7 @@ export function boot(): void {
     try { await executeTool('stop', {}); } catch (_) { /* */ }
     chat.addSystemMessage('\u26A1 紧急停止：已停止所有波形、强度归零');
   });
+
+  // Poll for new deployments and show a reload banner when available.
+  initUpdateCheck();
 }

@@ -414,6 +414,15 @@ export async function scanAndConnect(): Promise<void> {
   // Send default limits via BF
   await writeBF(state.limitA, state.limitB);
 
+  // Force device-side strength to zero on connect. The Coyote 3.0 hardware
+  // retains its last strength across Bluetooth disconnects, so without this
+  // a reconnect would resume at whatever strength the device was left at.
+  // Queueing an absolute-mode=3 value=0 here makes the first B0 tick clear
+  // both channels unconditionally.
+  pendingStrA = 0;
+  pendingStrB = 0;
+  pendingMode = (3 << 2) | 3;
+
   // Start the continuous B0 loop
   startB0Loop();
 
@@ -424,6 +433,21 @@ export async function scanAndConnect(): Promise<void> {
  * Disconnect from the device and stop all loops.
  */
 export async function disconnect(): Promise<void> {
+  // Zero device strength before tearing down the connection, so the hardware
+  // is not left at a non-zero value after a clean disconnect. Best-effort —
+  // any failure here must not block the disconnect path.
+  if (writeChar) {
+    try {
+      waveState.A.active = false;
+      waveState.B.active = false;
+      pendingStrA = 0;
+      pendingStrB = 0;
+      pendingMode = (3 << 2) | 3;
+      const cmd = buildB0();
+      await writeChar.writeValueWithoutResponse(cmd);
+    } catch (_e) { /* best effort */ }
+  }
+
   stopB0Loop();
   if (notifyChar) {
     try {
