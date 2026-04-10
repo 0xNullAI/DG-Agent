@@ -20,8 +20,22 @@ function snap() {
 function clamp(value: number, channel: string): { value: number; limited: boolean } {
   const limits = bt.getStrengthLimits();
   const limit = channel.toUpperCase() === 'A' ? limits.limitA : limits.limitB;
-  const clamped = Math.min(Math.max(0, value), limit);
-  return { value: clamped, limited: clamped !== value };
+  const v = num(value, 0);
+  const clamped = Math.min(Math.max(0, v), limit);
+  return { value: clamped, limited: clamped !== v };
+}
+
+/** Coerce arbitrary input (string, number, null) to a finite integer. */
+function num(v: unknown, fallback = 0): number {
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? Math.round(n) : fallback;
+}
+
+/** Coerce optional numeric input — preserves null/undefined, otherwise to number. */
+function numOrNull(v: unknown): number | null {
+  if (v == null) return null;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.round(n) : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -97,14 +111,19 @@ const registry: ToolEntry[] = [
       if (!preset && (frequency == null || intensity == null))
         return { error: '必须提供 preset，或同时提供 frequency 和 intensity' };
 
-      const safe = clamp(strength, channel);
+      const strengthN = num(strength);
+      const freqN = numOrNull(frequency);
+      const intN = numOrNull(intensity);
+      const framesN = num(duration_frames, 10);
+
+      const safe = clamp(strengthN, channel);
       bt.setStrength(channel, safe.value);
-      bt.sendWave(channel, preset || null, frequency ?? null, intensity ?? null, duration_frames || 10, loop !== false);
+      bt.sendWave(channel, preset || null, freqN, intN, framesN || 10, loop !== false);
 
       return {
         channel,
-        strength: { requested: strength, actual: safe.value, limited: safe.limited },
-        wave: preset ? { preset } : { frequency, intensity },
+        strength: { requested: strengthN, actual: safe.value, limited: safe.limited },
+        wave: preset ? { preset } : { frequency: freqN, intensity: intN },
         loop: loop !== false,
       };
     },
@@ -157,11 +176,12 @@ const registry: ToolEntry[] = [
       },
     },
     handler({ channel, delta }) {
+      const deltaN = num(delta);
       const current = channel.toUpperCase() === 'A' ? bt.getStatus().strengthA : bt.getStatus().strengthB;
-      const safe = clamp(current + delta, channel);
+      const safe = clamp(current + deltaN, channel);
       const actualDelta = safe.value - current;
       if (actualDelta !== 0) bt.addStrength(channel, actualDelta);
-      return { channel, requestedDelta: delta, actualDelta, result: safe.value, limited: safe.limited };
+      return { channel, requestedDelta: deltaN, actualDelta, result: safe.value, limited: safe.limited };
     },
   },
   {
@@ -203,13 +223,19 @@ const registry: ToolEntry[] = [
       },
     },
     handler({ channel, strength, steps, loop }: { channel: string; strength: number; steps: WaveStep[]; loop?: boolean }) {
-      const safe = clamp(strength, channel);
+      const strengthN = num(strength);
+      const stepsN: WaveStep[] = (Array.isArray(steps) ? steps : []).map((s: any) => ({
+        freq: num(s?.freq),
+        intensity: num(s?.intensity),
+        repeat: num(s?.repeat, 1),
+      }));
+      const safe = clamp(strengthN, channel);
       bt.setStrength(channel, safe.value);
-      bt.designWave(channel, steps, loop !== false);
+      bt.designWave(channel, stepsN, loop !== false);
       return {
         channel,
-        strength: { requested: strength, actual: safe.value, limited: safe.limited },
-        stepsCount: steps.length,
+        strength: { requested: strengthN, actual: safe.value, limited: safe.limited },
+        stepsCount: stepsN.length,
         loop: loop !== false,
       };
     },
@@ -233,8 +259,10 @@ const registry: ToolEntry[] = [
       },
     },
     handler({ limit_a, limit_b }) {
-      bt.setStrengthLimit(limit_a, limit_b);
-      return { limit_a, limit_b };
+      const a = num(limit_a);
+      const b = num(limit_b);
+      bt.setStrengthLimit(a, b);
+      return { limit_a: a, limit_b: b };
     },
   },
   {
@@ -242,14 +270,12 @@ const registry: ToolEntry[] = [
       name: 'get_status',
       description:
         '【状态查询】获取设备当前真实状态：连接状态、电量、A/B 强度、A/B 波形是否活跃。\n\n' +
-        '必须调用的场景：\n' +
-        '• 每次要对设备进行任何操作前（open/调整/关闭），都应该先 get_status 确认当前状态\n' +
-        '• 用户询问"现在几档"、"强度多少"、"还在响吗"等状态问题时\n\n' +
-        '注意：调用 get_status 后，请直接根据返回结果回复用户，不要接着再调用其他工具（除非用户的请求本来就是"查状态然后再操作"）。',
+        '用户询问"现在几档"、"强度多少"、"还在响吗"等状态问题时调用此工具。\n' +
+        '在没有其他更合适的工具可调用时（例如普通聊天、问候），也用 get_status 来满足"每轮至少调一个工具"的要求。',
       parameters: { type: 'object', properties: {} },
     },
     handler() {
-      return { ...bt.getStatus(), _hint: '状态已获取，请直接根据此结果回复用户，不要再次调用任何工具。' };
+      return bt.getStatus();
     },
   },
 ];

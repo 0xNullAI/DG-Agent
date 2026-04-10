@@ -267,10 +267,10 @@ export async function chat(
     const region = config.region || 'intl';
     config.baseUrl = region === 'cn' ? FREE_PROXY_URL_CN : FREE_PROXY_URL;
     config.apiKey = 'free';
-    config.model = 'qwen3.6-plus';
+    config.model = 'qwen3.5-flash';
   } else if (providerId === 'qwen' && !config.baseUrl) {
     config.baseUrl = 'https://dashscope.aliyuncs.com/compatible-mode/v1';
-    config.model = config.model || 'qwen3.6-plus';
+    config.model = config.model || 'qwen3.5-flash';
   } else if (providerId === 'openai' && !config.baseUrl) {
     config.baseUrl = 'https://api.openai.com/v1';
   }

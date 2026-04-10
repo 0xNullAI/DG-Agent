@@ -30,7 +30,7 @@ export const PROVIDERS: ProviderDef[] = [
     name: '通义千问',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...' },
-      { key: 'model', label: '模型', type: 'text', placeholder: 'qwen3.6-plus' },
+      { key: 'model', label: '模型', type: 'text', placeholder: 'qwen3.5-flash' },
     ],
   },
   {

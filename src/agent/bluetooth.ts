@@ -68,10 +68,11 @@ const PRESETS: Record<WavePreset, WaveFrame[]> = {
 // Frequency encoding helper
 // ---------------------------------------------------------------------------
 function encodeFrequency(freqMs: number): number {
-  if (freqMs < 10 || freqMs > 1000) return 10;
-  if (freqMs <= 100) return freqMs;
-  if (freqMs <= 600) return Math.floor((freqMs - 100) / 5) + 100;
-  return Math.floor((freqMs - 600) / 10) + 200;
+  const f = Number(freqMs);
+  if (!Number.isFinite(f) || f < 10 || f > 1000) return 10;
+  if (f <= 100) return Math.floor(f);
+  if (f <= 600) return Math.floor((f - 100) / 5) + 100;
+  return Math.floor((f - 600) / 10) + 200;
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +149,15 @@ function nextSeq(): number {
 }
 
 function clamp(v: number, lo: number, hi: number): number {
-  return Math.max(lo, Math.min(hi, v));
+  const n = Number(v);
+  if (!Number.isFinite(n)) return lo;
+  return Math.max(lo, Math.min(hi, n));
+}
+
+/** Coerce arbitrary input to a finite integer; non-numeric → fallback. */
+function toInt(v: unknown, fallback = 0): number {
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? Math.round(n) : fallback;
 }
 
 // Inactive channel marker: freq=[0,0,0,0], int=[0,0,101,101] – spec says
@@ -435,8 +444,9 @@ export async function disconnect(): Promise<void> {
  */
 export function setStrength(channel: string, value: number): void {
   if (!writeChar) throw new Error('设备未连接');
-  const ch = channel.toUpperCase() as Channel;
-  const v = clamp(Math.round(value), 0, 200);
+  const ch = String(channel || '').toUpperCase() as Channel;
+  if (ch !== 'A' && ch !== 'B') throw new Error(`Invalid channel: ${channel}`);
+  const v = clamp(toInt(value, 0), 0, 200);
   if (ch === 'A') {
     pendingStrA = v;
     // mode bits 3-2 = channel A, set to 3 (absolute)
@@ -455,8 +465,9 @@ export function setStrength(channel: string, value: number): void {
  */
 export function addStrength(channel: string, delta: number): void {
   if (!writeChar) throw new Error('设备未连接');
-  const ch = channel.toUpperCase() as Channel;
-  const d = Math.round(delta);
+  const ch = String(channel || '').toUpperCase() as Channel;
+  if (ch !== 'A' && ch !== 'B') throw new Error(`Invalid channel: ${channel}`);
+  const d = toInt(delta, 0);
   if (d === 0) return;
 
   const mode = d > 0 ? 1 : 2;
@@ -478,8 +489,8 @@ export function addStrength(channel: string, delta: number): void {
  */
 export function setStrengthLimit(limitA: number, limitB: number): void {
   if (!writeChar) throw new Error('设备未连接');
-  state.limitA = clamp(Math.round(limitA), 0, 200);
-  state.limitB = clamp(Math.round(limitB), 0, 200);
+  state.limitA = clamp(toInt(limitA, 0), 0, 200);
+  state.limitB = clamp(toInt(limitB, 0), 0, 200);
   writeBF(state.limitA, state.limitB).catch((err: unknown) => {
     console.error('[bluetooth] BF write error:', err);
   });
@@ -504,7 +515,12 @@ export function sendWave(
   loop: boolean = false,
 ): void {
   if (!writeChar) throw new Error('设备未连接');
-  const ch = channel.toUpperCase() as Channel;
+  const ch = String(channel || '').toUpperCase() as Channel;
+  if (ch !== 'A' && ch !== 'B') throw new Error(`Invalid channel: ${channel}`);
+
+  const freqN = frequency == null ? null : toInt(frequency, 10);
+  const intN = intensity == null ? null : clamp(toInt(intensity, 0), 0, 100);
+  const framesN = Math.max(1, toInt(durationFrames, 10));
   let frames: WaveFrame[];
 
   if (preset && PRESETS[preset as WavePreset]) {
@@ -512,19 +528,14 @@ export function sendWave(
     frames = PRESETS[preset as WavePreset].map(([f, i]): WaveFrame => {
       let ef = f;
       let ei = i;
-      if (frequency !== undefined && frequency !== null) {
-        ef = encodeFrequency(frequency);
-      }
-      if (intensity !== undefined && intensity !== null) {
-        ei = Math.round(i * clamp(intensity, 0, 100) / 100);
-      }
+      if (freqN !== null) ef = encodeFrequency(freqN);
+      if (intN !== null) ei = Math.round((i * intN) / 100);
       return [ef, ei];
     });
-  } else if (frequency !== null && frequency !== undefined) {
-    // Custom wave: create durationFrames identical frames
-    const ef = encodeFrequency(frequency);
-    const ei = clamp(Math.round(intensity || 50), 0, 100);
-    frames = Array.from({ length: durationFrames }, (): WaveFrame => [ef, ei]);
+  } else if (freqN !== null) {
+    const ef = encodeFrequency(freqN);
+    const ei = intN !== null ? intN : 50;
+    frames = Array.from({ length: framesN }, (): WaveFrame => [ef, ei]);
   } else {
     throw new Error(`Must provide a valid preset or frequency. Got preset="${preset}"`);
   }
@@ -545,12 +556,14 @@ export function sendWave(
  */
 export function designWave(channel: string, steps: WaveStep[], loop: boolean = false): void {
   if (!writeChar) throw new Error('设备未连接');
-  const ch = channel.toUpperCase() as Channel;
+  const ch = String(channel || '').toUpperCase() as Channel;
+  if (ch !== 'A' && ch !== 'B') throw new Error(`Invalid channel: ${channel}`);
+  if (!Array.isArray(steps)) throw new Error('designWave: steps must be an array');
   const frames: WaveFrame[] = [];
   for (const step of steps) {
-    const ef = encodeFrequency(step.freq);
-    const ei = clamp(Math.round(step.intensity), 0, 100);
-    const count = Math.max(1, Math.round(step.repeat || 1));
+    const ef = encodeFrequency(toInt((step as any)?.freq, 10));
+    const ei = clamp(toInt((step as any)?.intensity, 0), 0, 100);
+    const count = Math.max(1, toInt((step as any)?.repeat, 1));
     for (let r = 0; r < count; r++) {
       frames.push([ef, ei]);
     }
@@ -574,7 +587,14 @@ export function designWave(channel: string, steps: WaveStep[], loop: boolean = f
  */
 export function stopWave(channel?: string | null): void {
   if (!writeChar) throw new Error('设备未连接');
-  const channels: Channel[] = channel ? [channel.toUpperCase() as Channel] : ['A', 'B'];
+  let channels: Channel[];
+  if (channel) {
+    const ch = String(channel).toUpperCase() as Channel;
+    if (ch !== 'A' && ch !== 'B') throw new Error(`Invalid channel: ${channel}`);
+    channels = [ch];
+  } else {
+    channels = ['A', 'B'];
+  }
   for (const ch of channels) {
     waveState[ch].active = false;
     waveState[ch].frames = null;
