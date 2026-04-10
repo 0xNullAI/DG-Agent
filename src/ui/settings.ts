@@ -35,6 +35,7 @@ export function selectProvider(id: string): void {
 
   renderTabs();
   renderConfig(id);
+  renderBehaviorSettings(saved);
   updateCurrentAiLabel();
 }
 
