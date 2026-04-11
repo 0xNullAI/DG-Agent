@@ -20,6 +20,12 @@ function computeBuildId(): string {
 
 const BUILD_ID = computeBuildId();
 
+// Derive the Pages base path from GITHUB_REPOSITORY (set by Actions) so the
+// same config works for any fork/mirror — e.g. DG-Agent → /DG-Agent/,
+// DG-Agent-dev → /DG-Agent-dev/. Falls back to /DG-Agent/ for local builds.
+const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
+const BASE_PATH = repoName ? `/${repoName}/` : '/DG-Agent/';
+
 // Writes dist/version.json after the bundle is emitted. The client polls this
 // file (with cache-busting) to detect new deployments.
 function versionManifestPlugin(): Plugin {
@@ -37,7 +43,7 @@ function versionManifestPlugin(): Plugin {
 }
 
 export default defineConfig({
-  base: '/DG-Agent/',
+  base: BASE_PATH,
   define: {
     __BUILD_ID__: JSON.stringify(BUILD_ID),
   },
