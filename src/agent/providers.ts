@@ -52,6 +52,16 @@ export const PROVIDERS: ProviderDef[] = [
       { key: 'model', label: '模型', type: 'text', placeholder: 'model-name' },
       { key: 'baseUrl', label: 'Base URL', type: 'url', placeholder: 'https://api.example.com/v1' },
       {
+        key: 'endpoint',
+        label: 'API 接口类型',
+        type: 'select',
+        default: 'responses',
+        options: [
+          { value: 'responses', label: 'Responses API (推荐)' },
+          { value: 'chat/completions', label: 'Chat Completions (传统/兼容模式)' },
+        ],
+      },
+      {
         key: 'useStrict',
         label: 'strict 模式',
         type: 'select',
@@ -60,7 +70,7 @@ export const PROVIDERS: ProviderDef[] = [
           { value: 'true', label: '开启（OpenAI 兼容后端推荐）' },
           { value: 'false', label: '关闭（后端不兼容时选此）' },
         ],
-      },
+      }
     ],
   },
 ];

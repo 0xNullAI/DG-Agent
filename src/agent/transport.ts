@@ -22,6 +22,8 @@ export interface TransportConfig {
   apiKey: string;
   model: string;
   providerId: string;
+  /** Which OpenAI-compatible endpoint shape to speak on the wire. */
+  endpoint: 'responses' | 'chat/completions';
   /** Whether to emit strict-mode tool schemas. True for all providers except
    *  a custom one whose user explicitly turned strict off. */
   useStrict: boolean;
@@ -55,6 +57,10 @@ export function resolveProviderConfig(): TransportConfig {
   // the user opt out, because custom backends may be OpenAI-compatible shims
   // that reject `strict`, `additionalProperties:false`, or nullable unions.
   const useStrict = providerId === 'custom' ? raw.useStrict !== 'false' : true;
+  const endpoint =
+    providerId === 'custom' && raw.endpoint === 'chat/completions'
+      ? 'chat/completions'
+      : 'responses';
 
   return {
     baseUrl: baseUrl.replace(/\/+$/, ''),
@@ -64,6 +70,7 @@ export function resolveProviderConfig(): TransportConfig {
     // this in; this only matters for misconfigured 'custom' setups.
     model: model || 'gpt-5.3',
     providerId,
+    endpoint,
     useStrict,
   };
 }
@@ -165,6 +172,101 @@ function toResponsesTools(tools: ToolDef[], useStrict: boolean): any[] | undefin
   });
 }
 
+function toChatCompletionsTools(tools: ToolDef[], useStrict: boolean): any[] | undefined {
+  if (!tools || tools.length === 0) return undefined;
+  return tools.map((t) => {
+    const parameters = useStrict ? strictify(t.parameters) : t.parameters;
+    const fn: Record<string, any> = {
+      name: t.name,
+      description: t.description,
+      parameters,
+    };
+    if (useStrict) fn.strict = true;
+    return {
+      type: 'function',
+      function: fn,
+    };
+  });
+}
+
+function toChatCompletionsMessages(
+  input: ConversationItem[],
+  instructions: string,
+): any[] {
+  const messages: any[] = [{ role: 'system', content: instructions }];
+
+  for (const item of input) {
+    const it = item as any;
+
+    if (it.role === 'user' || it.role === 'assistant') {
+      messages.push({
+        role: it.role,
+        content: it.content,
+      });
+      continue;
+    }
+
+    if (it.type === 'function_call') {
+      messages.push({
+        role: 'assistant',
+        content: null,
+        tool_calls: [{
+          id: it.call_id,
+          type: 'function',
+          function: {
+            name: it.name,
+            arguments: it.arguments || '',
+          },
+        }],
+      });
+      continue;
+    }
+
+    if (it.type === 'function_call_output') {
+      messages.push({
+        role: 'tool',
+        tool_call_id: it.call_id,
+        content: it.output,
+      });
+    }
+  }
+
+  return messages;
+}
+
+function extractChatMessageText(message: any): string {
+  const content = message?.content;
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+
+  let out = '';
+  for (const part of content) {
+    if (typeof part === 'string') {
+      out += part;
+      continue;
+    }
+    if (part?.type === 'text' && typeof part.text === 'string') {
+      out += part.text;
+      continue;
+    }
+    if (typeof part?.text === 'string') {
+      out += part.text;
+    }
+  }
+  return out;
+}
+
+function chatToolCallsToOutputItems(message: any): any[] {
+  const toolCalls = Array.isArray(message?.tool_calls) ? message.tool_calls : [];
+  return toolCalls.map((tc: any) => ({
+    type: 'function_call',
+    call_id: tc.id || '',
+    name: tc.function?.name || '',
+    arguments: tc.function?.arguments || '',
+    status: 'completed',
+  }));
+}
+
 // ---------------------------------------------------------------------------
 // One Responses API call
 // ---------------------------------------------------------------------------
@@ -177,6 +279,20 @@ export interface ResponsesCallResult {
 }
 
 export async function callResponses(
+  input: ConversationItem[],
+  instructions: string,
+  tools: ToolDef[],
+  config: TransportConfig,
+  onTextDelta?: (accumulated: string) => void,
+  signal?: AbortSignal,
+): Promise<ResponsesCallResult> {
+  if (config.endpoint === 'chat/completions') {
+    return callChatCompletions(input, instructions, tools, config, onTextDelta, signal);
+  }
+  return callResponsesApi(input, instructions, tools, config, onTextDelta, signal);
+}
+
+async function callResponsesApi(
   input: ConversationItem[],
   instructions: string,
   tools: ToolDef[],
@@ -240,6 +356,68 @@ export async function callResponses(
   }
 
   const result = await parseSSEStream(res, onTextDelta);
+  console.log('[LLM ←]', structuredClone(result));
+  return result;
+}
+
+async function callChatCompletions(
+  input: ConversationItem[],
+  instructions: string,
+  tools: ToolDef[],
+  config: TransportConfig,
+  onTextDelta?: (accumulated: string) => void,
+  signal?: AbortSignal,
+): Promise<ResponsesCallResult> {
+  if (!config.apiKey) throw new Error('API key is required');
+  // Keep the same validation and error wording as the Responses path so the
+  // settings UX stays consistent no matter which endpoint the custom provider uses.
+  if (!/^[\x20-\x7E]+$/.test(config.apiKey)) {
+    throw new Error(
+      'API key 含有非法字符（可能混入了中文、全角空格或不可见字符）。请在设置中重新粘贴一次纯英文/数字的 key。',
+    );
+  }
+
+  const body: Record<string, any> = {
+    model: config.model,
+    messages: toChatCompletionsMessages(input, instructions),
+    temperature: 0.3,
+  };
+  const cTools = toChatCompletionsTools(tools, config.useStrict);
+  if (cTools) {
+    body.tools = cTools;
+    body.tool_choice = 'auto';
+    body.parallel_tool_calls = true;
+  }
+  if (onTextDelta) body.stream = true;
+
+  console.log('[LLM →]', structuredClone(body));
+
+  const res = await fetch(`${config.baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${config.apiKey}`,
+    },
+    body: JSON.stringify(body),
+    signal,
+  });
+
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(`API error ${res.status}: ${err}`);
+  }
+
+  if (!onTextDelta) {
+    const data = await res.json();
+    console.log('[LLM ←]', structuredClone(data));
+    const message = data.choices?.[0]?.message || {};
+    return {
+      outputItems: chatToolCallsToOutputItems(message),
+      streamedText: extractChatMessageText(message),
+    };
+  }
+
+  const result = await parseChatCompletionsStream(res, onTextDelta);
   console.log('[LLM ←]', structuredClone(result));
   return result;
 }
@@ -345,4 +523,87 @@ async function parseSSEStream(
     });
   }
   return { outputItems: reconstructed, streamedText };
+}
+
+async function parseChatCompletionsStream(
+  res: Response,
+  onTextDelta: (accumulated: string) => void,
+): Promise<ResponsesCallResult> {
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let streamedText = '';
+
+  const fnCallSlots: Record<number, { call_id: string; name: string; arguments: string }> = {};
+  let sawFnCall = false;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() || '';
+
+    for (const line of lines) {
+      if (!line.startsWith('data:')) continue;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === '[DONE]') continue;
+
+      let event: any;
+      try {
+        event = JSON.parse(payload);
+      } catch {
+        continue;
+      }
+
+      const choice = event.choices?.[0];
+      const delta = choice?.delta;
+      if (!delta) continue;
+
+      if (typeof delta.content === 'string' && delta.content) {
+        streamedText += delta.content;
+        onTextDelta(streamedText);
+      } else if (Array.isArray(delta.content)) {
+        for (const part of delta.content) {
+          const text =
+            typeof part === 'string'
+              ? part
+              : typeof part?.text === 'string'
+                ? part.text
+                : '';
+          if (!text) continue;
+          streamedText += text;
+          onTextDelta(streamedText);
+        }
+      }
+
+      if (Array.isArray(delta.tool_calls)) {
+        sawFnCall = true;
+        for (const tc of delta.tool_calls) {
+          const idx = typeof tc.index === 'number' ? tc.index : 0;
+          if (!fnCallSlots[idx]) {
+            fnCallSlots[idx] = { call_id: '', name: '', arguments: '' };
+          }
+          if (tc.id) fnCallSlots[idx].call_id = tc.id;
+          if (tc.function?.name) fnCallSlots[idx].name += tc.function.name;
+          if (tc.function?.arguments) fnCallSlots[idx].arguments += tc.function.arguments;
+        }
+      }
+    }
+  }
+
+  const outputItems: any[] = [];
+  if (sawFnCall) {
+    for (const fc of Object.values(fnCallSlots)) {
+      outputItems.push({
+        type: 'function_call',
+        call_id: fc.call_id,
+        name: fc.name,
+        arguments: fc.arguments,
+        status: 'completed',
+      });
+    }
+  }
+
+  return { outputItems, streamedText };
 }
