@@ -1,6 +1,6 @@
 /**
- * Web Bluetooth module for DG-Lab Coyote 3.0
- * Pure ES module implementing the full BLE protocol.
+ * Web Bluetooth module for DG-Lab Coyote 2.0 & 3.0
+ * Pure ES module implementing the full BLE protocol for both hardware versions.
  */
 
 import type { DeviceState, Channel, WaveFrame } from '../types';
@@ -34,14 +34,26 @@ interface BluetoothDevice extends EventTarget {
 }
 
 // ---------------------------------------------------------------------------
-// BLE UUIDs
+// BLE UUIDs — Coyote 3.0
 // ---------------------------------------------------------------------------
-const DEVICE_NAME_PREFIX = '47L121';
-const PRIMARY_SERVICE = '0000180c-0000-1000-8000-00805f9b34fb';
-const WRITE_CHAR = '0000150a-0000-1000-8000-00805f9b34fb';
-const NOTIFY_CHAR = '0000150b-0000-1000-8000-00805f9b34fb';
-const BATTERY_SERVICE = '0000180a-0000-1000-8000-00805f9b34fb';
-const BATTERY_CHAR = '00001500-0000-1000-8000-00805f9b34fb';
+const V3_DEVICE_NAME_PREFIX = '47L121';
+const V3_PRIMARY_SERVICE = '0000180c-0000-1000-8000-00805f9b34fb';
+const V3_WRITE_CHAR = '0000150a-0000-1000-8000-00805f9b34fb';
+const V3_NOTIFY_CHAR = '0000150b-0000-1000-8000-00805f9b34fb';
+const V3_BATTERY_SERVICE = '0000180a-0000-1000-8000-00805f9b34fb';
+const V3_BATTERY_CHAR = '00001500-0000-1000-8000-00805f9b34fb';
+
+// ---------------------------------------------------------------------------
+// BLE UUIDs — Coyote 2.0
+// ---------------------------------------------------------------------------
+const V2_DEVICE_NAME_PREFIX = 'D-LAB ESTIM';
+const v2Uuid = (short: string) => `955a${short}-0fe2-f5aa-a094-84b8d4f3e8ad`;
+const V2_PRIMARY_SERVICE = v2Uuid('180b');
+const V2_STRENGTH_CHAR = v2Uuid('1504');   // PWM_AB2: strength for both channels
+const V2_WAVE_A_CHAR = v2Uuid('1505');     // PWM_A34: channel A waveform params
+const V2_WAVE_B_CHAR = v2Uuid('1506');     // PWM_B34: channel B waveform params
+const V2_BATTERY_SERVICE = v2Uuid('180a');
+const V2_BATTERY_CHAR = v2Uuid('1500');
 
 // Frequency/strength encoding for waveforms is now handled upstream in the
 // waveforms module, which parses user-imported pulse files and seeds the
@@ -78,11 +90,20 @@ export function setOnStatusChange(fn: ((status: DeviceState) => void) | null): v
 // ---------------------------------------------------------------------------
 let bleDevice: BluetoothDevice | null = null;
 let bleServer: BluetoothRemoteGATTServer | null = null;
+let batteryChar: BluetoothRemoteGATTCharacteristic | null = null;
+let tickInterval: ReturnType<typeof setInterval> | null = null;
+
+// Device version detected on connect
+let deviceVersion: 2 | 3 = 3;
+
+// V3-specific characteristics
 let writeChar: BluetoothRemoteGATTCharacteristic | null = null;
 let notifyChar: BluetoothRemoteGATTCharacteristic | null = null;
-let batteryChar: BluetoothRemoteGATTCharacteristic | null = null;
 
-let b0Interval: ReturnType<typeof setInterval> | null = null;
+// V2-specific characteristics
+let v2StrengthChar: BluetoothRemoteGATTCharacteristic | null = null;
+let v2WaveAChar: BluetoothRemoteGATTCharacteristic | null = null;
+let v2WaveBChar: BluetoothRemoteGATTCharacteristic | null = null;
 
 // Seq / ack bookkeeping
 let seq = 0;           // 0 = idle (no pending strength change)
@@ -132,11 +153,83 @@ function toInt(v: unknown, fallback = 0): number {
   return Number.isFinite(n) ? Math.round(n) : fallback;
 }
 
-// Inactive channel marker: freq=[0,0,0,0], int=[0,0,101,101] – spec says
-// intensity[3] >= 101 marks inactive.  We use the exact pattern from the spec:
-// freq = [0,0,0,0], intensity = [0,0,0,101].
+// V3 inactive channel marker: freq=[0,0,0,0], int=[0,0,0,101] – spec says
+// intensity[3] >= 101 marks inactive.
 const INACTIVE_FREQ: number[] = [0, 0, 0, 0];
 const INACTIVE_INT: number[] = [0, 0, 0, 101];
+
+// ---------------------------------------------------------------------------
+// V2 encoding helpers
+// ---------------------------------------------------------------------------
+
+/** Decode a V3 encoded frequency byte (10-240) back to real period in ms. */
+function decodeV3Freq(encoded: number): number {
+  if (encoded <= 100) return encoded;             // 10-100ms: direct
+  if (encoded <= 200) return (encoded - 100) * 5 + 100;  // 100-600ms
+  return (encoded - 200) * 10 + 600;             // 600-1000ms
+}
+
+/** Convert a V3 WaveFrame (encoded_freq, intensity) to V2 pulse parameters. */
+function waveFrameToV2(freq: number, intensity: number): { x: number; y: number; z: number } {
+  const periodMs = decodeV3Freq(freq);
+  const x = 1;                                         // 1 pulse per unit
+  const y = clamp(periodMs - 1, 0, 1023);              // interval to fill period
+  const z = clamp(Math.round(intensity * 31 / 100), 0, 31); // pulse width
+  return { x, y, z };
+}
+
+/** Encode V2 strength for both channels into 3 bytes (PWM_AB2). */
+function encodeV2Strength(a: number, b: number): Uint8Array {
+  // Map unified 0-200 range to V2 hardware range 0-2047
+  const va = Math.round(clamp(a, 0, 200) * 2047 / 200);
+  const vb = Math.round(clamp(b, 0, 200) * 2047 / 200);
+  // 3 bytes = 24 bits: [1:0] reserved, [21:11] ch A, [10:0] ch B
+  const val = (va << 11) | vb;
+  return new Uint8Array([(val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF]);
+}
+
+/** Encode V2 waveform parameters into 3 bytes (PWM_A34 / PWM_B34). */
+function encodeV2Wave(x: number, y: number, z: number): Uint8Array {
+  // 3 bytes = 24 bits: [23:20] reserved, [19:15] Z, [14:5] Y, [4:0] X
+  const val = ((z & 0x1F) << 15) | ((y & 0x3FF) << 5) | (x & 0x1F);
+  return new Uint8Array([(val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF]);
+}
+
+/** V2 100ms tick: write strength + waveform to separate characteristics. */
+async function v2Tick(): Promise<void> {
+  if (!v2StrengthChar) return;
+
+  // Enforce limits client-side (V2 has no BF command)
+  const strA = Math.min(pendingStrA, state.limitA);
+  const strB = Math.min(pendingStrB, state.limitB);
+
+  await v2StrengthChar.writeValueWithoutResponse(encodeV2Strength(strA, strB));
+  state.strengthA = strA;
+  state.strengthB = strB;
+
+  // Channel A waveform
+  if (v2WaveAChar) {
+    const wA = advanceWave('A');
+    if (wA.int[3] >= 101) {
+      // Inactive marker — send zeros to silence the channel
+      await v2WaveAChar.writeValueWithoutResponse(encodeV2Wave(0, 0, 0));
+    } else {
+      const p = waveFrameToV2(wA.freq[0], wA.int[0]);
+      await v2WaveAChar.writeValueWithoutResponse(encodeV2Wave(p.x, p.y, p.z));
+    }
+  }
+
+  // Channel B waveform
+  if (v2WaveBChar) {
+    const wB = advanceWave('B');
+    if (wB.int[3] >= 101) {
+      await v2WaveBChar.writeValueWithoutResponse(encodeV2Wave(0, 0, 0));
+    } else {
+      const p = waveFrameToV2(wB.freq[0], wB.int[0]);
+      await v2WaveBChar.writeValueWithoutResponse(encodeV2Wave(p.x, p.y, p.z));
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Wave frame helpers
@@ -271,26 +364,30 @@ async function writeBF(limitA: number, limitB: number): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// 100 ms B0 loop
+// 100 ms tick loop (V3: B0 packet, V2: separate characteristic writes)
 // ---------------------------------------------------------------------------
-function startB0Loop(): void {
-  if (b0Interval) return;
-  b0Interval = setInterval(async () => {
-    if (!writeChar) return;
+function startTickLoop(): void {
+  if (tickInterval) return;
+  tickInterval = setInterval(async () => {
     try {
-      const cmd = buildB0();
-      await writeChar.writeValueWithoutResponse(cmd);
+      if (deviceVersion === 3) {
+        if (!writeChar) return;
+        const cmd = buildB0();
+        await writeChar.writeValueWithoutResponse(cmd);
+      } else {
+        await v2Tick();
+      }
       notify();
     } catch (err) {
-      console.error('[bluetooth] B0 write error:', err);
+      console.error('[bluetooth] tick error:', err);
     }
   }, 100);
 }
 
-function stopB0Loop(): void {
-  if (b0Interval) {
-    clearInterval(b0Interval);
-    b0Interval = null;
+function stopTickLoop(): void {
+  if (tickInterval) {
+    clearInterval(tickInterval);
+    tickInterval = null;
   }
 }
 
@@ -312,9 +409,15 @@ async function readBattery(): Promise<void> {
 // Disconnect handler
 // ---------------------------------------------------------------------------
 function onDisconnected(): void {
-  stopB0Loop();
+  stopTickLoop();
+  // V3 chars
   writeChar = null;
   notifyChar = null;
+  // V2 chars
+  v2StrengthChar = null;
+  v2WaveAChar = null;
+  v2WaveBChar = null;
+  // Common
   batteryChar = null;
   bleServer = null;
   state.connected = false;
@@ -331,8 +434,8 @@ function onDisconnected(): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Scan for a Coyote 3.0 device and connect.
- * Starts the 100 ms B0 command loop upon successful connection.
+ * Scan for a Coyote 2.0 or 3.0 device and connect.
+ * Starts the 100 ms command loop upon successful connection.
  */
 export async function scanAndConnect(): Promise<void> {
   if (state.connected) {
@@ -341,8 +444,14 @@ export async function scanAndConnect(): Promise<void> {
 
   const bt = (navigator as any).bluetooth as any;
   const device: BluetoothDevice = await bt.requestDevice({
-    filters: [{ namePrefix: DEVICE_NAME_PREFIX }],
-    optionalServices: [PRIMARY_SERVICE, BATTERY_SERVICE],
+    filters: [
+      { namePrefix: V3_DEVICE_NAME_PREFIX },
+      { namePrefix: V2_DEVICE_NAME_PREFIX },
+    ],
+    optionalServices: [
+      V3_PRIMARY_SERVICE, V3_BATTERY_SERVICE,
+      V2_PRIMARY_SERVICE, V2_BATTERY_SERVICE,
+    ],
   });
 
   bleDevice = device;
@@ -352,22 +461,47 @@ export async function scanAndConnect(): Promise<void> {
 
   bleServer = await device.gatt.connect();
 
-  // Primary service – write & notify characteristics
-  const primarySvc = await bleServer.getPrimaryService(PRIMARY_SERVICE);
-  writeChar = await primarySvc.getCharacteristic(WRITE_CHAR);
-  notifyChar = await primarySvc.getCharacteristic(NOTIFY_CHAR);
+  // Detect device version from name
+  const name = state.deviceName;
+  deviceVersion = name.startsWith(V2_DEVICE_NAME_PREFIX) ? 2 : 3;
+  console.log(`[bluetooth] detected Coyote ${deviceVersion}.0 — ${name}`);
 
-  // Subscribe to B1 notifications
-  await notifyChar.startNotifications();
-  notifyChar.addEventListener('characteristicvaluechanged', handleNotification);
+  if (deviceVersion === 3) {
+    // V3: single primary service with write & notify characteristics
+    const primarySvc = await bleServer.getPrimaryService(V3_PRIMARY_SERVICE);
+    writeChar = await primarySvc.getCharacteristic(V3_WRITE_CHAR);
+    notifyChar = await primarySvc.getCharacteristic(V3_NOTIFY_CHAR);
 
-  // Battery service
-  try {
-    const batSvc = await bleServer.getPrimaryService(BATTERY_SERVICE);
-    batteryChar = await batSvc.getCharacteristic(BATTERY_CHAR);
-    await readBattery();
-  } catch (_e) {
-    console.warn('[bluetooth] battery service unavailable');
+    await notifyChar.startNotifications();
+    notifyChar.addEventListener('characteristicvaluechanged', handleNotification);
+
+    // Battery
+    try {
+      const batSvc = await bleServer.getPrimaryService(V3_BATTERY_SERVICE);
+      batteryChar = await batSvc.getCharacteristic(V3_BATTERY_CHAR);
+      await readBattery();
+    } catch (_e) {
+      console.warn('[bluetooth] battery service unavailable');
+    }
+  } else {
+    // V2: separate characteristics for strength and per-channel waveform
+    const primarySvc = await bleServer.getPrimaryService(V2_PRIMARY_SERVICE);
+    v2StrengthChar = await primarySvc.getCharacteristic(V2_STRENGTH_CHAR);
+    v2WaveAChar = await primarySvc.getCharacteristic(V2_WAVE_A_CHAR);
+    v2WaveBChar = await primarySvc.getCharacteristic(V2_WAVE_B_CHAR);
+
+    // Subscribe to strength notifications (PWM_AB2 supports Notify)
+    await v2StrengthChar.startNotifications();
+    v2StrengthChar.addEventListener('characteristicvaluechanged', handleV2StrengthNotification);
+
+    // Battery
+    try {
+      const batSvc = await bleServer.getPrimaryService(V2_BATTERY_SERVICE);
+      batteryChar = await batSvc.getCharacteristic(V2_BATTERY_CHAR);
+      await readBattery();
+    } catch (_e) {
+      console.warn('[bluetooth] battery service unavailable');
+    }
   }
 
   // Reset internal state
@@ -383,20 +517,36 @@ export async function scanAndConnect(): Promise<void> {
   state.strengthA = 0;
   state.strengthB = 0;
 
-  // Send default limits via BF
-  await writeBF(state.limitA, state.limitB);
+  if (deviceVersion === 3) {
+    // V3: send default limits via BF and force strength to zero
+    await writeBF(state.limitA, state.limitB);
+    pendingStrA = 0;
+    pendingStrB = 0;
+    pendingMode = (3 << 2) | 3;
+  } else {
+    // V2: zero strength on connect (limits enforced client-side in v2Tick)
+    await v2StrengthChar!.writeValueWithoutResponse(encodeV2Strength(0, 0));
+  }
 
-  // Force device-side strength to zero on connect. The Coyote 3.0 hardware
-  // retains its last strength across Bluetooth disconnects, so without this
-  // a reconnect would resume at whatever strength the device was left at.
-  // Queueing an absolute-mode=3 value=0 here makes the first B0 tick clear
-  // both channels unconditionally.
-  pendingStrA = 0;
-  pendingStrB = 0;
-  pendingMode = (3 << 2) | 3;
+  // Start the continuous 100ms loop
+  startTickLoop();
 
-  // Start the continuous B0 loop
-  startB0Loop();
+  notify();
+}
+
+/** V2 strength notification handler (PWM_AB2 notify). */
+function handleV2StrengthNotification(event: Event): void {
+  const target = event.target as BluetoothRemoteGATTCharacteristic;
+  const dv = target.value;
+  if (!dv || dv.byteLength < 3) return;
+
+  const raw = (dv.getUint8(0) << 16) | (dv.getUint8(1) << 8) | dv.getUint8(2);
+  const rawA = (raw >> 11) & 0x7FF;
+  const rawB = raw & 0x7FF;
+
+  // Map V2 0-2047 back to unified 0-200
+  state.strengthA = Math.round(rawA * 200 / 2047);
+  state.strengthB = Math.round(rawB * 200 / 2047);
 
   notify();
 }
@@ -406,27 +556,39 @@ export async function scanAndConnect(): Promise<void> {
  */
 export async function disconnect(): Promise<void> {
   // Zero device strength before tearing down the connection, so the hardware
-  // is not left at a non-zero value after a clean disconnect. Best-effort —
-  // any failure here must not block the disconnect path.
-  if (writeChar) {
+  // is not left at a non-zero value after a clean disconnect. Best-effort.
+  waveState.A.active = false;
+  waveState.B.active = false;
+  pendingStrA = 0;
+  pendingStrB = 0;
+
+  if (deviceVersion === 3 && writeChar) {
     try {
-      waveState.A.active = false;
-      waveState.B.active = false;
-      pendingStrA = 0;
-      pendingStrB = 0;
       pendingMode = (3 << 2) | 3;
       const cmd = buildB0();
       await writeChar.writeValueWithoutResponse(cmd);
     } catch (_e) { /* best effort */ }
+  } else if (deviceVersion === 2 && v2StrengthChar) {
+    try {
+      await v2StrengthChar.writeValueWithoutResponse(encodeV2Strength(0, 0));
+    } catch (_e) { /* best effort */ }
   }
 
-  stopB0Loop();
-  if (notifyChar) {
+  stopTickLoop();
+
+  // Unsubscribe notifications
+  if (deviceVersion === 3 && notifyChar) {
     try {
       notifyChar.removeEventListener('characteristicvaluechanged', handleNotification);
       await notifyChar.stopNotifications();
     } catch (_e) { /* ignore */ }
+  } else if (deviceVersion === 2 && v2StrengthChar) {
+    try {
+      v2StrengthChar.removeEventListener('characteristicvaluechanged', handleV2StrengthNotification);
+      await v2StrengthChar.stopNotifications();
+    } catch (_e) { /* ignore */ }
   }
+
   if (bleDevice && bleDevice.gatt.connected) {
     bleDevice.gatt.disconnect();
   }
@@ -439,18 +601,16 @@ export async function disconnect(): Promise<void> {
  * @param value  0-200
  */
 export function setStrength(channel: string, value: number): void {
-  if (!writeChar) throw new Error('设备未连接');
+  if (!state.connected) throw new Error('设备未连接');
   const ch = String(channel || '').toUpperCase() as Channel;
   if (ch !== 'A' && ch !== 'B') throw new Error(`Invalid channel: ${channel}`);
   const v = clamp(toInt(value, 0), 0, 200);
   if (ch === 'A') {
     pendingStrA = v;
-    // mode bits 3-2 = channel A, set to 3 (absolute)
-    pendingMode = (pendingMode & 0x03) | (3 << 2);
+    if (deviceVersion === 3) pendingMode = (pendingMode & 0x03) | (3 << 2);
   } else {
     pendingStrB = v;
-    // mode bits 1-0 = channel B, set to 3 (absolute)
-    pendingMode = (pendingMode & 0x0C) | 3;
+    if (deviceVersion === 3) pendingMode = (pendingMode & 0x0C) | 3;
   }
 }
 
@@ -460,21 +620,29 @@ export function setStrength(channel: string, value: number): void {
  * @param delta  positive = increase, negative = decrease
  */
 export function addStrength(channel: string, delta: number): void {
-  if (!writeChar) throw new Error('设备未连接');
+  if (!state.connected) throw new Error('设备未连接');
   const ch = String(channel || '').toUpperCase() as Channel;
   if (ch !== 'A' && ch !== 'B') throw new Error(`Invalid channel: ${channel}`);
   const d = toInt(delta, 0);
   if (d === 0) return;
 
-  const mode = d > 0 ? 1 : 2;
-  const magnitude = clamp(Math.abs(d), 0, 200);
-
-  if (ch === 'A') {
-    pendingStrA = magnitude;
-    pendingMode = (pendingMode & 0x03) | (mode << 2);
+  if (deviceVersion === 2) {
+    // V2 has no relative mode — compute absolute target from current pending
+    if (ch === 'A') {
+      pendingStrA = clamp(pendingStrA + d, 0, 200);
+    } else {
+      pendingStrB = clamp(pendingStrB + d, 0, 200);
+    }
   } else {
-    pendingStrB = magnitude;
-    pendingMode = (pendingMode & 0x0C) | mode;
+    const mode = d > 0 ? 1 : 2;
+    const magnitude = clamp(Math.abs(d), 0, 200);
+    if (ch === 'A') {
+      pendingStrA = magnitude;
+      pendingMode = (pendingMode & 0x03) | (mode << 2);
+    } else {
+      pendingStrB = magnitude;
+      pendingMode = (pendingMode & 0x0C) | mode;
+    }
   }
 }
 
@@ -484,12 +652,15 @@ export function addStrength(channel: string, delta: number): void {
  * @param limitB  0-200
  */
 export function setStrengthLimit(limitA: number, limitB: number): void {
-  if (!writeChar) throw new Error('设备未连接');
+  if (!state.connected) throw new Error('设备未连接');
   state.limitA = clamp(toInt(limitA, 0), 0, 200);
   state.limitB = clamp(toInt(limitB, 0), 0, 200);
-  writeBF(state.limitA, state.limitB).catch((err: unknown) => {
-    console.error('[bluetooth] BF write error:', err);
-  });
+  // V3: send BF command to hardware; V2: limits enforced client-side in v2Tick
+  if (deviceVersion === 3) {
+    writeBF(state.limitA, state.limitB).catch((err: unknown) => {
+      console.error('[bluetooth] BF write error:', err);
+    });
+  }
   notify();
 }
 
@@ -504,7 +675,7 @@ export function sendWave(
   frames: WaveFrame[],
   loop: boolean = false,
 ): void {
-  if (!writeChar) throw new Error('设备未连接');
+  if (!state.connected) throw new Error('设备未连接');
   const ch = String(channel || '').toUpperCase() as Channel;
   if (ch !== 'A' && ch !== 'B') throw new Error(`Invalid channel: ${channel}`);
   if (!Array.isArray(frames) || frames.length === 0) {
@@ -524,7 +695,7 @@ export function sendWave(
  * @param channel  'A', 'B', or null/undefined for both
  */
 export function stopWave(channel?: string | null): void {
-  if (!writeChar) throw new Error('设备未连接');
+  if (!state.connected) throw new Error('设备未连接');
   let channels: Channel[];
   if (channel) {
     const ch = String(channel).toUpperCase() as Channel;
@@ -576,16 +747,20 @@ export function emergencyStop(): void {
   waveState.B.frames = null;
   waveState.B.index = 0;
 
-  // Set strength to zero (absolute mode = 3)
+  // Set strength to zero
   pendingStrA = 0;
   pendingStrB = 0;
-  pendingMode = (3 << 2) | 3; // absolute zero for both channels
 
-  // Send one final B0 immediately if possible
-  if (writeChar) {
+  // Send one final zero command immediately if possible
+  if (deviceVersion === 3 && writeChar) {
     try {
+      pendingMode = (3 << 2) | 3;
       const cmd = buildB0();
       writeChar.writeValueWithoutResponse(cmd);
+    } catch (_) { /* best effort */ }
+  } else if (deviceVersion === 2 && v2StrengthChar) {
+    try {
+      v2StrengthChar.writeValueWithoutResponse(encodeV2Strength(0, 0));
     } catch (_) { /* best effort */ }
   }
 
