@@ -200,8 +200,13 @@ export function scrollToBottom(force = false): void {
 function renderMarkdown(src: string): string {
   if (!src) return '';
 
-  // Fenced code blocks: ```lang\n...\n```
   let html = escapeHtml(src);
+
+  // Process <think> and <thinking> tags into collapsible blocks
+  html = html.replace(/(?:&lt;|<)think(ing)?(?:&gt;|>)([\s\S]*?)(?:&lt;|<)\/think(ing)?(?:&gt;|>)\s*/gi, (_match: string, _ing1: string, content: string) => {
+    const escapedContent = escapeHtml(content.trim());
+    return `<details class="thinking-block"><summary>\uD83D\uDCA1 思考过程</summary><div class="thinking-content">${escapedContent}</div></details>`;
+  });
 
   // Code blocks (``` ... ```)
   html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_m: string, _lang: string, code: string) => {
