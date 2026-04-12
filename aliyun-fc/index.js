@@ -1,20 +1,16 @@
 /**
- * Aliyun Function Compute (FC 3.0) — DG-Agent Free Tier Proxy (CN)
+ * Aliyun Function Compute (FC 3.0) — DG-Agent Free Tier Proxy
  *
  * Rate-limited proxy to Qwen Bailian Responses API.
- * Domestic counterpart of worker/worker.js — same behavior, runs inside China
- * on the same cloud as DashScope for low latency and stable access.
  *
  * Deploy (FC 3.0 Console):
- *   1. Create function → Web Function → Runtime: Node.js 20
+ *   1. Create function -> Web Function -> Runtime: Node.js 20
  *   2. Region: cn-hangzhou (same as DashScope for lowest latency)
- *   3. Upload this folder as zip (index.js + package.json), or paste inline
+ *   3. Upload this folder as zip, or paste inline
  *   4. Environment variables:
  *        BAILIAN_API_KEY = sk-xxx   (your Qwen Bailian API key)
  *   5. HTTP Trigger: authentication = anonymous
  *   6. Listen port: 9000 (FC web function default)
- *   7. After deploy, copy the *.fcapp.run URL and set it as
- *      FREE_PROXY_URL_CN in src/agent/ai-service.ts
  */
 
 const http = require('http');
@@ -26,6 +22,7 @@ const ALLOWED_ORIGINS = [
 ];
 const PORT = parseInt(process.env.FC_SERVER_PORT || '9000', 10);
 
+// In-memory rate limit map: ip -> { minute, count }
 const rateLimitMap = new Map();
 let lastCleanup = 0;
 function cleanupRateLimitMap() {
