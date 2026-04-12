@@ -23,8 +23,10 @@ const BUILD_ID = computeBuildId();
 // Derive the Pages base path from GITHUB_REPOSITORY (set by Actions) so the
 // same config works for any fork/mirror — e.g. DG-Agent → /DG-Agent/,
 // DG-Agent-dev → /DG-Agent-dev/. Falls back to /DG-Agent/ for local builds.
+// For Capacitor Android builds, use relative path so assets load from file://.
+const isCapacitorBuild = process.env.CAPACITOR_BUILD === 'true';
 const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1];
-const BASE_PATH = repoName ? `/${repoName}/` : '/DG-Agent/';
+const BASE_PATH = isCapacitorBuild ? './' : (repoName ? `/${repoName}/` : '/DG-Agent/');
 
 // Writes dist/version.json after the bundle is emitted. The client polls this
 // file (with cache-busting) to detect new deployments.

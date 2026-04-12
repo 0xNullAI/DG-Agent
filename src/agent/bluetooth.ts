@@ -4,6 +4,7 @@
  */
 
 import type { DeviceState, Channel, WaveFrame } from '../types';
+import { getBleAdapter } from '../platform';
 
 // ---------------------------------------------------------------------------
 // Minimal Web Bluetooth type declarations (not in standard DOM lib)
@@ -442,7 +443,7 @@ export async function scanAndConnect(): Promise<void> {
     throw new Error('Already connected');
   }
 
-  const bt = (navigator as any).bluetooth as any;
+  const bt = getBleAdapter();
   const device: BluetoothDevice = await bt.requestDevice({
     filters: [
       { namePrefix: V3_DEVICE_NAME_PREFIX },

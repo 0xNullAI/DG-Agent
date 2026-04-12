@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DG Agent</string>
+    <string name="title_activity_main">DG Agent</string>
+    <string name="package_name">com.dgagent.app</string>
+    <string name="custom_url_scheme">com.dgagent.app</string>
+</resources>
