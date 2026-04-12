@@ -4,11 +4,7 @@ const config: CapacitorConfig = {
   appId: 'com.dgagent.app',
   appName: 'DG Agent',
   webDir: 'dist',
-  server: {
-    // Load web assets from GitHub Pages — App auto-syncs with the web version.
-    url: 'https://0xnullai.github.io/DG-Agent/',
-  },
-  plugins: {
+plugins: {
     BluetoothLe: {
       // Display strings shown in the Android system permission dialog
       displayStrings: {
