@@ -263,13 +263,7 @@ function showWelcomeMessage(): void {
 // ---------------------------------------------------------------------------
 
 async function handleSendMessage(text: string): Promise<void> {
-  chat.setChatBusy(true);
-  const customPrompt = ($('custom-system-prompt') as HTMLTextAreaElement | null)?.value || '';
-  try {
-    await conversation.sendMessage(text, customPrompt);
-  } finally {
-    chat.setChatBusy(false);
-  }
+  await conversation.sendMessage(text);
 }
 
 // ---------------------------------------------------------------------------
@@ -313,19 +307,24 @@ export function boot(): void {
   // Mandatory safety notice — shown on every page load, 10s lockout.
   showSafetyNotice();
 
-  // Register conversation callbacks (agent → UI bridge)
-  conversation.registerCallbacks({
-    onUserMessage: (text) => chat.addUserMessage(text),
-    onAssistantStream: (text, msgId) => chat.addAssistantMessage(text, msgId),
-    onAssistantFinalize: (msgId) => chat.finalizeAssistantMessage(msgId),
-    onAssistantDiscard: (msgId) => chat.removeAssistantMessage(msgId),
-    onToolCall: (name, args, result) => chat.addToolNotification(name, args, result),
-    onTypingStart: () => chat.showTyping(),
-    onTypingEnd: () => chat.hideTyping(),
-    onError: (msg) => chat.addAssistantMessage(msg),
-    onHistoryChange: () => sidebar.renderList(),
-    onRequestPermission: (name, args) => askPermission(name, args),
-  });
+  // Init conversation
+  conversation.initConversation(
+    {
+      onUserMessage: (text) => chat.addUserMessage(text),
+      onAssistantStream: (text, msgId) => chat.addAssistantMessage(text, msgId),
+      onAssistantFinalize: (msgId) => chat.finalizeAssistantMessage(msgId),
+      onAssistantDiscard: (msgId) => chat.removeAssistantMessage(msgId),
+      onToolCall: (name, args, result) => chat.addToolNotification(name, args, result),
+      onSystemMessage: (text) => chat.addSystemMessage(text),
+      onTypingStart: () => chat.showTyping(),
+      onTypingEnd: () => chat.hideTyping(),
+      onBusyChange: (busy) => chat.setChatBusy(busy),
+      onError: (msg) => chat.addAssistantMessage(msg),
+      onHistoryChange: () => sidebar.renderList(),
+      onFetchCustomPrompt: () => ($('custom-system-prompt') as HTMLTextAreaElement | null)?.value || '',
+      onRequestPermission: (name, args) => askPermission(name, args),
+    }
+  );
 
   // Init sub-modules
   chat.initChat({
@@ -407,6 +406,7 @@ export function boot(): void {
   // visibility change. Always cancel pending burst-restores first so a
   // backgrounded page can't revive the device after the emergency stop.
   function fullStop(): void {
+    try { conversation.fullStopConversation(); } catch (_) { /* */ }
     try { cancelAllBurstRestores(); } catch (_) { /* */ }
     if (bluetooth.state.connected) {
       try { bluetooth.emergencyStop(); } catch (_) { /* */ }
@@ -424,6 +424,7 @@ export function boot(): void {
 
   // Emergency stop button
   $('btn-emergency-stop')?.addEventListener('click', async () => {
+    try { conversation.fullStopConversation(); } catch (_) { /* */ }
     try { await executeTool('stop', {}); } catch (_) { /* */ }
     chat.addSystemMessage('\u26A1 紧急停止：已停止所有波形、强度归零');
   });

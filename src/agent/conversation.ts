@@ -17,7 +17,13 @@
 import type { AgentSink, ConversationItem, ConversationRecord } from '../types';
 import * as history from './history';
 import { buildInstructions } from './prompts';
-import { getTools, executeTool } from './tools';
+import {
+  getTools,
+  executeTool,
+  cancelAllTimers,
+  initTimer,
+  type ScheduledTimer,
+} from './tools';
 import * as bt from './bluetooth';
 import { runTurn } from './runner';
 import { resolveProviderConfig } from './transport';
@@ -31,6 +37,24 @@ import {
   type PermissionChoice,
 } from './permissions';
 
+export function initConversation(
+  callbacks: ConversationCallbacks,
+): void {
+  initConversationCallbacks(callbacks);
+  initConversationTools();
+}
+
+export function resetConversation(): void {
+  abortCurrent();
+  resetConversationTools();
+  store.items = [];
+  store.current = null;
+}
+
+export function fullStopConversation(): void {
+  resetConversationTools()
+}
+
 // ---------------------------------------------------------------------------
 // UI callback contract
 // ---------------------------------------------------------------------------
@@ -41,10 +65,13 @@ export interface ConversationCallbacks {
   onAssistantFinalize: (msgId: string) => void;
   onAssistantDiscard: (msgId: string) => void;
   onToolCall: (name: string, args: Record<string, unknown>, result: string) => void;
+  onSystemMessage: (text: string) => void;
   onTypingStart: () => void;
   onTypingEnd: () => void;
   onError: (message: string) => void;
+  onBusyChange: (isBusy: boolean) => void;
   onHistoryChange: () => void;
+  onFetchCustomPrompt?: () => string;
   /**
    * Prompt the user to allow or deny a mutating tool call. The UI should
    * show a modal with the four standard scopes (once / timed / always /
@@ -59,7 +86,7 @@ export interface ConversationCallbacks {
 
 let callbacks: ConversationCallbacks | null = null;
 
-export function registerCallbacks(cb: ConversationCallbacks): void {
+function initConversationCallbacks(cb: ConversationCallbacks): void {
   callbacks = cb;
 }
 
@@ -86,6 +113,46 @@ let currentAbort: AbortController | null = null;
  */
 export function abortCurrent(): void {
   if (currentAbort) currentAbort.abort();
+}
+
+// -----------------------------------------------------------
+// Conversation tools — timers for now, but could be more in the future
+// -----------------------------------------------------------
+
+export function initConversationTools(): void {
+  initTimer((timer) => {
+    if (!store.current || !callbacks) return;
+    callbacks.onSystemMessage(`⏰ 定时器「${timer.label}」已到期。`);
+    pendingTimers.push(timer);
+    void drainPendingTimers();
+  });
+}
+
+export function resetConversationTools(): void {
+  cancelAllTimers();
+  pendingTimers.length = 0;
+}
+
+const pendingTimers: ScheduledTimer[] = [];
+
+async function drainPendingTimers(): Promise<void> {
+  if (store.isProcessing || !store.current || !callbacks) return;
+
+  const timer = pendingTimers.shift();
+  if (!timer) return;
+
+  const trigger: ConversationItem = {
+    role: 'user',
+    content:
+      `[系统事件：定时器到期]\n` +
+      `label: ${timer.label}\n` +
+      `seconds: ${timer.seconds}\n` +
+      '这是你之前设置的内部提醒。请根据当前设备状态和对话上下文继续后续流程；若需要操作设备，先调用工具，再正常回复用户。',
+  };
+
+  await runConversationTurn(
+    tailWithPrevExchange([...store.items, trigger]),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -160,14 +227,14 @@ export function setActivePresetId(id: string): void {
 }
 
 export function loadConversation(conv: ConversationRecord): void {
+  resetConversation();
   store.items = sanitize(conv.items);
   store.current = conv;
   store.activePresetId = conv.presetId || 'gentle';
 }
 
 export function startNewConversation(): void {
-  store.items = [];
-  store.current = null;
+  resetConversation();
   // A fresh conversation should not inherit broad trust granted earlier:
   //   - the session-wide 'always' mode is revoked
   //   - every per-tool grant accumulated via the dialog is wiped
@@ -232,27 +299,20 @@ class ChatSink implements AgentSink {
   }
 }
 
-// ---------------------------------------------------------------------------
-// sendMessage — the only mutation entry point
-// ---------------------------------------------------------------------------
-
-export async function sendMessage(text: string, customPrompt: string): Promise<void> {
+async function runConversationTurn(
+  conversationItems: readonly ConversationItem[],
+  customPrompt?: string,
+): Promise<void> {
   if (store.isProcessing || !callbacks) return;
   store.isProcessing = true;
 
   const cb = callbacks;
-  cb.onUserMessage(text);
-  store.items.push({ role: 'user', content: text });
-
-  if (!store.current) {
-    store.current = history.createConversation(store.activePresetId);
-  }
-
   const sink = new ChatSink(cb);
-  cb.onTypingStart();
-
   const abort = new AbortController();
   currentAbort = abort;
+
+  cb.onBusyChange(true);
+  cb.onTypingStart();
 
   // Permission gate:
   //   1. Only mutating tools are gated at all
@@ -278,14 +338,11 @@ export async function sendMessage(text: string, customPrompt: string): Promise<v
 
   try {
     const finalItems = await runTurn({
-      // Keep only the previous exchange (prior user + its reply) plus the
-      // current user message. store.items still holds the full history for
-      // UI / localStorage; we only trim what goes up to the LLM.
-      conversationItems: tailWithPrevExchange(store.items),
+      conversationItems,
       buildInstructions: (deviceStatus, isFirstIteration, turnToolCalls) =>
         buildInstructions({
           presetId: store.activePresetId,
-          customPrompt,
+          customPrompt: customPrompt == null ? (cb.onFetchCustomPrompt?.() || '') : customPrompt,
           deviceStatus,
           isFirstIteration,
           turnToolCalls,
@@ -332,5 +389,34 @@ export async function sendMessage(text: string, customPrompt: string): Promise<v
 
     pruneItems();
     store.isProcessing = false;
+
+    if (pendingTimers.length > 0 && store.current) {
+      queueMicrotask(() => {
+        void drainPendingTimers();
+      });
+      return;
+    }
+
+    cb.onBusyChange(false);
   }
+}
+
+// ---------------------------------------------------------------------------
+// sendMessage — the only mutation entry point
+// ---------------------------------------------------------------------------
+
+export async function sendMessage(text: string): Promise<void> {
+
+  if (store.isProcessing || !callbacks) return;
+  callbacks.onUserMessage(text);
+  store.items.push({ role: 'user', content: text });
+
+  if (!store.current) {
+    store.current = history.createConversation(store.activePresetId);
+  }
+
+  // Keep only the previous exchange (prior user + its reply) plus the
+  // current user message. store.items still holds the full history for
+  // UI / localStorage; we only trim what goes up to the LLM.
+  await runConversationTurn(tailWithPrevExchange(store.items), callbacks.onFetchCustomPrompt?.() || '');
 }
