@@ -3,11 +3,22 @@
  * Each tool co-locates its schema and handler. Common boilerplate is unified.
  */
 
-import type { ToolDef, UserWaveform } from '../types';
+import type { ToolDef, UserWaveform, WaveFrame } from '../types';
 import * as bt from './bluetooth';
 import { getMaxStrength } from './providers';
 import { MAX_START_STRENGTH, MAX_BURST_DURATION_MS } from './policies';
 import * as waveforms from './waveforms';
+
+// ---------------------------------------------------------------------------
+// Waveform creation constraints
+// ---------------------------------------------------------------------------
+
+const MAX_WAVEFORM_FRAMES = 50;   // 50 frames = 5 seconds max
+const MIN_WAVEFORM_FRAMES = 3;    // At least 3 frames for meaningful patterns
+const MIN_FREQUENCY = 10;
+const MAX_FREQUENCY = 1000;
+const MIN_INTENSITY = 0;
+const MAX_INTENSITY = 100;
 
 // ---------------------------------------------------------------------------
 // Shared helpers
@@ -220,6 +231,50 @@ function buildToolDefs(): ToolDef[] {
         required: ['channel', 'strength', 'duration_ms'],
       },
     },
+    {
+      name: 'create_waveform',
+      description:
+        '【创建波形工具】根据需求生成自定义波形并添加到波形库中。创建后可立即用于 start 或 change_wave。\n\n' +
+        '**何时使用**：\n' +
+        '• 用户要求创建特定节奏的波形（"做一个每3秒一次脉冲的波形"、"设计一个渐强模式"）\n' +
+        '• 现有波形无法满足需求，需要定制化设计\n' +
+        '• 用户描述想要的刺激模式（"像心跳一样"、"波浪式递增"）\n\n' +
+        '**帧结构说明**：\n' +
+        '• frames 是一个数组，每帧 = [frequency, intensity]\n' +
+        '• frequency: 10-1000 (Hz)，越高越密集。常用值 10-30\n' +
+        '• intensity: 0-100 (%)，刺激强度百分比\n' +
+        '• 帧速率为 10 fps（每帧 = 100ms），总时长 = 帧数 × 100ms\n\n' +
+        '**设计建议**：\n' +
+        '• 帧数限制 3-50 帧（0.3-5秒）\n' +
+        '• 简单节奏用少量帧，如心跳：[[10,100],[10,0],[10,100],[10,0]]\n' +
+        '• 复杂节奏可用更多帧，如渐强：[[10,0],[10,20],[10,40],[10,60],[10,80],[10,100]]',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: '波形名称，中文或英文，如 "心跳"、"渐强脉冲"。用于后续 start/change_wave 时引用。',
+          },
+          description: {
+            type: 'string',
+            description: '波形描述，说明其特点和使用场景，如 "模拟心跳节奏，适合快节奏刺激"。',
+          },
+          frames: {
+            type: 'array',
+            description: `帧数组，每帧 [frequency, intensity]。频率 ${MIN_FREQUENCY}-${MAX_FREQUENCY}Hz，强度 ${MIN_INTENSITY}-${MAX_INTENSITY}。帧数 ${MIN_WAVEFORM_FRAMES}-${MAX_WAVEFORM_FRAMES} 帧。`,
+            items: {
+              type: 'array',
+              items: { type: 'number' },
+              minItems: 2,
+              maxItems: 2,
+            },
+            minItems: MIN_WAVEFORM_FRAMES,
+            maxItems: MAX_WAVEFORM_FRAMES,
+          },
+        },
+        required: ['name', 'frames'],
+      },
+    },
   ];
 }
 
@@ -333,6 +388,52 @@ const HANDLERS: Record<string, Handler> = {
       },
       willRestoreAt: Date.now() + clampedDuration,
       _note: `${clampedDuration}ms 后强度必定回落到不高于 ${prev} 的水平——这是安全硬保证，不会因为其它工具调用而取消。`,
+    };
+  },
+
+  create_waveform({ name, description, frames }) {
+    if (!Array.isArray(frames) || frames.length < MIN_WAVEFORM_FRAMES) {
+      throw new Error(`frames 必须至少包含 ${MIN_WAVEFORM_FRAMES} 帧`);
+    }
+    if (frames.length > MAX_WAVEFORM_FRAMES) {
+      throw new Error(`frames 最多 ${MAX_WAVEFORM_FRAMES} 帧，当前 ${frames.length} 帧`);
+    }
+
+    const validatedFrames: WaveFrame[] = [];
+    for (let i = 0; i < frames.length; i++) {
+      const frame = frames[i];
+      if (!Array.isArray(frame) || frame.length !== 2) {
+        throw new Error(`第 ${i + 1} 帧格式错误，应为 [frequency, intensity]`);
+      }
+      const [freq, intensity] = frame;
+      const freqNum = Number(freq);
+      const intensityNum = Number(intensity);
+
+      if (!Number.isFinite(freqNum) || freqNum < MIN_FREQUENCY || freqNum > MAX_FREQUENCY) {
+        throw new Error(`第 ${i + 1} 帧 frequency 超出范围 ${MIN_FREQUENCY}-${MAX_FREQUENCY}Hz`);
+      }
+      if (!Number.isFinite(intensityNum) || intensityNum < MIN_INTENSITY || intensityNum > MAX_INTENSITY) {
+        throw new Error(`第 ${i + 1} 帧 intensity 超出范围 ${MIN_INTENSITY}-${MAX_INTENSITY}%`);
+      }
+
+      validatedFrames.push([freqNum, intensityNum]);
+    }
+
+    const waveform = waveforms.addWaveform({
+      name: String(name || '自定义波形').trim() || '自定义波形',
+      description: String(description || '').trim(),
+      frames: validatedFrames,
+    });
+
+    return {
+      success: true,
+      id: waveform.id,
+      name: waveform.name,
+      description: waveform.description,
+      frameCount: validatedFrames.length,
+      duration_ms: validatedFrames.length * 100,
+      usage: `创建成功！可使用 start(channel=A, waveform=${waveform.id}) 或 change_wave(channel=A, waveform=${waveform.id}) 立即播放此波形`,
+      _note: `波形已添加到库中，可在设置页面的"波形"标签页查看和管理`,
     };
   },
 };
