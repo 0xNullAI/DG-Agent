@@ -927,6 +927,51 @@ html, body {
   gap: 16px;
 }
 
+.settings-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.78em;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 4px;
+}
+.settings-section-title::before,
+.settings-section-title::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.segmented {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  gap: 2px;
+}
+.segmented-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  padding: 5px 14px;
+  font-size: 0.85em;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.segmented-btn:hover:not(.active) {
+  color: var(--text-1);
+}
+.segmented-btn.active {
+  background: var(--accent);
+  color: var(--user-text);
+}
 .settings-top-tabs { margin-bottom: 4px; }
 
 /* Provider tabs in settings */
@@ -1055,7 +1100,7 @@ html, body {
   height: 22px;
   border-radius: 6px;
   background: var(--accent);
-  color: #fff;
+  color: var(--user-text);
   font-size: 12px;
   font-weight: 700;
   flex-shrink: 0;
@@ -1109,11 +1154,13 @@ html, body {
   text-align: center;
   padding: 0;
   outline: none;
+  appearance: textfield;
   -moz-appearance: textfield;
 }
 
 .strength-stepper-input::-webkit-outer-spin-button,
 .strength-stepper-input::-webkit-inner-spin-button {
+  appearance: none;
   -webkit-appearance: none;
   margin: 0;
 }
@@ -1608,7 +1655,7 @@ body.safety-notice-open {
 
 .safety-notice-btn:not(:disabled) {
   background: var(--accent);
-  color: #fff;
+  color: var(--user-text);
   cursor: pointer;
 }
 
@@ -1930,7 +1977,7 @@ body.safety-notice-open {
   cursor: pointer;
   font-size: 13px;
 }
-.waveform-actions .btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.waveform-actions .btn-primary { background: var(--accent); color: var(--user-text); border-color: var(--accent); }
 .waveform-actions .btn-primary:hover { filter: brightness(1.05); }
 .waveform-actions .btn-secondary:hover { background: var(--bg-hover, rgba(0,0,0,0.04)); }
 
