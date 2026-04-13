@@ -152,6 +152,8 @@ async function drainPendingTimers(): Promise<void> {
 
   await runConversationTurn(
     tailWithPrevExchange([...store.items, trigger]),
+    undefined,
+    false /* don't store the timer-triggered system message in the conversation history */,
   );
 }
 
@@ -302,6 +304,7 @@ class ChatSink implements AgentSink {
 async function runConversationTurn(
   conversationItems: readonly ConversationItem[],
   customPrompt?: string,
+  persistTurn: boolean = true,
 ): Promise<void> {
   if (store.isProcessing || !callbacks) return;
   store.isProcessing = true;
@@ -355,8 +358,9 @@ async function runConversationTurn(
       signal: abort.signal,
       requestPermission,
     });
-
-    store.items.push(...finalItems);
+    if (persistTurn) {
+      store.items.push(...finalItems);
+    }
   } catch (err: any) {
     // Drop any in-flight streamed bubble regardless of the failure mode.
     sink.discardPendingBubble();
@@ -366,20 +370,24 @@ async function runConversationTurn(
       // a complete pair, but do NOT emit cb.onError (not a real error).
       const note = '⏹ 已手动中止';
       sink.onTextInline(note);
-      store.items.push({ role: 'assistant', content: note });
+      if (persistTurn) {
+        store.items.push({ role: 'assistant', content: note });
+      }
     } else {
       console.error('[conversation] runTurn failed:', err);
       const friendly = classifyError(err);
       cb.onError(friendly);
       // Persist as assistant item so reloads show a complete user/assistant
       // pair instead of an orphan user message at the tail.
-      store.items.push({ role: 'assistant', content: friendly });
+      if (persistTurn) {
+        store.items.push({ role: 'assistant', content: friendly });
+      }
     }
   } finally {
     currentAbort = null;
     cb.onTypingEnd();
 
-    if (store.current) {
+    if (persistTurn && store.current) {
       store.current.items = [...store.items];
       store.current.title = history.generateTitle(store.items);
       store.current.updatedAt = Date.now();
