@@ -91,6 +91,7 @@ export function setOnStatusChange(fn: ((status: DeviceState) => void) | null): v
 let bleDevice: BluetoothDevice | null = null;
 let bleServer: BluetoothRemoteGATTServer | null = null;
 let batteryChar: BluetoothRemoteGATTCharacteristic | null = null;
+let tickWorker: Worker | null = null;
 let tickInterval: ReturnType<typeof setInterval> | null = null;
 
 // Device version detected on connect
@@ -366,25 +367,51 @@ async function writeBF(limitA: number, limitB: number): Promise<void> {
 // ---------------------------------------------------------------------------
 // 100 ms tick loop (V3: B0 packet, V2: separate characteristic writes)
 // ---------------------------------------------------------------------------
-function startTickLoop(): void {
-  if (tickInterval) return;
-  tickInterval = setInterval(async () => {
-    try {
-      if (deviceVersion === 3) {
-        if (!writeChar) return;
-        const cmd = buildB0();
-        await writeChar.writeValueWithoutResponse(cmd);
-      } else {
-        await v2Tick();
-      }
-      notify();
-    } catch (err) {
-      console.error('[bluetooth] tick error:', err);
+async function onTick(): Promise<void> {
+  try {
+    if (deviceVersion === 3) {
+      if (!writeChar) return;
+      const cmd = buildB0();
+      await writeChar.writeValueWithoutResponse(cmd);
+    } else {
+      await v2Tick();
     }
-  }, 100);
+    notify();
+  } catch (err) {
+    console.error('[bluetooth] tick error:', err);
+  }
+}
+
+/**
+ * Create a Web Worker from an inline blob so we don't need a separate file.
+ * The worker simply runs setInterval and posts a message every 100ms.
+ * Worker timers are NOT throttled when the page is hidden.
+ */
+function createTickWorker(): Worker {
+  const code = 'let t;onmessage=e=>{if(e.data==="start"){if(t)return;t=setInterval(()=>postMessage(1),100)}else{clearInterval(t);t=null}}';
+  const blob = new Blob([code], { type: 'application/javascript' });
+  return new Worker(URL.createObjectURL(blob));
+}
+
+function startTickLoop(): void {
+  if (tickWorker || tickInterval) return;
+  try {
+    tickWorker = createTickWorker();
+    tickWorker.onmessage = () => onTick();
+    tickWorker.postMessage('start');
+  } catch (_) {
+    // Worker creation can fail (e.g. CSP restrictions) — fall back to setInterval
+    console.warn('[bluetooth] Worker unavailable, falling back to setInterval');
+    tickInterval = setInterval(() => onTick(), 100);
+  }
 }
 
 function stopTickLoop(): void {
+  if (tickWorker) {
+    tickWorker.postMessage('stop');
+    tickWorker.terminate();
+    tickWorker = null;
+  }
   if (tickInterval) {
     clearInterval(tickInterval);
     tickInterval = null;
