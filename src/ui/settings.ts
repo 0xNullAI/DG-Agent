@@ -102,9 +102,9 @@ function renderPageConfig(): void {
   seg.setAttribute('aria-label', '主题模式');
 
   const options: Array<{ mode: theme.ThemeMode; label: string }> = [
-    { mode: 'auto',  label: '跟随系统' },
+    { mode: 'auto', label: '跟随系统' },
     { mode: 'light', label: '浅色' },
-    { mode: 'dark',  label: '深色' },
+    { mode: 'dark', label: '深色' },
   ];
 
   const current = theme.getMode();
@@ -205,10 +205,14 @@ export function updateCurrentAiLabel(): void {
 export function saveCurrentSettings(): void {
   const saved = loadSettings();
 
-  const inputs = document.querySelectorAll<HTMLInputElement | HTMLSelectElement>('.provider-cfg-input');
+  const inputs = document.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+    '.provider-cfg-input',
+  );
   if (inputs.length > 0) {
     const currentCfg: Record<string, string> = {};
-    inputs.forEach((inp) => { currentCfg[inp.dataset.key!] = inp.value; });
+    inputs.forEach((inp) => {
+      currentCfg[inp.dataset.key!] = inp.value;
+    });
     saved.configs[saved.provider] = currentCfg;
   }
 
@@ -241,9 +245,7 @@ function renderBehaviorSettings(saved: AppSettings): void {
   capsRow.className = 'max-strength-row';
 
   const makeStepper = (channel: 'A' | 'B'): HTMLDivElement => {
-    const initial = normalizeCap(
-      channel === 'A' ? saved.maxStrengthA : saved.maxStrengthB,
-    );
+    const initial = normalizeCap(channel === 'A' ? saved.maxStrengthA : saved.maxStrengthB);
 
     const card = document.createElement('div');
     card.className = 'strength-stepper';
@@ -297,7 +299,9 @@ function renderBehaviorSettings(saved: AppSettings): void {
           const cur = channel === 'A' ? status.strengthA : status.strengthB;
           if (cur > next) bluetooth.setStrength(channel, next);
         }
-      } catch (_) { /* ignore */ }
+      } catch (_) {
+        /* ignore */
+      }
     };
 
     const bump = (delta: number): void => {
@@ -413,17 +417,16 @@ function renderPermissionModeControl(parent: HTMLElement): void {
     sub: string;
     cls: string;
   }> = [
-    { mode: 'ask',    label: '每次询问',      sub: '推荐，最安全',       cls: 'ask'    },
-    { mode: 'timed',  label: '5 分钟内免询问', sub: '到期自动恢复询问',  cls: 'timed'  },
-    { mode: 'always', label: '全部允许',      sub: '高风险，不再弹窗',   cls: 'always' },
+    { mode: 'ask', label: '每次询问', sub: '推荐，最安全', cls: 'ask' },
+    { mode: 'timed', label: '5 分钟内免询问', sub: '到期自动恢复询问', cls: 'timed' },
+    { mode: 'always', label: '全部允许', sub: '高风险，不再弹窗', cls: 'always' },
   ];
 
   options.forEach((opt) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className =
-      `perm-mode-btn perm-mode-btn-${opt.cls}` +
-      (opt.mode === currentMode ? ' active' : '');
+      `perm-mode-btn perm-mode-btn-${opt.cls}` + (opt.mode === currentMode ? ' active' : '');
     btn.dataset.mode = opt.mode;
     btn.setAttribute('role', 'radio');
     btn.setAttribute('aria-checked', String(opt.mode === currentMode));
@@ -526,7 +529,8 @@ function renderWaveformsPanel(): void {
     : `当前 ${list.length} 个波形，建议不超过 10 个——波形数量会影响 AI 性能。`;
   hint.textContent =
     '支持导入单个 .pulse 文件或包含多个 .pulse 的 .zip 压缩包。导入后可手动编辑名称和说明，这些信息会被 AI 用来选择合适的波形。' +
-    '\n\n' + countLine;
+    '\n\n' +
+    countLine;
   hint.style.whiteSpace = 'pre-line';
   if (over) hint.style.color = 'var(--color-danger, #d33)';
   container.appendChild(hint);

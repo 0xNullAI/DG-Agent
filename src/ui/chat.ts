@@ -133,7 +133,11 @@ export function removeAssistantMessage(id: string): void {
 }
 
 /** Add a compact, collapsible tool-call notification. */
-export function addToolNotification(toolName: string, args: Record<string, unknown>, result: string): void {
+export function addToolNotification(
+  toolName: string,
+  args: Record<string, unknown>,
+  result: string,
+): void {
   const el = document.createElement('div');
   el.className = 'tool-notification';
 
@@ -159,7 +163,8 @@ export function showTyping(): void {
   typingEl = document.createElement('div');
   typingEl.className = 'typing-indicator';
   typingEl.id = 'typing-indicator';
-  typingEl.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+  typingEl.innerHTML =
+    '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
   messagesEl.appendChild(typingEl);
   scrollToBottom();
 }

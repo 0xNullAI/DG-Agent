@@ -69,14 +69,12 @@ export interface FunctionCallOutputItem {
 }
 
 /** Any item in a conversation — can be passed directly as Responses API input */
-export type ConversationItem =
-  | UserItem
-  | AssistantItem
-  | FunctionCallItem
-  | FunctionCallOutputItem;
+export type ConversationItem = UserItem | AssistantItem | FunctionCallItem | FunctionCallOutputItem;
 
 /** Extract displayable text from a conversation item */
-export function getItemText(item: ConversationItem): { role: 'user' | 'assistant'; text: string } | null {
+export function getItemText(
+  item: ConversationItem,
+): { role: 'user' | 'assistant'; text: string } | null {
   if (!item) return null;
   const it = item as any;
   if (it.type === 'function_call' || it.type === 'function_call_output') return null;

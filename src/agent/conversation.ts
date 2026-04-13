@@ -17,13 +17,7 @@
 import type { AgentSink, ConversationItem, ConversationRecord } from '../types';
 import * as history from './history';
 import { buildInstructions } from './prompts';
-import {
-  getTools,
-  executeTool,
-  cancelAllTimers,
-  initTimer,
-  type ScheduledTimer,
-} from './tools';
+import { getTools, executeTool, cancelAllTimers, initTimer, type ScheduledTimer } from './tools';
 import * as bt from './bluetooth';
 import { runTurn } from './runner';
 import { resolveProviderConfig } from './transport';
@@ -37,9 +31,7 @@ import {
   type PermissionChoice,
 } from './permissions';
 
-export function initConversation(
-  callbacks: ConversationCallbacks,
-): void {
+export function initConversation(callbacks: ConversationCallbacks): void {
   initConversationCallbacks(callbacks);
   initConversationTools();
 }
@@ -52,7 +44,7 @@ export function resetConversation(): void {
 }
 
 export function fullStopConversation(): void {
-  resetConversationTools()
+  resetConversationTools();
 }
 
 // ---------------------------------------------------------------------------
@@ -345,7 +337,7 @@ async function runConversationTurn(
       buildInstructions: (deviceStatus, isFirstIteration, turnToolCalls) =>
         buildInstructions({
           presetId: store.activePresetId,
-          customPrompt: customPrompt == null ? (cb.onFetchCustomPrompt?.() || '') : customPrompt,
+          customPrompt: customPrompt == null ? cb.onFetchCustomPrompt?.() || '' : customPrompt,
           deviceStatus,
           isFirstIteration,
           turnToolCalls,
@@ -414,7 +406,6 @@ async function runConversationTurn(
 // ---------------------------------------------------------------------------
 
 export async function sendMessage(text: string): Promise<void> {
-
   if (store.isProcessing || !callbacks) return;
   callbacks.onUserMessage(text);
   store.items.push({ role: 'user', content: text });
@@ -426,5 +417,8 @@ export async function sendMessage(text: string): Promise<void> {
   // Keep only the previous exchange (prior user + its reply) plus the
   // current user message. store.items still holds the full history for
   // UI / localStorage; we only trim what goes up to the LLM.
-  await runConversationTurn(tailWithPrevExchange(store.items), callbacks.onFetchCustomPrompt?.() || '');
+  await runConversationTurn(
+    tailWithPrevExchange(store.items),
+    callbacks.onFetchCustomPrompt?.() || '',
+  );
 }

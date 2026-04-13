@@ -61,8 +61,7 @@ export function resolveProviderConfig(): TransportConfig {
   // that reject `strict`, `additionalProperties:false`, or nullable unions.
   const useStrict = providerId === 'custom' ? raw.useStrict !== 'false' : true;
   const endpoint =
-    providerId === 'deepseek' ||
-    (providerId === 'custom' && raw.endpoint === 'chat/completions')
+    providerId === 'deepseek' || (providerId === 'custom' && raw.endpoint === 'chat/completions')
       ? 'chat/completions'
       : 'responses';
 
@@ -193,10 +192,7 @@ function toChatCompletionsTools(tools: ToolDef[], useStrict: boolean): any[] | u
   });
 }
 
-function toChatCompletionsMessages(
-  input: ConversationItem[],
-  instructions: string,
-): any[] {
+function toChatCompletionsMessages(input: ConversationItem[], instructions: string): any[] {
   const messages: any[] = [{ role: 'system', content: instructions }];
 
   for (const item of input) {
@@ -214,14 +210,16 @@ function toChatCompletionsMessages(
       messages.push({
         role: 'assistant',
         content: null,
-        tool_calls: [{
-          id: it.call_id,
-          type: 'function',
-          function: {
-            name: it.name,
-            arguments: it.arguments || '',
+        tool_calls: [
+          {
+            id: it.call_id,
+            type: 'function',
+            function: {
+              name: it.name,
+              arguments: it.arguments || '',
+            },
           },
-        }],
+        ],
       });
       continue;
     }
@@ -570,11 +568,7 @@ async function parseChatCompletionsStream(
       } else if (Array.isArray(delta.content)) {
         for (const part of delta.content) {
           const text =
-            typeof part === 'string'
-              ? part
-              : typeof part?.text === 'string'
-                ? part.text
-                : '';
+            typeof part === 'string' ? part : typeof part?.text === 'string' ? part.text : '';
           if (!text) continue;
           streamedText += text;
           onTextDelta(streamedText);

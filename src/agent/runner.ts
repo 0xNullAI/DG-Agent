@@ -123,8 +123,8 @@ function collectTurnToolCalls(state: RunnerState): TurnToolCall[] {
  * those don't belong in the persisted chat history.
  */
 function collectNarrations(state: RunnerState): ConversationItem[] {
-  return state.workingItems.filter((it): it is ConversationItem =>
-    (it as any).role === 'assistant',
+  return state.workingItems.filter(
+    (it): it is ConversationItem => (it as any).role === 'assistant',
   );
 }
 
@@ -148,10 +148,7 @@ export async function runTurn(input: RunTurnInput): Promise<ConversationItem[]> 
     const deviceStatus = input.getDeviceStatus();
     const turnToolCalls = collectTurnToolCalls(state);
     const instructions = input.buildInstructions(deviceStatus, iter === 0, turnToolCalls);
-    const llmInput: ConversationItem[] = [
-      ...input.conversationItems,
-      ...state.workingItems,
-    ];
+    const llmInput: ConversationItem[] = [...input.conversationItems, ...state.workingItems];
 
     const { outputItems, streamedText } = await callResponses(
       llmInput,
@@ -173,10 +170,7 @@ export async function runTurn(input: RunTurnInput): Promise<ConversationItem[]> 
     // assistant message produced this turn — the "narrate then act" lines
     // plus the final text.
     input.sink.onTextComplete();
-    return [
-      ...collectNarrations(state),
-      { role: 'assistant', content: streamedText },
-    ];
+    return [...collectNarrations(state), { role: 'assistant', content: streamedText }];
   }
 
   // Iteration ceiling reached. The model spent all iterations on tool calls
@@ -186,10 +180,7 @@ export async function runTurn(input: RunTurnInput): Promise<ConversationItem[]> 
   const sentinel = '嗯…我这边有点绕进去了，可以换个说法再问一次吗？';
   input.sink.onTextDiscard();
   input.sink.onTextInline(sentinel);
-  return [
-    ...collectNarrations(state),
-    { role: 'assistant', content: sentinel },
-  ];
+  return [...collectNarrations(state), { role: 'assistant', content: sentinel }];
 }
 
 // ---------------------------------------------------------------------------
@@ -345,9 +336,18 @@ function repairJson(raw: string): string {
         continue;
       }
       // Raw control chars inside strings are illegal in JSON; escape them.
-      if (c === '\n') { out += '\\n'; continue; }
-      if (c === '\r') { out += '\\r'; continue; }
-      if (c === '\t') { out += '\\t'; continue; }
+      if (c === '\n') {
+        out += '\\n';
+        continue;
+      }
+      if (c === '\r') {
+        out += '\\r';
+        continue;
+      }
+      if (c === '\t') {
+        out += '\\t';
+        continue;
+      }
       out += c;
       continue;
     }

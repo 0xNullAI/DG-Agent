@@ -17,9 +17,7 @@ const http = require('http');
 
 const BAILIAN_API = 'https://dashscope.aliyuncs.com/compatible-mode/v1/responses';
 const MAX_REQUESTS_PER_MINUTE = 10;
-const ALLOWED_ORIGINS = [
-  'https://0xnullai.github.io',
-];
+const ALLOWED_ORIGINS = ['https://0xnullai.github.io'];
 const PORT = parseInt(process.env.FC_SERVER_PORT || '9000', 10);
 
 // In-memory rate limit map: ip -> { minute, count }

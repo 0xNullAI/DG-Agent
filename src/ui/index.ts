@@ -5,7 +5,14 @@
 
 import type { ConversationRecord } from '../types';
 import { getItemText } from '../types';
-import { bluetooth, conversation, history, PROMPT_PRESETS, executeTool, cancelAllBurstRestores } from '../agent';
+import {
+  bluetooth,
+  conversation,
+  history,
+  PROMPT_PRESETS,
+  executeTool,
+  cancelAllBurstRestores,
+} from '../agent';
 import { loadSettings } from '../agent/providers';
 import * as chat from './chat';
 import * as theme from './theme';
@@ -19,7 +26,9 @@ import { askPermission, closeActiveDialog } from './permission-dialog';
 // ---------------------------------------------------------------------------
 // DOM helper (shared across ui modules)
 // ---------------------------------------------------------------------------
-export function $(id: string): HTMLElement | null { return document.getElementById(id); }
+export function $(id: string): HTMLElement | null {
+  return document.getElementById(id);
+}
 
 // ---------------------------------------------------------------------------
 // Saved custom prompts
@@ -27,11 +36,18 @@ export function $(id: string): HTMLElement | null { return document.getElementBy
 
 const SAVED_PROMPTS_KEY = 'dg-agent-saved-prompts';
 
-interface SavedPromptItem { id: string; name: string; prompt: string; }
+interface SavedPromptItem {
+  id: string;
+  name: string;
+  prompt: string;
+}
 
 function loadSavedPrompts(): SavedPromptItem[] {
-  try { return JSON.parse(localStorage.getItem(SAVED_PROMPTS_KEY) || '[]') || []; }
-  catch { return []; }
+  try {
+    return JSON.parse(localStorage.getItem(SAVED_PROMPTS_KEY) || '[]') || [];
+  } catch {
+    return [];
+  }
 }
 
 function saveSavedPrompts(list: SavedPromptItem[]): void {
@@ -180,12 +196,11 @@ async function handleConnect(): Promise<void> {
     if (isIOS) {
       chat.addAssistantMessage(
         'iOS 系统不支持 Web Bluetooth。\n\n' +
-        '请在 App Store 下载 **Bluefy** 浏览器（免费），然后用 Bluefy 打开本页面即可正常连接设备。'
+          '请在 App Store 下载 **Bluefy** 浏览器（免费），然后用 Bluefy 打开本页面即可正常连接设备。',
       );
     } else {
       chat.addAssistantMessage(
-        '当前浏览器不支持 Web Bluetooth。\n\n' +
-        '请使用 **Chrome** 或 **Edge** 浏览器打开本页面。'
+        '当前浏览器不支持 Web Bluetooth。\n\n' + '请使用 **Chrome** 或 **Edge** 浏览器打开本页面。',
       );
     }
     return;
@@ -254,7 +269,7 @@ function startNewConversationUI(): void {
 function showWelcomeMessage(): void {
   chat.addAssistantMessage(
     '你好！我是 DG-Agent，可以帮你通过自然语言控制 DG-Lab Coyote 设备。\n\n' +
-    '请先点击右上角蓝牙按钮连接设备，然后告诉我你想做什么。'
+      '请先点击右上角蓝牙按钮连接设备，然后告诉我你想做什么。',
   );
 }
 
@@ -308,23 +323,22 @@ export function boot(): void {
   showSafetyNotice();
 
   // Init conversation
-  conversation.initConversation(
-    {
-      onUserMessage: (text) => chat.addUserMessage(text),
-      onAssistantStream: (text, msgId) => chat.addAssistantMessage(text, msgId),
-      onAssistantFinalize: (msgId) => chat.finalizeAssistantMessage(msgId),
-      onAssistantDiscard: (msgId) => chat.removeAssistantMessage(msgId),
-      onToolCall: (name, args, result) => chat.addToolNotification(name, args, result),
-      onSystemMessage: (text) => chat.addSystemMessage(text),
-      onTypingStart: () => chat.showTyping(),
-      onTypingEnd: () => chat.hideTyping(),
-      onBusyChange: (busy) => chat.setChatBusy(busy),
-      onError: (msg) => chat.addAssistantMessage(msg),
-      onHistoryChange: () => sidebar.renderList(),
-      onFetchCustomPrompt: () => ($('custom-system-prompt') as HTMLTextAreaElement | null)?.value || '',
-      onRequestPermission: (name, args) => askPermission(name, args),
-    }
-  );
+  conversation.initConversation({
+    onUserMessage: (text) => chat.addUserMessage(text),
+    onAssistantStream: (text, msgId) => chat.addAssistantMessage(text, msgId),
+    onAssistantFinalize: (msgId) => chat.finalizeAssistantMessage(msgId),
+    onAssistantDiscard: (msgId) => chat.removeAssistantMessage(msgId),
+    onToolCall: (name, args, result) => chat.addToolNotification(name, args, result),
+    onSystemMessage: (text) => chat.addSystemMessage(text),
+    onTypingStart: () => chat.showTyping(),
+    onTypingEnd: () => chat.hideTyping(),
+    onBusyChange: (busy) => chat.setChatBusy(busy),
+    onError: (msg) => chat.addAssistantMessage(msg),
+    onHistoryChange: () => sidebar.renderList(),
+    onFetchCustomPrompt: () =>
+      ($('custom-system-prompt') as HTMLTextAreaElement | null)?.value || '',
+    onRequestPermission: (name, args) => askPermission(name, args),
+  });
 
   // Init sub-modules
   chat.initChat({
@@ -352,7 +366,10 @@ export function boot(): void {
   });
 
   // Scene dropdown
-  $('pill-scene')!.addEventListener('click', (e) => { e.stopPropagation(); dropdowns.toggle('dropdown-scene', 'pill-scene'); });
+  $('pill-scene')!.addEventListener('click', (e) => {
+    e.stopPropagation();
+    dropdowns.toggle('dropdown-scene', 'pill-scene');
+  });
   document.addEventListener('click', () => dropdowns.closeAll());
   $('dropdown-scene')!.addEventListener('click', (e) => e.stopPropagation());
 
@@ -406,10 +423,22 @@ export function boot(): void {
   // visibility change. Always cancel pending burst-restores first so a
   // backgrounded page can't revive the device after the emergency stop.
   function fullStop(): void {
-    try { conversation.fullStopConversation(); } catch (_) { /* */ }
-    try { cancelAllBurstRestores(); } catch (_) { /* */ }
+    try {
+      conversation.fullStopConversation();
+    } catch (_) {
+      /* */
+    }
+    try {
+      cancelAllBurstRestores();
+    } catch (_) {
+      /* */
+    }
     if (bluetooth.state.connected) {
-      try { bluetooth.emergencyStop(); } catch (_) { /* */ }
+      try {
+        bluetooth.emergencyStop();
+      } catch (_) {
+        /* */
+      }
     }
   }
   window.addEventListener('beforeunload', fullStop);
@@ -424,8 +453,16 @@ export function boot(): void {
 
   // Emergency stop button
   $('btn-emergency-stop')?.addEventListener('click', async () => {
-    try { conversation.fullStopConversation(); } catch (_) { /* */ }
-    try { await executeTool('stop', {}); } catch (_) { /* */ }
+    try {
+      conversation.fullStopConversation();
+    } catch (_) {
+      /* */
+    }
+    try {
+      await executeTool('stop', {});
+    } catch (_) {
+      /* */
+    }
     chat.addSystemMessage('\u26A1 紧急停止：已停止所有波形、强度归零');
   });
 

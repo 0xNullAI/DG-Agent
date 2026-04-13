@@ -30,8 +30,18 @@ const DEFAULTS: UserWaveform[] = [
     name: '呼吸',
     description: '渐强渐弱，最温柔的铺垫波形',
     frames: [
-      [10, 0], [10, 20], [10, 40], [10, 60], [10, 80], [10, 100],
-      [10, 100], [10, 100], [10, 0], [10, 0], [10, 0], [10, 0],
+      [10, 0],
+      [10, 20],
+      [10, 40],
+      [10, 60],
+      [10, 80],
+      [10, 100],
+      [10, 100],
+      [10, 100],
+      [10, 0],
+      [10, 0],
+      [10, 0],
+      [10, 0],
     ],
   },
   {
@@ -39,9 +49,28 @@ const DEFAULTS: UserWaveform[] = [
     name: '潮汐',
     description: '波浪般起伏的慢节奏',
     frames: [
-      [10, 0], [11, 16], [13, 33], [14, 50], [16, 66], [18, 83], [19, 100],
-      [21, 92], [22, 84], [24, 76], [26, 68], [26, 0], [27, 16], [29, 33],
-      [30, 50], [32, 66], [34, 83], [35, 100], [37, 92], [38, 84], [40, 76], [42, 68],
+      [10, 0],
+      [11, 16],
+      [13, 33],
+      [14, 50],
+      [16, 66],
+      [18, 83],
+      [19, 100],
+      [21, 92],
+      [22, 84],
+      [24, 76],
+      [26, 68],
+      [26, 0],
+      [27, 16],
+      [29, 33],
+      [30, 50],
+      [32, 66],
+      [34, 83],
+      [35, 100],
+      [37, 92],
+      [38, 84],
+      [40, 76],
+      [42, 68],
     ],
   },
   {
@@ -67,7 +96,12 @@ const DEFAULTS: UserWaveform[] = [
     name: '敲击',
     description: '带节奏停顿的点触感',
     frames: [
-      [10, 100], [10, 0], [10, 0], [10, 100], [10, 0], [10, 0],
+      [10, 100],
+      [10, 0],
+      [10, 0],
+      [10, 100],
+      [10, 0],
+      [10, 0],
     ],
   },
 ];
@@ -98,23 +132,34 @@ function load(): void {
         if (store.length > 0) return;
       }
     }
-  } catch (_) { /* fall through to seed */ }
+  } catch (_) {
+    /* fall through to seed */
+  }
   store = cloneDefaults();
   persist();
 }
 
 function persist(): void {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(store)); } catch (_) { /* */ }
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+  } catch (_) {
+    /* */
+  }
 }
 
 function isValidWaveform(w: unknown): w is UserWaveform {
   if (!w || typeof w !== 'object') return false;
   const o = w as UserWaveform;
-  return typeof o.id === 'string'
-    && typeof o.name === 'string'
-    && Array.isArray(o.frames)
-    && o.frames.length > 0
-    && o.frames.every((f) => Array.isArray(f) && f.length === 2 && typeof f[0] === 'number' && typeof f[1] === 'number');
+  return (
+    typeof o.id === 'string' &&
+    typeof o.name === 'string' &&
+    Array.isArray(o.frames) &&
+    o.frames.length > 0 &&
+    o.frames.every(
+      (f) =>
+        Array.isArray(f) && f.length === 2 && typeof f[0] === 'number' && typeof f[1] === 'number',
+    )
+  );
 }
 
 function genId(): string {
@@ -165,7 +210,11 @@ export function restoreDefaults(): void {
   persist();
 }
 
-export function addWaveform(w: { name: string; description?: string; frames: WaveFrame[] }): UserWaveform {
+export function addWaveform(w: {
+  name: string;
+  description?: string;
+  frames: WaveFrame[];
+}): UserWaveform {
   load();
   const entry: UserWaveform = {
     id: genId(),
@@ -182,7 +231,9 @@ export function addWaveform(w: { name: string; description?: string; frames: Wav
 // Import entry points
 // ---------------------------------------------------------------------------
 
-export async function importFiles(files: File[]): Promise<{ added: UserWaveform[]; errors: string[] }> {
+export async function importFiles(
+  files: File[],
+): Promise<{ added: UserWaveform[]; errors: string[] }> {
   const added: UserWaveform[] = [];
   const errors: string[] = [];
 
@@ -226,11 +277,10 @@ function baseName(filename: string): string {
 // ---------------------------------------------------------------------------
 
 const FREQUENCY_DATASET: number[] = [
-  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
-  30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49,
-  50, 52, 54, 56, 58, 60, 62, 64, 66, 68, 70, 72, 74, 76, 78, 80, 85, 90, 95, 100,
-  110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 233, 266, 300, 333, 366, 400,
-  450, 500, 550, 600, 700, 800, 900, 1000,
+  10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+  34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 52, 54, 56, 58, 60, 62, 64,
+  66, 68, 70, 72, 74, 76, 78, 80, 85, 90, 95, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200,
+  233, 266, 300, 333, 366, 400, 450, 500, 550, 600, 700, 800, 900, 1000,
 ];
 
 const DURATION_DATASET: number[] = Array.from({ length: 100 }, (_, i) => i + 1);
@@ -256,7 +306,9 @@ function encodeFreq(x: number): number {
   return Math.max(10, Math.min(240, Math.round(o)));
 }
 
-interface ShapePoint { strength: number; }
+interface ShapePoint {
+  strength: number;
+}
 interface Section {
   frequencyMode: number;
   shape: ShapePoint[];
