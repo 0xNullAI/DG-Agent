@@ -351,7 +351,6 @@ export function boot(): void {
   $('settings-modal')!.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).id === 'settings-modal') settings.close();
   });
-  $('btn-theme')!.addEventListener('click', () => theme.toggle());
 
   // Scene dropdown
   $('pill-scene')!.addEventListener('click', (e) => { e.stopPropagation(); dropdowns.toggle('dropdown-scene', 'pill-scene'); });

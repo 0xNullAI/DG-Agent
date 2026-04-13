@@ -26,12 +26,12 @@ export const PROVIDERS: ProviderDef[] = [
     ],
   },
   {
-    id: 'openai',
-    name: 'OpenAI',
+    id: 'deepseek',
+    name: 'DeepSeek',
+    hint: 'DeepSeek 官方 Chat Completions API。默认使用 deepseek-reasoner 模型。',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...' },
-      { key: 'model', label: '模型', type: 'text', placeholder: 'gpt-5.3' },
-      { key: 'baseUrl', label: 'Base URL', type: 'url', placeholder: 'https://api.openai.com/v1' },
+      { key: 'model', label: '模型', type: 'text', placeholder: 'deepseek-reasoner' },
     ],
   },
   {
@@ -41,6 +41,15 @@ export const PROVIDERS: ProviderDef[] = [
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'ARK API Key' },
       { key: 'model', label: '模型 / Endpoint ID', type: 'text', placeholder: 'doubao-seed-2-0-mini-260215' },
+    ],
+  },
+  {
+    id: 'openai',
+    name: 'OpenAI',
+    fields: [
+      { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...' },
+      { key: 'model', label: '模型', type: 'text', placeholder: 'gpt-5.3' },
+      { key: 'baseUrl', label: 'Base URL', type: 'url', placeholder: 'https://api.openai.com/v1' },
     ],
   },
   {
