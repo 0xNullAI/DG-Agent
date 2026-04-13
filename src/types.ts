@@ -160,6 +160,24 @@ export interface AppSettings {
   permissionMode?: PermissionMode;
   /** Epoch-ms expiry for the 'timed' permission mode. Only read when permissionMode === 'timed'. */
   permissionModeExpiresAt?: number;
+  /** Social platform bridge settings. */
+  bridge?: {
+    enabled: boolean;
+    qq: {
+      enabled: boolean;
+      wsUrl: string;
+      allowUsers: string[];
+      allowGroups: string[];
+      permissionMode: 'ask' | 'always';
+    };
+    telegram: {
+      enabled: boolean;
+      botToken: string;
+      proxyUrl: string;
+      allowUsers: number[];
+      permissionMode: 'ask' | 'always';
+    };
+  };
 }
 
 /** Provider field definition */

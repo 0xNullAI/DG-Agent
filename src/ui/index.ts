@@ -5,7 +5,7 @@
 
 import type { ConversationRecord } from '../types';
 import { getItemText } from '../types';
-import { bluetooth, conversation, history, PROMPT_PRESETS } from '../agent';
+import { bluetooth, conversation, history, PROMPT_PRESETS, bridge } from '../agent';
 import { loadSettings } from '../agent/providers';
 import * as chat from './chat';
 import * as theme from './theme';
@@ -439,4 +439,10 @@ export function boot(): void {
 
   // Poll for new deployments and show a reload banner when available.
   initUpdateCheck();
+
+  // Social platform bridge — connect to QQ / Telegram if configured.
+  // Errors are non-fatal; the app works fine without the bridge.
+  bridge.initBridge((text) => conversation.sendMessage(text)).catch((err) => {
+    console.error('[Boot] Bridge init failed (non-fatal):', err);
+  });
 }

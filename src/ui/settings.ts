@@ -20,6 +20,13 @@ import * as waveforms from '../agent/waveforms';
 import * as theme from './theme';
 import { updateStrengthCapMarker } from './device';
 import { $ } from './index';
+import {
+  DEFAULT_BRIDGE_SETTINGS,
+  type BridgeSettings,
+  initBridge,
+  stopBridge,
+  getAdapterStatus,
+} from '../bridge';
 
 let activePresetIdRef: () => string;
 let customPromptRef: () => string;
@@ -33,7 +40,7 @@ export function init(getPresetId: () => string, getCustomPrompt: () => string): 
 // settings modal is open; cleaned up on close.
 let permissionCountdownTimer: number | null = null;
 
-type TopTab = 'basic' | 'security' | 'waveforms';
+type TopTab = 'basic' | 'security' | 'waveforms' | 'bridge';
 let activeTopTab: TopTab = 'basic';
 
 export function open(): void {
@@ -47,6 +54,7 @@ export function open(): void {
   renderConfig(saved.provider);
   renderBehaviorSettings(saved);
   renderWaveformsPanel();
+  renderBridgePanel();
   updateTopPanelVisibility();
   startPermissionCountdown();
 }
@@ -59,6 +67,7 @@ function renderTopTabs(): void {
     { id: 'basic', label: '基础设置' },
     { id: 'security', label: '安全' },
     { id: 'waveforms', label: '波形' },
+    { id: 'bridge', label: '社交平台' },
   ];
 
   tabs.forEach((t) => {
@@ -82,6 +91,8 @@ function updateTopPanelVisibility(): void {
   $('settings-panel-basic')!.classList.toggle('hidden', activeTopTab !== 'basic');
   $('settings-panel-security')!.classList.toggle('hidden', activeTopTab !== 'security');
   $('settings-panel-waveforms')!.classList.toggle('hidden', activeTopTab !== 'waveforms');
+  const bridgePanel = $('settings-panel-bridge');
+  if (bridgePanel) bridgePanel.classList.toggle('hidden', activeTopTab !== 'bridge');
 }
 
 function renderPageConfig(): void {
@@ -591,6 +602,224 @@ function renderWaveformsPanel(): void {
   }
 
   container.appendChild(listEl);
+}
+
+// ---------------------------------------------------------------------------
+// Social platform bridge panel
+// ---------------------------------------------------------------------------
+
+function loadBridgeSettings(): BridgeSettings {
+  const saved = loadSettings();
+  return saved.bridge || DEFAULT_BRIDGE_SETTINGS;
+}
+
+function saveBridgeSettings(bs: BridgeSettings): void {
+  const saved = loadSettings();
+  saved.bridge = bs;
+  persistSettings(saved);
+}
+
+function renderBridgePanel(): void {
+  const container = $('settings-panel-bridge');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const bs = loadBridgeSettings();
+
+  // Adapter status
+  const statusRow = document.createElement('div');
+  statusRow.className = 'bridge-status-row';
+  const statuses = getAdapterStatus();
+  if (statuses.length > 0) {
+    for (const s of statuses) {
+      const dot = document.createElement('span');
+      dot.className = `bridge-status-dot ${s.connected ? 'connected' : 'disconnected'}`;
+      dot.textContent = `${s.platform.toUpperCase()}: ${s.connected ? '已连接' : '未连接'}`;
+      statusRow.appendChild(dot);
+    }
+  } else {
+    statusRow.textContent = '未启用任何平台';
+  }
+  container.appendChild(statusRow);
+
+  // Master toggle
+  container.appendChild(makeToggleRow('启用社交平台桥接', bs.enabled, (on) => {
+    bs.enabled = on;
+    saveBridgeSettings(bs);
+  }));
+
+  // ---- QQ Section ----
+  const qqHeader = document.createElement('h4');
+  qqHeader.textContent = 'QQ (OneBot v11 / NapCat)';
+  qqHeader.className = 'bridge-section-header';
+  container.appendChild(qqHeader);
+
+  container.appendChild(makeToggleRow('启用 QQ', bs.qq.enabled, (on) => {
+    bs.qq.enabled = on;
+    saveBridgeSettings(bs);
+  }));
+
+  container.appendChild(makeInputRow('NapCat WebSocket 地址', bs.qq.wsUrl, 'ws://localhost:3001', (val) => {
+    bs.qq.wsUrl = val;
+    saveBridgeSettings(bs);
+  }));
+
+  container.appendChild(makeInputRow('允许的 QQ 用户号（逗号分隔）', bs.qq.allowUsers.join(','), '12345678,87654321', (val) => {
+    bs.qq.allowUsers = val.split(',').map((s) => s.trim()).filter(Boolean);
+    saveBridgeSettings(bs);
+  }));
+
+  container.appendChild(makeInputRow('允许的 QQ 群号（逗号分隔）', bs.qq.allowGroups.join(','), '', (val) => {
+    bs.qq.allowGroups = val.split(',').map((s) => s.trim()).filter(Boolean);
+    saveBridgeSettings(bs);
+  }));
+
+  container.appendChild(makePermModeRow('QQ 权限模式', bs.qq.permissionMode, (mode) => {
+    bs.qq.permissionMode = mode;
+    saveBridgeSettings(bs);
+  }));
+
+  // ---- Telegram Section ----
+  const tgHeader = document.createElement('h4');
+  tgHeader.textContent = 'Telegram';
+  tgHeader.className = 'bridge-section-header';
+  container.appendChild(tgHeader);
+
+  container.appendChild(makeToggleRow('启用 Telegram', bs.telegram.enabled, (on) => {
+    bs.telegram.enabled = on;
+    saveBridgeSettings(bs);
+  }));
+
+  container.appendChild(makeInputRow('Bot Token', bs.telegram.botToken, '123456:ABC-DEF...', (val) => {
+    bs.telegram.botToken = val;
+    saveBridgeSettings(bs);
+  }, 'password'));
+
+  container.appendChild(makeInputRow('CORS 代理 URL（可选）', bs.telegram.proxyUrl, 'https://your-proxy.com', (val) => {
+    bs.telegram.proxyUrl = val;
+    saveBridgeSettings(bs);
+  }));
+
+  container.appendChild(makeInputRow('允许的 Telegram 用户 ID（逗号分隔）', bs.telegram.allowUsers.join(','), '987654321', (val) => {
+    bs.telegram.allowUsers = val.split(',').map((s) => Number(s.trim())).filter((n) => n > 0);
+    saveBridgeSettings(bs);
+  }));
+
+  container.appendChild(makePermModeRow('Telegram 权限模式', bs.telegram.permissionMode, (mode) => {
+    bs.telegram.permissionMode = mode;
+    saveBridgeSettings(bs);
+  }));
+
+  // ---- Apply button ----
+  const actions = document.createElement('div');
+  actions.className = 'modal-actions';
+  const applyBtn = document.createElement('button');
+  applyBtn.className = 'btn-primary';
+  applyBtn.textContent = '保存并重新连接';
+  applyBtn.addEventListener('click', async () => {
+    applyBtn.disabled = true;
+    applyBtn.textContent = '连接中…';
+    try {
+      await stopBridge();
+      const { sendMessage } = await import('../agent/conversation');
+      await initBridge((text) => sendMessage(text));
+      applyBtn.textContent = '已连接 ✓';
+      setTimeout(() => renderBridgePanel(), 1500);
+    } catch (err) {
+      applyBtn.textContent = '连接失败';
+      console.error('[Bridge] Reconnect error:', err);
+      setTimeout(() => renderBridgePanel(), 2000);
+    }
+  });
+  actions.appendChild(applyBtn);
+  container.appendChild(actions);
+
+  // Hint
+  const hint = document.createElement('p');
+  hint.className = 'provider-hint';
+  hint.textContent = 'QQ 需要在本机运行 NapCat 并用手机 QQ 扫码登录。Telegram 需要先创建 Bot（@BotFather）获取 Token。保存后点击「保存并重新连接」生效。';
+  container.appendChild(hint);
+}
+
+function makeToggleRow(label: string, value: boolean, onChange: (on: boolean) => void): HTMLDivElement {
+  const row = document.createElement('div');
+  row.className = 'setting-group setting-group-inline';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = label;
+  row.appendChild(lbl);
+
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'toggle-btn' + (value ? ' active' : '');
+  toggle.setAttribute('role', 'switch');
+  toggle.setAttribute('aria-checked', String(value));
+
+  const knob = document.createElement('span');
+  knob.className = 'toggle-knob';
+  toggle.appendChild(knob);
+
+  toggle.addEventListener('click', () => {
+    const next = !toggle.classList.contains('active');
+    toggle.classList.toggle('active', next);
+    toggle.setAttribute('aria-checked', String(next));
+    onChange(next);
+  });
+
+  row.appendChild(toggle);
+  return row;
+}
+
+function makeInputRow(label: string, value: string, placeholder: string, onChange: (val: string) => void, type?: string): HTMLDivElement {
+  const row = document.createElement('div');
+  row.className = 'setting-group';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = label;
+  row.appendChild(lbl);
+
+  const input = document.createElement('input');
+  input.type = type || 'text';
+  input.value = value;
+  input.placeholder = placeholder;
+  input.addEventListener('change', () => onChange(input.value.trim()));
+  row.appendChild(input);
+
+  return row;
+}
+
+function makePermModeRow(label: string, value: 'ask' | 'always', onChange: (mode: 'ask' | 'always') => void): HTMLDivElement {
+  const row = document.createElement('div');
+  row.className = 'setting-group setting-group-inline';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = label;
+  row.appendChild(lbl);
+
+  const seg = document.createElement('div');
+  seg.className = 'segmented';
+
+  const options: Array<{ mode: 'ask' | 'always'; label: string }> = [
+    { mode: 'ask', label: '每次询问' },
+    { mode: 'always', label: '全部允许' },
+  ];
+
+  options.forEach((opt) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'segmented-btn' + (opt.mode === value ? ' active' : '');
+    btn.textContent = opt.label;
+    btn.addEventListener('click', () => {
+      seg.querySelectorAll<HTMLButtonElement>('.segmented-btn').forEach((b) => {
+        b.classList.toggle('active', b.textContent === opt.label);
+      });
+      onChange(opt.mode);
+    });
+    seg.appendChild(btn);
+  });
+
+  row.appendChild(seg);
+  return row;
 }
 
 function normalizeCap(raw: unknown): number {

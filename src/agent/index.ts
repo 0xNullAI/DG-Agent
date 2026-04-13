@@ -13,3 +13,4 @@ export * as history from './history';
 export * as conversation from './conversation';
 export * as waveforms from './waveforms';
 export { PROMPT_PRESETS } from './prompts';
+export * as bridge from '../bridge';

@@ -30,6 +30,11 @@ import {
   clearGrants,
   type PermissionChoice,
 } from './permissions';
+import {
+  bridgeSink,
+  isBridgeTurn,
+  requestBridgePermission,
+} from '../bridge';
 
 export function initConversation(callbacks: ConversationCallbacks): void {
   initCallbacks(callbacks);
@@ -270,6 +275,7 @@ class ChatSink implements AgentSink {
   onTextDelta(accumulated: string): void {
     this.cb.onTypingEnd();
     this.msgId = this.cb.onAssistantStream(accumulated, this.msgId || undefined);
+    if (isBridgeTurn()) bridgeSink.onTextDelta(accumulated);
   }
 
   onTextComplete(): void {
@@ -277,11 +283,13 @@ class ChatSink implements AgentSink {
       this.cb.onAssistantFinalize(this.msgId);
       this.msgId = null;
     }
+    if (isBridgeTurn()) bridgeSink.onTextComplete();
   }
 
   onTextDiscard(): void {
     this.discardPendingBubble();
     this.cb.onTypingStart();
+    if (isBridgeTurn()) bridgeSink.onTextDiscard();
   }
 
   onTextInline(text: string): void {
@@ -289,6 +297,7 @@ class ChatSink implements AgentSink {
     this.discardPendingBubble();
     const id = this.cb.onAssistantStream(text, undefined);
     this.cb.onAssistantFinalize(id);
+    if (isBridgeTurn()) bridgeSink.onTextInline(text);
   }
 
   onToolCall(name: string, args: Record<string, unknown>, result: string): void {
@@ -297,6 +306,7 @@ class ChatSink implements AgentSink {
     this.onTextComplete();
     this.cb.onToolCall(name, args, result);
     this.cb.onTypingStart();
+    if (isBridgeTurn()) bridgeSink.onToolCall(name, args, result);
   }
 }
 
@@ -324,6 +334,8 @@ async function runConversationTurn(
   //      — 'timed' and 'always' skip the dialog entirely
   //   3. In 'ask' mode we consult the per-tool grant cache first, only hit the
   //      UI on a miss, then record the user's choice
+  //   4. For bridge-originated turns, permission is requested via the social
+  //      platform messaging (text-based numeric reply).
   const requestPermission = async (
     name: string,
     args: Record<string, unknown>,
@@ -335,6 +347,13 @@ async function runConversationTurn(
 
     // mode === 'ask'
     if (hasGrant(name)) return 'allow';
+
+    // Bridge-originated turn: ask via social platform message
+    if (isBridgeTurn()) {
+      const choice = await requestBridgePermission(name, args);
+      return recordChoice(name, choice);
+    }
+
     if (!cb.onRequestPermission) return 'allow';
     const choice = await cb.onRequestPermission(name, args);
     return recordChoice(name, choice);
