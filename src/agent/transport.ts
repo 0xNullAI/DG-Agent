@@ -51,6 +51,9 @@ export function resolveProviderConfig(): TransportConfig {
   } else if (providerId === 'doubao') {
     baseUrl = 'https://ark.cn-beijing.volces.com/api/v3';
     model = model || 'doubao-seed-2-0-mini-260215';
+  } else if (providerId === 'deepseek') {
+    baseUrl = 'https://api.deepseek.com';
+    model = model || 'deepseek-reasoner';
   }
 
   // Strict mode is on by default everywhere. Only the custom provider lets
@@ -58,7 +61,8 @@ export function resolveProviderConfig(): TransportConfig {
   // that reject `strict`, `additionalProperties:false`, or nullable unions.
   const useStrict = providerId === 'custom' ? raw.useStrict !== 'false' : true;
   const endpoint =
-    providerId === 'custom' && raw.endpoint === 'chat/completions'
+    providerId === 'deepseek' ||
+    (providerId === 'custom' && raw.endpoint === 'chat/completions')
       ? 'chat/completions'
       : 'responses';
 
@@ -386,7 +390,7 @@ async function callChatCompletions(
   if (cTools) {
     body.tools = cTools;
     body.tool_choice = 'auto';
-    body.parallel_tool_calls = true;
+    if (config.useStrict) body.parallel_tool_calls = true;
   }
   if (onTextDelta) body.stream = true;
 

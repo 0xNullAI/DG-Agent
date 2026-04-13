@@ -17,6 +17,7 @@ import {
 import type { AppSettings, PermissionMode } from '../types';
 import * as bluetooth from '../agent/bluetooth';
 import * as waveforms from '../agent/waveforms';
+import * as theme from './theme';
 import { updateStrengthCapMarker } from './device';
 import { $ } from './index';
 
@@ -32,15 +33,16 @@ export function init(getPresetId: () => string, getCustomPrompt: () => string): 
 // settings modal is open; cleaned up on close.
 let permissionCountdownTimer: number | null = null;
 
-type TopTab = 'api' | 'security' | 'waveforms';
-let activeTopTab: TopTab = 'security';
+type TopTab = 'basic' | 'security' | 'waveforms';
+let activeTopTab: TopTab = 'basic';
 
 export function open(): void {
   $('settings-modal')!.classList.remove('hidden');
   const saved = loadSettings();
-  activeTopTab = 'security';
+  activeTopTab = 'basic';
   updateCurrentAiLabel();
   renderTopTabs();
+  renderPageConfig();
   renderTabs();
   renderConfig(saved.provider);
   renderBehaviorSettings(saved);
@@ -54,9 +56,9 @@ function renderTopTabs(): void {
   container.innerHTML = '';
 
   const tabs: Array<{ id: TopTab; label: string }> = [
+    { id: 'basic', label: '基础设置' },
     { id: 'security', label: '安全' },
     { id: 'waveforms', label: '波形' },
-    { id: 'api', label: 'API' },
   ];
 
   tabs.forEach((t) => {
@@ -77,9 +79,57 @@ function renderTopTabs(): void {
 }
 
 function updateTopPanelVisibility(): void {
-  $('settings-panel-api')!.classList.toggle('hidden', activeTopTab !== 'api');
+  $('settings-panel-basic')!.classList.toggle('hidden', activeTopTab !== 'basic');
   $('settings-panel-security')!.classList.toggle('hidden', activeTopTab !== 'security');
   $('settings-panel-waveforms')!.classList.toggle('hidden', activeTopTab !== 'waveforms');
+}
+
+function renderPageConfig(): void {
+  const container = $('basic-page-config');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const row = document.createElement('div');
+  row.className = 'setting-group setting-group-inline';
+
+  const label = document.createElement('label');
+  label.textContent = '主题模式';
+  row.appendChild(label);
+
+  const seg = document.createElement('div');
+  seg.className = 'segmented';
+  seg.setAttribute('role', 'radiogroup');
+  seg.setAttribute('aria-label', '主题模式');
+
+  const options: Array<{ mode: theme.ThemeMode; label: string }> = [
+    { mode: 'auto',  label: '跟随系统' },
+    { mode: 'light', label: '浅色' },
+    { mode: 'dark',  label: '深色' },
+  ];
+
+  const current = theme.getMode();
+
+  options.forEach((opt) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'segmented-btn' + (opt.mode === current ? ' active' : '');
+    btn.dataset.mode = opt.mode;
+    btn.setAttribute('role', 'radio');
+    btn.setAttribute('aria-checked', String(opt.mode === current));
+    btn.textContent = opt.label;
+    btn.addEventListener('click', () => {
+      theme.apply(opt.mode);
+      seg.querySelectorAll<HTMLButtonElement>('.segmented-btn').forEach((b) => {
+        const isActive = b.dataset.mode === opt.mode;
+        b.classList.toggle('active', isActive);
+        b.setAttribute('aria-checked', String(isActive));
+      });
+    });
+    seg.appendChild(btn);
+  });
+
+  row.appendChild(seg);
+  container.appendChild(row);
 }
 
 export function close(): void {
