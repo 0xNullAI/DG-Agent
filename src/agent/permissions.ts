@@ -61,10 +61,7 @@ export function hasGrant(toolName: string): boolean {
  * Returns the effective decision ('allow' or 'deny') that the caller should
  * act on for the current call.
  */
-export function recordChoice(
-  toolName: string,
-  choice: PermissionChoice,
-): 'allow' | 'deny' {
+export function recordChoice(toolName: string, choice: PermissionChoice): 'allow' | 'deny' {
   if (choice === 'deny') return 'deny';
   if (choice === 'timed') {
     grants.set(toolName, { until: Date.now() + TIMED_GRANT_MS });
@@ -111,10 +108,7 @@ export function getEffectiveMode(): PermissionMode {
   const s = loadSettings();
   const mode = s.permissionMode || 'ask';
   if (mode === 'timed') {
-    if (
-      typeof s.permissionModeExpiresAt !== 'number' ||
-      Date.now() >= s.permissionModeExpiresAt
-    ) {
+    if (typeof s.permissionModeExpiresAt !== 'number' || Date.now() >= s.permissionModeExpiresAt) {
       const next = { ...s, permissionMode: 'ask' as PermissionMode };
       delete next.permissionModeExpiresAt;
       saveSettings(next);

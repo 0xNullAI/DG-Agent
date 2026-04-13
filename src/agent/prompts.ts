@@ -161,13 +161,7 @@ export function buildInstructions(opts: BuildInstructionsOptions): string {
   const persona = resolvePersona(opts.presetId, opts.customPrompt);
   const statusBlock = buildDeviceStatusBlock(opts.deviceStatus);
   const turnUsageBlock = buildTurnToolUsageBlock(opts.turnToolCalls);
-  const blocks = [
-    persona,
-    DEVICE_BLOCK,
-    statusBlock,
-    turnUsageBlock,
-    BEHAVIOR_RULES,
-  ];
+  const blocks = [persona, DEVICE_BLOCK, statusBlock, turnUsageBlock, BEHAVIOR_RULES];
   if (opts.isFirstIteration) {
     blocks.push(FIRST_ITERATION_STRATEGY);
   }
@@ -205,9 +199,7 @@ function buildTurnToolUsageBlock(calls: readonly TurnToolCall[]): string {
 }
 
 function buildDeviceStatusBlock(s: DeviceState): string {
-  const conn = s.connected
-    ? `已连接${s.deviceName ? `（${s.deviceName}）` : ''}`
-    : '未连接';
+  const conn = s.connected ? `已连接${s.deviceName ? `（${s.deviceName}）` : ''}` : '未连接';
   const battery = s.battery != null ? `${s.battery}%` : '未知';
   // Effective ceiling = min(device-side BF limit, App-side user cap).
   // The user cap is the hard ceiling — even if the device-side limit is

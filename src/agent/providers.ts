@@ -40,7 +40,12 @@ export const PROVIDERS: ProviderDef[] = [
     hint: '火山方舟 Responses API。model 填 Endpoint ID（如 ep-xxx）或模型 ID（如 doubao-seed-2-0-mini-260215）。',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'ARK API Key' },
-      { key: 'model', label: '模型 / Endpoint ID', type: 'text', placeholder: 'doubao-seed-2-0-mini-260215' },
+      {
+        key: 'model',
+        label: '模型 / Endpoint ID',
+        type: 'text',
+        placeholder: 'doubao-seed-2-0-mini-260215',
+      },
     ],
   },
   {
@@ -79,7 +84,7 @@ export const PROVIDERS: ProviderDef[] = [
           { value: 'true', label: '开启（OpenAI 兼容后端推荐）' },
           { value: 'false', label: '关闭（后端不兼容时选此）' },
         ],
-      }
+      },
     ],
   },
 ];
@@ -128,7 +133,9 @@ export function loadSettings(): AppSettings {
       }
       return parsed;
     }
-  } catch (_) { /* */ }
+  } catch (_) {
+    /* */
+  }
   return {
     provider: 'free',
     configs: {},
@@ -142,7 +149,11 @@ export function loadSettings(): AppSettings {
 }
 
 export function saveSettings(settings: AppSettings): void {
-  try { localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings)); } catch (_) { /* */ }
+  try {
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+  } catch (_) {
+    /* */
+  }
 }
 
 /** Read the user-configured max strength cap for one channel (0-200). */

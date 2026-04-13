@@ -136,11 +136,7 @@ export function closeActiveDialog(): void {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function makeBtn(
-  label: string,
-  cls: string,
-  onClick: () => void,
-): HTMLButtonElement {
+function makeBtn(label: string, cls: string, onClick: () => void): HTMLButtonElement {
   const btn = document.createElement('button');
   btn.className = `permission-btn permission-btn-${cls}`;
   btn.textContent = label;

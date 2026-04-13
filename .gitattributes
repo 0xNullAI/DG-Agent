@@ -1,0 +1,20 @@
+* text=auto eol=lf
+
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.mov  binary
+*.mp4  binary
+*.mp3  binary
+*.wav  binary
+*.woff binary
+*.woff2 binary
+
+/dist/* linguist-vendored
+/node_modules/* linguist-vendored
+package-lock.json linguist-generated

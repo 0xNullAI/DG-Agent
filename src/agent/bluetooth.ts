@@ -49,9 +49,9 @@ const V3_BATTERY_CHAR = '00001500-0000-1000-8000-00805f9b34fb';
 const V2_DEVICE_NAME_PREFIX = 'D-LAB ESTIM';
 const v2Uuid = (short: string) => `955a${short}-0fe2-f5aa-a094-84b8d4f3e8ad`;
 const V2_PRIMARY_SERVICE = v2Uuid('180b');
-const V2_STRENGTH_CHAR = v2Uuid('1504');   // PWM_AB2: strength for both channels
-const V2_WAVE_A_CHAR = v2Uuid('1505');     // PWM_A34: channel A waveform params
-const V2_WAVE_B_CHAR = v2Uuid('1506');     // PWM_B34: channel B waveform params
+const V2_STRENGTH_CHAR = v2Uuid('1504'); // PWM_AB2: strength for both channels
+const V2_WAVE_A_CHAR = v2Uuid('1505'); // PWM_A34: channel A waveform params
+const V2_WAVE_B_CHAR = v2Uuid('1506'); // PWM_B34: channel B waveform params
 const V2_BATTERY_SERVICE = v2Uuid('180a');
 const V2_BATTERY_CHAR = v2Uuid('1500');
 
@@ -107,9 +107,9 @@ let v2WaveAChar: BluetoothRemoteGATTCharacteristic | null = null;
 let v2WaveBChar: BluetoothRemoteGATTCharacteristic | null = null;
 
 // Seq / ack bookkeeping
-let seq = 0;           // 0 = idle (no pending strength change)
-let pendingMode = 0;   // 4-bit strength mode nibble for next B0
-let pendingStrA = 0;   // strength value to send when mode != 0
+let seq = 0; // 0 = idle (no pending strength change)
+let pendingMode = 0; // 4-bit strength mode nibble for next B0
+let pendingStrA = 0; // strength value to send when mode != 0
 let pendingStrB = 0;
 let awaitingAck = false;
 
@@ -133,7 +133,11 @@ function notify(): void {
   state.waveActiveA = waveState.A.active;
   state.waveActiveB = waveState.B.active;
   if (typeof onStatusChange === 'function') {
-    try { onStatusChange(getStatus()); } catch (_e) { /* swallow */ }
+    try {
+      onStatusChange(getStatus());
+    } catch (_e) {
+      /* swallow */
+    }
   }
 }
 
@@ -165,35 +169,35 @@ const INACTIVE_INT: number[] = [0, 0, 0, 101];
 
 /** Decode a V3 encoded frequency byte (10-240) back to real period in ms. */
 function decodeV3Freq(encoded: number): number {
-  if (encoded <= 100) return encoded;             // 10-100ms: direct
-  if (encoded <= 200) return (encoded - 100) * 5 + 100;  // 100-600ms
-  return (encoded - 200) * 10 + 600;             // 600-1000ms
+  if (encoded <= 100) return encoded; // 10-100ms: direct
+  if (encoded <= 200) return (encoded - 100) * 5 + 100; // 100-600ms
+  return (encoded - 200) * 10 + 600; // 600-1000ms
 }
 
 /** Convert a V3 WaveFrame (encoded_freq, intensity) to V2 pulse parameters. */
 function waveFrameToV2(freq: number, intensity: number): { x: number; y: number; z: number } {
   const periodMs = decodeV3Freq(freq);
-  const x = 1;                                         // 1 pulse per unit
-  const y = clamp(periodMs - 1, 0, 1023);              // interval to fill period
-  const z = clamp(Math.round(intensity * 31 / 100), 0, 31); // pulse width
+  const x = 1; // 1 pulse per unit
+  const y = clamp(periodMs - 1, 0, 1023); // interval to fill period
+  const z = clamp(Math.round((intensity * 31) / 100), 0, 31); // pulse width
   return { x, y, z };
 }
 
 /** Encode V2 strength for both channels into 3 bytes (PWM_AB2). */
 function encodeV2Strength(a: number, b: number): Uint8Array {
   // Map unified 0-200 range to V2 hardware range 0-2047
-  const va = Math.round(clamp(a, 0, 200) * 2047 / 200);
-  const vb = Math.round(clamp(b, 0, 200) * 2047 / 200);
+  const va = Math.round((clamp(a, 0, 200) * 2047) / 200);
+  const vb = Math.round((clamp(b, 0, 200) * 2047) / 200);
   // 3 bytes = 24 bits: [1:0] reserved, [21:11] ch A, [10:0] ch B
   const val = (va << 11) | vb;
-  return new Uint8Array([(val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF]);
+  return new Uint8Array([(val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff]);
 }
 
 /** Encode V2 waveform parameters into 3 bytes (PWM_A34 / PWM_B34). */
 function encodeV2Wave(x: number, y: number, z: number): Uint8Array {
   // 3 bytes = 24 bits: [23:20] reserved, [19:15] Z, [14:5] Y, [4:0] X
-  const val = ((z & 0x1F) << 15) | ((y & 0x3FF) << 5) | (x & 0x1F);
-  return new Uint8Array([(val >> 16) & 0xFF, (val >> 8) & 0xFF, val & 0xFF]);
+  const val = ((z & 0x1f) << 15) | ((y & 0x3ff) << 5) | (x & 0x1f);
+  return new Uint8Array([(val >> 16) & 0xff, (val >> 8) & 0xff, val & 0xff]);
 }
 
 /** V2 100ms tick: write strength + waveform to separate characteristics. */
@@ -276,12 +280,11 @@ function advanceWave(ch: Channel): { freq: number[]; int: number[] } {
 // ---------------------------------------------------------------------------
 function buildB0(): Uint8Array {
   const buf = new Uint8Array(20);
-  buf[0] = 0xB0;
+  buf[0] = 0xb0;
 
   // Determine strength mode nibble
-  let modeNibble = 0;
-  let strA = 0;
-  let strB = 0;
+  let modeNibble;
+  let strA, strB;
 
   if (!awaitingAck && pendingMode !== 0) {
     // We have a pending strength change – stamp it with the next seq.
@@ -298,19 +301,31 @@ function buildB0(): Uint8Array {
     strB = pendingStrB;
   }
 
-  buf[1] = ((seq & 0x0F) << 4) | (modeNibble & 0x0F);
+  buf[1] = ((seq & 0x0f) << 4) | (modeNibble & 0x0f);
   buf[2] = clamp(strA, 0, 200);
   buf[3] = clamp(strB, 0, 200);
 
   // Channel A wave
   const wA = advanceWave('A');
-  buf[4] = wA.freq[0]; buf[5] = wA.freq[1]; buf[6] = wA.freq[2]; buf[7] = wA.freq[3];
-  buf[8] = wA.int[0]; buf[9] = wA.int[1]; buf[10] = wA.int[2]; buf[11] = wA.int[3];
+  buf[4] = wA.freq[0];
+  buf[5] = wA.freq[1];
+  buf[6] = wA.freq[2];
+  buf[7] = wA.freq[3];
+  buf[8] = wA.int[0];
+  buf[9] = wA.int[1];
+  buf[10] = wA.int[2];
+  buf[11] = wA.int[3];
 
   // Channel B wave
   const wB = advanceWave('B');
-  buf[12] = wB.freq[0]; buf[13] = wB.freq[1]; buf[14] = wB.freq[2]; buf[15] = wB.freq[3];
-  buf[16] = wB.int[0]; buf[17] = wB.int[1]; buf[18] = wB.int[2]; buf[19] = wB.int[3];
+  buf[12] = wB.freq[0];
+  buf[13] = wB.freq[1];
+  buf[14] = wB.freq[2];
+  buf[15] = wB.freq[3];
+  buf[16] = wB.int[0];
+  buf[17] = wB.int[1];
+  buf[18] = wB.int[2];
+  buf[19] = wB.int[3];
 
   return buf;
 }
@@ -324,7 +339,7 @@ function handleNotification(event: Event): void {
   if (!dv || dv.byteLength < 4) return;
 
   const header = dv.getUint8(0);
-  if (header !== 0xB1) return;
+  if (header !== 0xb1) return;
 
   const ackSeq = dv.getUint8(1);
   const curA = dv.getUint8(2);
@@ -346,15 +361,22 @@ function handleNotification(event: Event): void {
 // ---------------------------------------------------------------------------
 // BF command (set limits / balance)
 // ---------------------------------------------------------------------------
-function buildBF(limitA: number, limitB: number, bfA = 160, bfB = 160, biA = 0, biB = 0): Uint8Array {
+function buildBF(
+  limitA: number,
+  limitB: number,
+  bfA = 160,
+  bfB = 160,
+  biA = 0,
+  biB = 0,
+): Uint8Array {
   const buf = new Uint8Array(7);
-  buf[0] = 0xBF;
+  buf[0] = 0xbf;
   buf[1] = clamp(limitA, 0, 200);
   buf[2] = clamp(limitB, 0, 200);
-  buf[3] = bfA & 0xFF;
-  buf[4] = bfB & 0xFF;
-  buf[5] = biA & 0xFF;
-  buf[6] = biB & 0xFF;
+  buf[3] = bfA & 0xff;
+  buf[4] = bfB & 0xff;
+  buf[5] = biA & 0xff;
+  buf[6] = biB & 0xff;
   return buf;
 }
 
@@ -388,7 +410,8 @@ async function onTick(): Promise<void> {
  * Worker timers are NOT throttled when the page is hidden.
  */
 function createTickWorker(): Worker {
-  const code = 'let t;onmessage=e=>{if(e.data==="start"){if(t)return;t=setInterval(()=>postMessage(1),100)}else{clearInterval(t);t=null}}';
+  const code =
+    'let t;onmessage=e=>{if(e.data==="start"){if(t)return;t=setInterval(()=>postMessage(1),100)}else{clearInterval(t);t=null}}';
   const blob = new Blob([code], { type: 'application/javascript' });
   return new Worker(URL.createObjectURL(blob));
 }
@@ -471,13 +494,12 @@ export async function scanAndConnect(): Promise<void> {
 
   const bt = (navigator as any).bluetooth as any;
   const device: BluetoothDevice = await bt.requestDevice({
-    filters: [
-      { namePrefix: V3_DEVICE_NAME_PREFIX },
-      { namePrefix: V2_DEVICE_NAME_PREFIX },
-    ],
+    filters: [{ namePrefix: V3_DEVICE_NAME_PREFIX }, { namePrefix: V2_DEVICE_NAME_PREFIX }],
     optionalServices: [
-      V3_PRIMARY_SERVICE, V3_BATTERY_SERVICE,
-      V2_PRIMARY_SERVICE, V2_BATTERY_SERVICE,
+      V3_PRIMARY_SERVICE,
+      V3_BATTERY_SERVICE,
+      V2_PRIMARY_SERVICE,
+      V2_BATTERY_SERVICE,
     ],
   });
 
@@ -568,12 +590,12 @@ function handleV2StrengthNotification(event: Event): void {
   if (!dv || dv.byteLength < 3) return;
 
   const raw = (dv.getUint8(0) << 16) | (dv.getUint8(1) << 8) | dv.getUint8(2);
-  const rawA = (raw >> 11) & 0x7FF;
-  const rawB = raw & 0x7FF;
+  const rawA = (raw >> 11) & 0x7ff;
+  const rawB = raw & 0x7ff;
 
   // Map V2 0-2047 back to unified 0-200
-  state.strengthA = Math.round(rawA * 200 / 2047);
-  state.strengthB = Math.round(rawB * 200 / 2047);
+  state.strengthA = Math.round((rawA * 200) / 2047);
+  state.strengthB = Math.round((rawB * 200) / 2047);
 
   notify();
 }
@@ -594,11 +616,15 @@ export async function disconnect(): Promise<void> {
       pendingMode = (3 << 2) | 3;
       const cmd = buildB0();
       await writeChar.writeValueWithoutResponse(cmd);
-    } catch (_e) { /* best effort */ }
+    } catch (_e) {
+      /* best effort */
+    }
   } else if (deviceVersion === 2 && v2StrengthChar) {
     try {
       await v2StrengthChar.writeValueWithoutResponse(encodeV2Strength(0, 0));
-    } catch (_e) { /* best effort */ }
+    } catch (_e) {
+      /* best effort */
+    }
   }
 
   stopTickLoop();
@@ -608,12 +634,19 @@ export async function disconnect(): Promise<void> {
     try {
       notifyChar.removeEventListener('characteristicvaluechanged', handleNotification);
       await notifyChar.stopNotifications();
-    } catch (_e) { /* ignore */ }
+    } catch (_e) {
+      /* ignore */
+    }
   } else if (deviceVersion === 2 && v2StrengthChar) {
     try {
-      v2StrengthChar.removeEventListener('characteristicvaluechanged', handleV2StrengthNotification);
+      v2StrengthChar.removeEventListener(
+        'characteristicvaluechanged',
+        handleV2StrengthNotification,
+      );
       await v2StrengthChar.stopNotifications();
-    } catch (_e) { /* ignore */ }
+    } catch (_e) {
+      /* ignore */
+    }
   }
 
   if (bleDevice && bleDevice.gatt.connected) {
@@ -637,7 +670,7 @@ export function setStrength(channel: string, value: number): void {
     if (deviceVersion === 3) pendingMode = (pendingMode & 0x03) | (3 << 2);
   } else {
     pendingStrB = v;
-    if (deviceVersion === 3) pendingMode = (pendingMode & 0x0C) | 3;
+    if (deviceVersion === 3) pendingMode = (pendingMode & 0x0c) | 3;
   }
 }
 
@@ -668,7 +701,7 @@ export function addStrength(channel: string, delta: number): void {
       pendingMode = (pendingMode & 0x03) | (mode << 2);
     } else {
       pendingStrB = magnitude;
-      pendingMode = (pendingMode & 0x0C) | mode;
+      pendingMode = (pendingMode & 0x0c) | mode;
     }
   }
 }
@@ -697,11 +730,7 @@ export function setStrengthLimit(limitA: number, limitB: number): void {
  * @param frames   One frame per 100ms, each [encoded_freq, intensity(0-100)]
  * @param loop     Whether to loop playback
  */
-export function sendWave(
-  channel: string,
-  frames: WaveFrame[],
-  loop: boolean = false,
-): void {
+export function sendWave(channel: string, frames: WaveFrame[], loop: boolean = false): void {
   if (!state.connected) throw new Error('设备未连接');
   const ch = String(channel || '').toUpperCase() as Channel;
   if (ch !== 'A' && ch !== 'B') throw new Error(`Invalid channel: ${channel}`);
@@ -784,11 +813,15 @@ export function emergencyStop(): void {
       pendingMode = (3 << 2) | 3;
       const cmd = buildB0();
       writeChar.writeValueWithoutResponse(cmd);
-    } catch (_) { /* best effort */ }
+    } catch (_) {
+      /* best effort */
+    }
   } else if (deviceVersion === 2 && v2StrengthChar) {
     try {
       v2StrengthChar.writeValueWithoutResponse(encodeV2Strength(0, 0));
-    } catch (_) { /* best effort */ }
+    } catch (_) {
+      /* best effort */
+    }
   }
 
   notify();

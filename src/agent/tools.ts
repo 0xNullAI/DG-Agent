@@ -17,7 +17,12 @@ const CH = { type: 'string', enum: ['A', 'B'], description: '通道 A 或 B' } a
 
 function snap() {
   const s = bt.getStatus();
-  return { strengthA: s.strengthA, strengthB: s.strengthB, waveActiveA: s.waveActiveA, waveActiveB: s.waveActiveB };
+  return {
+    strengthA: s.strengthA,
+    strengthB: s.strengthB,
+    waveActiveA: s.waveActiveA,
+    waveActiveB: s.waveActiveB,
+  };
 }
 
 function clamp(value: number, channel: string): { value: number; limited: boolean } {
@@ -83,7 +88,10 @@ export function cancelAllBurstRestores(): void {
 function resolveWaveform(id: string): UserWaveform {
   const w = waveforms.getById(id);
   if (w) return w;
-  const available = waveforms.getAll().map((x) => x.id).join(', ');
+  const available = waveforms
+    .getAll()
+    .map((x) => x.id)
+    .join(', ');
   throw new Error(`未知波形 id "${id}"。可用波形: ${available || '(空)'}`);
 }
 
@@ -97,9 +105,10 @@ function resolveWaveform(id: string): UserWaveform {
 function buildToolDefs(): ToolDef[] {
   const list = waveforms.getAll();
   const waveEnum = list.map((w) => w.id);
-  const waveDesc = list.length === 0
-    ? '（波形库为空）'
-    : list.map((w) => `  • ${w.id} — ${w.description || w.name}`).join('\n');
+  const waveDesc =
+    list.length === 0
+      ? '（波形库为空）'
+      : list.map((w) => `  • ${w.id} — ${w.description || w.name}`).join('\n');
 
   return [
     {
@@ -241,7 +250,8 @@ function buildToolDefs(): ToolDef[] {
           },
           label: {
             type: 'string',
-            description: '定时器的标签或备注。到期提醒时会带上此内容，帮助你回忆该定时器的用途（例如 "stop_punishment"）。',
+            description:
+              '定时器的标签或备注。到期提醒时会带上此内容，帮助你回忆该定时器的用途（例如 "stop_punishment"）。',
           },
         },
         required: ['seconds', 'label'],
@@ -296,7 +306,13 @@ const HANDLERS: Record<string, Handler> = {
     const safe = clamp(current + deltaN, channel);
     const actualDelta = safe.value - current;
     if (actualDelta !== 0) bt.addStrength(channel, actualDelta);
-    return { channel, requestedDelta: deltaN, actualDelta, result: safe.value, limited: safe.limited };
+    return {
+      channel,
+      requestedDelta: deltaN,
+      actualDelta,
+      result: safe.value,
+      limited: safe.limited,
+    };
   },
 
   change_wave({ channel, waveform, loop }) {
