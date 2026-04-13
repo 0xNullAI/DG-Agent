@@ -390,7 +390,7 @@ async function callChatCompletions(
   if (cTools) {
     body.tools = cTools;
     body.tool_choice = 'auto';
-    body.parallel_tool_calls = true;
+    if (config.useStrict) body.parallel_tool_calls = true;
   }
   if (onTextDelta) body.stream = true;
 
