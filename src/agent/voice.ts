@@ -17,6 +17,7 @@ export type VoiceStatus = 'idle' | 'connecting' | 'recording' | 'transcribing';
 
 export type VoiceStatusCallback = (status: VoiceStatus) => void;
 export type PartialTranscriptCallback = (text: string) => void;
+export type SpeechEndCallback = () => void;
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -24,6 +25,11 @@ export type PartialTranscriptCallback = (text: string) => void;
 
 const FREE_PROXY_URL = 'wss://dg-agent-proxy-eloracuikl.cn-hangzhou.fcapp.run';
 const SAMPLE_RATE = 16000;
+
+/** RMS threshold below which audio is considered silence. */
+const SILENCE_THRESHOLD = 0.015;
+/** Seconds of continuous silence after speech to trigger auto-stop. */
+const SILENCE_DURATION = 1.5;
 
 // ---------------------------------------------------------------------------
 // Module state
@@ -36,12 +42,19 @@ let scriptNode: ScriptProcessorNode | null = null;
 let status: VoiceStatus = 'idle';
 let statusCb: VoiceStatusCallback | null = null;
 let partialCb: PartialTranscriptCallback | null = null;
+let speechEndCb: SpeechEndCallback | null = null;
 let taskId = '';
 let finalTranscript = '';
 let pendingResolve: ((text: string) => void) | null = null;
 let pendingReject: ((err: Error) => void) | null = null;
 /** Whether we have sent finish-task and are waiting for final result. */
 let finishing = false;
+
+// VAD (Voice Activity Detection) state
+/** Whether we have detected speech in the current recording session. */
+let speechDetected = false;
+/** Timestamp (ms) when silence began after speech, or 0 if currently speaking. */
+let silenceStart = 0;
 
 function setStatus(s: VoiceStatus): void {
   status = s;
@@ -62,6 +75,11 @@ export function onStatusChange(cb: VoiceStatusCallback): void {
 
 export function onPartialTranscript(cb: PartialTranscriptCallback): void {
   partialCb = cb;
+}
+
+/** Register a callback invoked when VAD detects speech has ended (silence after speech). */
+export function onSpeechEnd(cb: SpeechEndCallback): void {
+  speechEndCb = cb;
 }
 
 export function getStatus(): VoiceStatus {
@@ -87,6 +105,8 @@ export async function startRecording(): Promise<void> {
   taskId = generateTaskId();
   finalTranscript = '';
   finishing = false;
+  speechDetected = false;
+  silenceStart = 0;
 
   try {
     // Get microphone
@@ -105,6 +125,25 @@ export async function startRecording(): Promise<void> {
       const float32 = e.inputBuffer.getChannelData(0);
       const int16 = float32ToInt16(float32);
       ws.send(int16.buffer as ArrayBuffer);
+
+      // VAD: detect speech end by monitoring audio energy
+      if (!loadVoiceSettings().autoStopEnabled) return;
+      const rms = computeRms(float32);
+      if (rms > SILENCE_THRESHOLD) {
+        speechDetected = true;
+        silenceStart = 0;
+      } else if (speechDetected) {
+        const now = Date.now();
+        if (silenceStart === 0) {
+          silenceStart = now;
+        } else if (now - silenceStart > SILENCE_DURATION * 1000) {
+          // Silence long enough after speech — notify
+          speechEndCb?.();
+          // Reset so we don't fire again
+          speechDetected = false;
+          silenceStart = 0;
+        }
+      }
     };
     source.connect(scriptNode);
     scriptNode.connect(audioContext.destination);
@@ -305,6 +344,15 @@ function cleanup(): void {
   ws = null;
   finishing = false;
   setStatus('idle');
+}
+
+/** Compute Root Mean Square energy of an audio buffer. */
+function computeRms(float32: Float32Array): number {
+  let sum = 0;
+  for (let i = 0; i < float32.length; i++) {
+    sum += float32[i] * float32[i];
+  }
+  return Math.sqrt(sum / float32.length);
 }
 
 /** Convert Float32 audio samples to Int16 Little-Endian PCM. */

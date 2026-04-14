@@ -318,6 +318,13 @@ function enterVoiceMode(): void {
     if (!voiceMode) return;
     voiceOverlayTranscript.textContent = text;
   });
+  // VAD: auto-send when speech ends (silence detected after speaking)
+  voice.onSpeechEnd(() => {
+    if (!voiceMode) return;
+    if (voice.getStatus() === 'recording') {
+      voiceModeSendRecording();
+    }
+  });
 
   // Single TTS status callback — handles display + auto-continue
   tts.onStatusChange((s) => {

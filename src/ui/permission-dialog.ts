@@ -152,4 +152,3 @@ function formatArgs(args: Record<string, unknown>): string {
     return String(args);
   }
 }
-

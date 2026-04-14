@@ -65,11 +65,11 @@ function renderTopTabs(): void {
   container.innerHTML = '';
 
   const tabs: Array<{ id: TopTab; label: string }> = [
-    { id: 'basic', label: '基础设置' },
+    { id: 'basic', label: '基础' },
     { id: 'security', label: '安全' },
     { id: 'waveforms', label: '波形' },
-    { id: 'bridge', label: '社交平台' },
     { id: 'voice', label: '语音' },
+    { id: 'bridge', label: 'Bot' },
   ];
 
   tabs.forEach((t) => {
@@ -950,12 +950,14 @@ export interface VoiceSettings {
   speaker: string;
   dashscopeApiKey: string;
   proxyUrl: string;
+  autoStopEnabled: boolean;
 }
 
 export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
   speaker: 'longxiaochun',
   dashscopeApiKey: '',
   proxyUrl: '',
+  autoStopEnabled: true,
 };
 
 const VOICE_SPEAKERS: Array<{ id: string; label: string }> = [
@@ -1014,6 +1016,14 @@ function renderVoicePanel(): void {
   });
   speakerGroup.appendChild(speakerSelect);
   container.appendChild(speakerGroup);
+
+  // Auto-stop (VAD)
+  container.appendChild(
+    makeToggleRow('自动结束录音（静音检测）', vs.autoStopEnabled, (on) => {
+      vs.autoStopEnabled = on;
+      saveVoiceSettings(vs);
+    }),
+  );
 
   // API Key
   container.appendChild(

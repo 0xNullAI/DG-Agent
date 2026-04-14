@@ -64,7 +64,6 @@ let queue: MessageQueue | null = null;
 /** The origin of the currently-processing bridge turn, if any. */
 let currentOrigin: (MessageOrigin & { adapter: PlatformAdapter }) | null = null;
 
-
 // ---------------------------------------------------------------------------
 // BridgeSink — AgentSink implementation that forwards to social platforms
 // ---------------------------------------------------------------------------
@@ -154,9 +153,7 @@ export function isBridgeTurn(): boolean {
  * The processor is `conversation.sendMessage` — called for each incoming
  * platform message after the queue serializes them.
  */
-export async function initBridge(
-  processor: (text: string) => Promise<void>,
-): Promise<void> {
+export async function initBridge(processor: (text: string) => Promise<void>): Promise<void> {
   const settings = loadBridgeSettings();
   console.log('[Bridge] Settings:', JSON.stringify(settings));
   if (!settings.enabled) {

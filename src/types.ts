@@ -185,6 +185,8 @@ export interface AppSettings {
     dashscopeApiKey: string;
     /** Optional custom WebSocket proxy URL. If empty, uses free proxy. */
     proxyUrl: string;
+    /** Whether VAD auto-stop is enabled (default true). */
+    autoStopEnabled: boolean;
   };
 }
 

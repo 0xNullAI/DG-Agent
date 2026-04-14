@@ -1,4 +1,4 @@
-import type { PlatformAdapter, PlatformMessage } from "../adapter.js";
+import type { PlatformAdapter, PlatformMessage } from '../adapter.js';
 
 export interface QQAdapterConfig {
   wsUrl: string;
@@ -32,12 +32,12 @@ interface PendingWaiter {
   timer: ReturnType<typeof setTimeout>;
 }
 
-const GROUP_PREFIX = "group:";
+const GROUP_PREFIX = 'group:';
 const RECONNECT_BASE_MS = 3000;
 const RECONNECT_CAP_MS = 30000;
 
 export class QQAdapter implements PlatformAdapter {
-  readonly platform = "qq";
+  readonly platform = 'qq';
 
   private ws: WebSocket | null = null;
   private handlers: MessageHandler[] = [];
@@ -72,13 +72,13 @@ export class QQAdapter implements PlatformAdapter {
       this.ws.close();
       this.ws = null;
     }
-    console.log("[QQ] Stopped");
+    console.log('[QQ] Stopped');
   }
 
   sendMessage(userId: string, text: string): Promise<void> {
     return new Promise((resolve, reject) => {
       if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-        reject(new Error("[QQ] WebSocket is not connected"));
+        reject(new Error('[QQ] WebSocket is not connected'));
         return;
       }
 
@@ -87,12 +87,12 @@ export class QQAdapter implements PlatformAdapter {
 
       const payload = isGroup
         ? {
-            action: "send_group_msg",
+            action: 'send_group_msg',
             params: { group_id: Number(userId.slice(GROUP_PREFIX.length)), message: text },
             echo,
           }
         : {
-            action: "send_private_msg",
+            action: 'send_private_msg',
             params: { user_id: Number(userId), message: text },
             echo,
           };
@@ -101,8 +101,8 @@ export class QQAdapter implements PlatformAdapter {
         try {
           const data: OneBotResponse = JSON.parse(ev.data as string);
           if (data.echo !== echo) return;
-          this.ws?.removeEventListener("message", onResponse);
-          if (data.status === "ok") {
+          this.ws?.removeEventListener('message', onResponse);
+          if (data.status === 'ok') {
             resolve();
           } else {
             reject(new Error(`[QQ] send failed: retcode=${data.retcode}`));
@@ -112,7 +112,7 @@ export class QQAdapter implements PlatformAdapter {
         }
       };
 
-      this.ws.addEventListener("message", onResponse);
+      this.ws.addEventListener('message', onResponse);
       this.ws.send(JSON.stringify(payload));
     });
   }
@@ -126,7 +126,7 @@ export class QQAdapter implements PlatformAdapter {
       const existing = this.pendingWaiters.get(userId);
       if (existing) {
         clearTimeout(existing.timer);
-        existing.resolve(""); // resolve old waiter to avoid leak
+        existing.resolve(''); // resolve old waiter to avoid leak
       }
 
       const timer = setTimeout(() => {
@@ -152,28 +152,28 @@ export class QQAdapter implements PlatformAdapter {
       console.log(`[QQ] Connecting to ${this.config.wsUrl}`);
       const ws = new WebSocket(this.config.wsUrl);
 
-      ws.addEventListener("open", () => {
-        console.log("[QQ] Connected");
+      ws.addEventListener('open', () => {
+        console.log('[QQ] Connected');
         this.ws = ws;
         this.reconnectDelay = RECONNECT_BASE_MS;
         resolve();
       });
 
-      ws.addEventListener("message", (ev) => {
+      ws.addEventListener('message', (ev) => {
         this.handleRaw(ev.data as string);
       });
 
-      ws.addEventListener("close", () => {
-        console.log("[QQ] Connection closed");
+      ws.addEventListener('close', () => {
+        console.log('[QQ] Connection closed');
         this.ws = null;
         this.scheduleReconnect();
       });
 
-      ws.addEventListener("error", (ev) => {
-        console.log("[QQ] WebSocket error", ev);
+      ws.addEventListener('error', (ev) => {
+        console.log('[QQ] WebSocket error', ev);
         // If we never connected, reject the start() promise
         if (this.ws === null) {
-          reject(new Error("[QQ] Failed to connect"));
+          reject(new Error('[QQ] Failed to connect'));
         }
       });
     });
@@ -207,15 +207,15 @@ export class QQAdapter implements PlatformAdapter {
       console.log(`[QQ] Bot self_id: ${this.selfId}`);
     }
 
-    if (data.post_type !== "message") return;
+    if (data.post_type !== 'message') return;
 
     const userIdStr = String(data.user_id);
     const groupIdStr = data.group_id != null ? String(data.group_id) : null;
 
     // Access control
-    if (data.message_type === "private") {
+    if (data.message_type === 'private') {
       if (!this.config.allowUsers.includes(userIdStr)) return;
-    } else if (data.message_type === "group") {
+    } else if (data.message_type === 'group') {
       if (groupIdStr === null || !this.config.allowGroups.includes(groupIdStr)) return;
       // Group messages must @ the bot to trigger
       if (!this.isAtBot(data)) return;
@@ -228,7 +228,7 @@ export class QQAdapter implements PlatformAdapter {
     if (!text) return; // Nothing left after stripping @
 
     const platformUserId =
-      data.message_type === "group" ? `${GROUP_PREFIX}${groupIdStr}` : userIdStr;
+      data.message_type === 'group' ? `${GROUP_PREFIX}${groupIdStr}` : userIdStr;
 
     const msg: PlatformMessage = {
       platform: this.platform,
@@ -249,7 +249,7 @@ export class QQAdapter implements PlatformAdapter {
       try {
         handler(msg);
       } catch (err) {
-        console.log("[QQ] Handler error", err);
+        console.log('[QQ] Handler error', err);
       }
     }
   }
@@ -258,9 +258,7 @@ export class QQAdapter implements PlatformAdapter {
   private isAtBot(data: OneBotMessageEvent): boolean {
     if (!this.selfId) return false;
     // message array contains { type: 'at', data: { qq: '12345' } } segments
-    return data.message.some(
-      (seg) => seg.type === 'at' && seg.data.qq === this.selfId,
-    );
+    return data.message.some((seg) => seg.type === 'at' && seg.data.qq === this.selfId);
   }
 
   /** Remove [CQ:at,qq=<selfId>] from raw_message and trim whitespace. */

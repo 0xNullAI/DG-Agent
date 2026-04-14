@@ -130,9 +130,7 @@ export class TelegramAdapter implements PlatformAdapter {
   private async pollLoop(): Promise<void> {
     while (this.running) {
       try {
-        const url =
-          this.apiUrl('getUpdates') +
-          `?offset=${this.lastOffset}&timeout=25`;
+        const url = this.apiUrl('getUpdates') + `?offset=${this.lastOffset}&timeout=25`;
 
         // AbortController timeout slightly longer than the long-poll timeout
         const controller = new AbortController();
