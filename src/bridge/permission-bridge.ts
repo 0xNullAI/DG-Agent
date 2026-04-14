@@ -53,7 +53,9 @@ export async function requestPermissionRemote(
   if (reply === null) {
     try {
       await adapter.sendMessage(userId, '权限确认超时，已自动拒绝。');
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return 'deny';
   }
 
@@ -63,7 +65,9 @@ export async function requestPermissionRemote(
   if (!choice) {
     try {
       await adapter.sendMessage(userId, `无效选择「${trimmed}」，已自动拒绝。请回复 1-4。`);
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return 'deny';
   }
 

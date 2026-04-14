@@ -30,11 +30,7 @@ import {
   clearGrants,
   type PermissionChoice,
 } from './permissions';
-import {
-  bridgeSink,
-  isBridgeTurn,
-  requestBridgePermission,
-} from '../bridge';
+import { bridgeSink, isBridgeTurn, requestBridgePermission } from '../bridge';
 
 export function initConversation(callbacks: ConversationCallbacks): void {
   initCallbacks(callbacks);

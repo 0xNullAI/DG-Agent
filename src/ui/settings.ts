@@ -671,18 +671,28 @@ function renderBridgePanel(): void {
   container.appendChild(topRow);
 
   // Master toggle
-  container.appendChild(makeToggleRow('启用社交平台桥接', bs.enabled, (on) => {
-    bs.enabled = on;
-    saveBridgeSettings(bs);
-  }));
+  container.appendChild(
+    makeToggleRow('启用社交平台桥接', bs.enabled, (on) => {
+      bs.enabled = on;
+      saveBridgeSettings(bs);
+    }),
+  );
 
   // ---- Platform tabs ----
   const tabBar = document.createElement('div');
   tabBar.className = 'provider-tabs bridge-tabs';
 
   const tabs: Array<{ id: BridgeTab; label: string; connected: boolean | null }> = [
-    { id: 'qq', label: 'QQ', connected: statuses.find((s) => s.platform === 'qq')?.connected ?? null },
-    { id: 'telegram', label: 'Telegram', connected: statuses.find((s) => s.platform === 'telegram')?.connected ?? null },
+    {
+      id: 'qq',
+      label: 'QQ',
+      connected: statuses.find((s) => s.platform === 'qq')?.connected ?? null,
+    },
+    {
+      id: 'telegram',
+      label: 'Telegram',
+      connected: statuses.find((s) => s.platform === 'telegram')?.connected ?? null,
+    },
   ];
 
   tabs.forEach((t) => {
@@ -725,68 +735,119 @@ function updateBridgeTabContent(container: HTMLElement, bs: BridgeSettings): voi
 function renderQQTab(content: HTMLElement, bs: BridgeSettings): void {
   const hint = document.createElement('p');
   hint.className = 'provider-hint';
-  hint.textContent = '需要在本机运行 NapCat 并用手机 QQ 扫码登录。NapCat 提供 OneBot v11 WebSocket 接口，默认端口 3001。';
+  hint.textContent =
+    '需要在本机运行 NapCat 并用手机 QQ 扫码登录。NapCat 提供 OneBot v11 WebSocket 接口，默认端口 3001。';
   content.appendChild(hint);
 
-  content.appendChild(makeToggleRow('启用 QQ', bs.qq.enabled, (on) => {
-    bs.qq.enabled = on;
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makeToggleRow('启用 QQ', bs.qq.enabled, (on) => {
+      bs.qq.enabled = on;
+      saveBridgeSettings(bs);
+    }),
+  );
 
-  content.appendChild(makeInputRow('NapCat WebSocket 地址', bs.qq.wsUrl, 'ws://localhost:3001', (val) => {
-    bs.qq.wsUrl = val;
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makeInputRow('NapCat WebSocket 地址', bs.qq.wsUrl, 'ws://localhost:3001', (val) => {
+      bs.qq.wsUrl = val;
+      saveBridgeSettings(bs);
+    }),
+  );
 
-  content.appendChild(makeInputRow('允许的 QQ 用户号（逗号分隔）', bs.qq.allowUsers.join(','), '12345678,87654321', (val) => {
-    bs.qq.allowUsers = val.split(',').map((s) => s.trim()).filter(Boolean);
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makeInputRow(
+      '允许的 QQ 用户号（逗号分隔）',
+      bs.qq.allowUsers.join(','),
+      '12345678,87654321',
+      (val) => {
+        bs.qq.allowUsers = val
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        saveBridgeSettings(bs);
+      },
+    ),
+  );
 
-  content.appendChild(makeInputRow('允许的 QQ 群号（逗号分隔）', bs.qq.allowGroups.join(','), '', (val) => {
-    bs.qq.allowGroups = val.split(',').map((s) => s.trim()).filter(Boolean);
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makeInputRow('允许的 QQ 群号（逗号分隔）', bs.qq.allowGroups.join(','), '', (val) => {
+      bs.qq.allowGroups = val
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      saveBridgeSettings(bs);
+    }),
+  );
 
-  content.appendChild(makePermModeRow('权限模式', bs.qq.permissionMode, (mode) => {
-    bs.qq.permissionMode = mode;
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makePermModeRow('权限模式', bs.qq.permissionMode, (mode) => {
+      bs.qq.permissionMode = mode;
+      saveBridgeSettings(bs);
+    }),
+  );
 }
 
 function renderTelegramTab(content: HTMLElement, bs: BridgeSettings): void {
   const hint = document.createElement('p');
   hint.className = 'provider-hint';
-  hint.textContent = '在 Telegram 找 @BotFather 发 /newbot 创建机器人获取 Token。如遇 CORS 问题需填写代理 URL。';
+  hint.textContent =
+    '在 Telegram 找 @BotFather 发 /newbot 创建机器人获取 Token。如遇 CORS 问题需填写代理 URL。';
   content.appendChild(hint);
 
-  content.appendChild(makeToggleRow('启用 Telegram', bs.telegram.enabled, (on) => {
-    bs.telegram.enabled = on;
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makeToggleRow('启用 Telegram', bs.telegram.enabled, (on) => {
+      bs.telegram.enabled = on;
+      saveBridgeSettings(bs);
+    }),
+  );
 
-  content.appendChild(makeInputRow('Bot Token', bs.telegram.botToken, '123456:ABC-DEF...', (val) => {
-    bs.telegram.botToken = val;
-    saveBridgeSettings(bs);
-  }, 'password'));
+  content.appendChild(
+    makeInputRow(
+      'Bot Token',
+      bs.telegram.botToken,
+      '123456:ABC-DEF...',
+      (val) => {
+        bs.telegram.botToken = val;
+        saveBridgeSettings(bs);
+      },
+      'password',
+    ),
+  );
 
-  content.appendChild(makeInputRow('CORS 代理 URL（可选）', bs.telegram.proxyUrl, 'https://your-proxy.com', (val) => {
-    bs.telegram.proxyUrl = val;
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makeInputRow('CORS 代理 URL（可选）', bs.telegram.proxyUrl, 'https://your-proxy.com', (val) => {
+      bs.telegram.proxyUrl = val;
+      saveBridgeSettings(bs);
+    }),
+  );
 
-  content.appendChild(makeInputRow('允许的用户 ID（逗号分隔）', bs.telegram.allowUsers.join(','), '987654321', (val) => {
-    bs.telegram.allowUsers = val.split(',').map((s) => Number(s.trim())).filter((n) => n > 0);
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makeInputRow(
+      '允许的用户 ID（逗号分隔）',
+      bs.telegram.allowUsers.join(','),
+      '987654321',
+      (val) => {
+        bs.telegram.allowUsers = val
+          .split(',')
+          .map((s) => Number(s.trim()))
+          .filter((n) => n > 0);
+        saveBridgeSettings(bs);
+      },
+    ),
+  );
 
-  content.appendChild(makePermModeRow('权限模式', bs.telegram.permissionMode, (mode) => {
-    bs.telegram.permissionMode = mode;
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makePermModeRow('权限模式', bs.telegram.permissionMode, (mode) => {
+      bs.telegram.permissionMode = mode;
+      saveBridgeSettings(bs);
+    }),
+  );
 }
 
-function makeToggleRow(label: string, value: boolean, onChange: (on: boolean) => void): HTMLDivElement {
+function makeToggleRow(
+  label: string,
+  value: boolean,
+  onChange: (on: boolean) => void,
+): HTMLDivElement {
   const row = document.createElement('div');
   row.className = 'setting-group setting-group-inline';
 
@@ -815,7 +876,13 @@ function makeToggleRow(label: string, value: boolean, onChange: (on: boolean) =>
   return row;
 }
 
-function makeInputRow(label: string, value: string, placeholder: string, onChange: (val: string) => void, type?: string): HTMLDivElement {
+function makeInputRow(
+  label: string,
+  value: string,
+  placeholder: string,
+  onChange: (val: string) => void,
+  type?: string,
+): HTMLDivElement {
   const row = document.createElement('div');
   row.className = 'setting-group';
 
@@ -833,7 +900,11 @@ function makeInputRow(label: string, value: string, placeholder: string, onChang
   return row;
 }
 
-function makePermModeRow(label: string, value: 'ask' | 'always', onChange: (mode: 'ask' | 'always') => void): HTMLDivElement {
+function makePermModeRow(
+  label: string,
+  value: 'ask' | 'always',
+  onChange: (mode: 'ask' | 'always') => void,
+): HTMLDivElement {
   const row = document.createElement('div');
   row.className = 'setting-group setting-group-inline';
 
