@@ -85,6 +85,8 @@ AI：已经开始了哦，是很轻柔的呼吸波形，感觉怎么样？
 
 - [DG-MCP](https://github.com/0xNullAI/DG-MCP) — 本项目的 Python MCP 版本
 - [DG-LAB-OPENSOURCE](https://github.com/DG-LAB-OPENSOURCE/DG-LAB-OPENSOURCE) — 官方开源 BLE 协议
+- [openclaw-plugin-dg-lab](https://github.com/FengYing1314/openclaw-plugin-dg-lab) — 波形解析器参考实现 (MIT)
+- [sse-dg-lab](https://github.com/admilkjs/sse-dg-lab) — Dungeonlab+pulse 波形解析引擎 (MIT)
 
 ## 🚨 免责声明
 
