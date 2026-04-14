@@ -30,11 +30,8 @@ import {
   clearGrants,
   type PermissionChoice,
 } from './permissions';
-import {
-  bridgeSink,
-  isBridgeTurn,
-  requestBridgePermission,
-} from '../bridge';
+import { bridgeSink, isBridgeTurn, requestBridgePermission } from '../bridge';
+import * as tts from './tts';
 
 export function initConversation(callbacks: ConversationCallbacks): void {
   initCallbacks(callbacks);
@@ -69,6 +66,7 @@ export function fullStop(): void {
   abortCurrent();
   toolsRuntime.fullStop();
   pendingTimers.length = 0;
+  tts.stop();
 }
 
 // ---------------------------------------------------------------------------
@@ -257,6 +255,7 @@ export function setActivePresetId(id: string): void {
 class ChatSink implements AgentSink {
   private cb: ConversationCallbacks;
   private msgId: string | null = null;
+  private lastText = '';
 
   constructor(cb: ConversationCallbacks) {
     this.cb = cb;
@@ -273,6 +272,7 @@ class ChatSink implements AgentSink {
   // ---- AgentSink interface ----
 
   onTextDelta(accumulated: string): void {
+    this.lastText = accumulated;
     this.cb.onTypingEnd();
     this.msgId = this.cb.onAssistantStream(accumulated, this.msgId || undefined);
     if (isBridgeTurn()) bridgeSink.onTextDelta(accumulated);
@@ -283,6 +283,13 @@ class ChatSink implements AgentSink {
       this.cb.onAssistantFinalize(this.msgId);
       this.msgId = null;
     }
+    // Trigger TTS for the completed message (fire and forget)
+    if (this.lastText && tts.isEnabled() && !isBridgeTurn()) {
+      tts.speak(this.lastText).catch((err) => {
+        console.error('[TTS] playback error:', err);
+      });
+    }
+    this.lastText = '';
     if (isBridgeTurn()) bridgeSink.onTextComplete();
   }
 
@@ -434,6 +441,7 @@ async function runConversationTurn(
 
 export async function sendMessage(text: string): Promise<void> {
   if (store.isProcessing || !callbacks) return;
+  tts.stop(); // interrupt any playing TTS
   callbacks.onUserMessage(text);
   store.items.push({ role: 'user', content: text });
 

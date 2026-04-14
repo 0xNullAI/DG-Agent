@@ -40,7 +40,7 @@ export function init(getPresetId: () => string, getCustomPrompt: () => string): 
 // settings modal is open; cleaned up on close.
 let permissionCountdownTimer: number | null = null;
 
-type TopTab = 'basic' | 'security' | 'waveforms' | 'bridge';
+type TopTab = 'basic' | 'security' | 'waveforms' | 'bridge' | 'voice';
 let activeTopTab: TopTab = 'basic';
 
 export function open(): void {
@@ -55,6 +55,7 @@ export function open(): void {
   renderBehaviorSettings(saved);
   renderWaveformsPanel();
   renderBridgePanel();
+  renderVoicePanel();
   updateTopPanelVisibility();
   startPermissionCountdown();
 }
@@ -68,6 +69,7 @@ function renderTopTabs(): void {
     { id: 'security', label: '安全' },
     { id: 'waveforms', label: '波形' },
     { id: 'bridge', label: '社交平台' },
+    { id: 'voice', label: '语音' },
   ];
 
   tabs.forEach((t) => {
@@ -93,6 +95,8 @@ function updateTopPanelVisibility(): void {
   $('settings-panel-waveforms')!.classList.toggle('hidden', activeTopTab !== 'waveforms');
   const bridgePanel = $('settings-panel-bridge');
   if (bridgePanel) bridgePanel.classList.toggle('hidden', activeTopTab !== 'bridge');
+  const voicePanel = $('settings-panel-voice');
+  if (voicePanel) voicePanel.classList.toggle('hidden', activeTopTab !== 'voice');
 }
 
 function renderPageConfig(): void {
@@ -671,18 +675,28 @@ function renderBridgePanel(): void {
   container.appendChild(topRow);
 
   // Master toggle
-  container.appendChild(makeToggleRow('启用社交平台桥接', bs.enabled, (on) => {
-    bs.enabled = on;
-    saveBridgeSettings(bs);
-  }));
+  container.appendChild(
+    makeToggleRow('启用社交平台桥接', bs.enabled, (on) => {
+      bs.enabled = on;
+      saveBridgeSettings(bs);
+    }),
+  );
 
   // ---- Platform tabs ----
   const tabBar = document.createElement('div');
   tabBar.className = 'provider-tabs bridge-tabs';
 
   const tabs: Array<{ id: BridgeTab; label: string; connected: boolean | null }> = [
-    { id: 'qq', label: 'QQ', connected: statuses.find((s) => s.platform === 'qq')?.connected ?? null },
-    { id: 'telegram', label: 'Telegram', connected: statuses.find((s) => s.platform === 'telegram')?.connected ?? null },
+    {
+      id: 'qq',
+      label: 'QQ',
+      connected: statuses.find((s) => s.platform === 'qq')?.connected ?? null,
+    },
+    {
+      id: 'telegram',
+      label: 'Telegram',
+      connected: statuses.find((s) => s.platform === 'telegram')?.connected ?? null,
+    },
   ];
 
   tabs.forEach((t) => {
@@ -725,68 +739,119 @@ function updateBridgeTabContent(container: HTMLElement, bs: BridgeSettings): voi
 function renderQQTab(content: HTMLElement, bs: BridgeSettings): void {
   const hint = document.createElement('p');
   hint.className = 'provider-hint';
-  hint.textContent = '需要在本机运行 NapCat 并用手机 QQ 扫码登录。NapCat 提供 OneBot v11 WebSocket 接口，默认端口 3001。';
+  hint.textContent =
+    '需要在本机运行 NapCat 并用手机 QQ 扫码登录。NapCat 提供 OneBot v11 WebSocket 接口，默认端口 3001。';
   content.appendChild(hint);
 
-  content.appendChild(makeToggleRow('启用 QQ', bs.qq.enabled, (on) => {
-    bs.qq.enabled = on;
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makeToggleRow('启用 QQ', bs.qq.enabled, (on) => {
+      bs.qq.enabled = on;
+      saveBridgeSettings(bs);
+    }),
+  );
 
-  content.appendChild(makeInputRow('NapCat WebSocket 地址', bs.qq.wsUrl, 'ws://localhost:3001', (val) => {
-    bs.qq.wsUrl = val;
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makeInputRow('NapCat WebSocket 地址', bs.qq.wsUrl, 'ws://localhost:3001', (val) => {
+      bs.qq.wsUrl = val;
+      saveBridgeSettings(bs);
+    }),
+  );
 
-  content.appendChild(makeInputRow('允许的 QQ 用户号（逗号分隔）', bs.qq.allowUsers.join(','), '12345678,87654321', (val) => {
-    bs.qq.allowUsers = val.split(',').map((s) => s.trim()).filter(Boolean);
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makeInputRow(
+      '允许的 QQ 用户号（逗号分隔）',
+      bs.qq.allowUsers.join(','),
+      '12345678,87654321',
+      (val) => {
+        bs.qq.allowUsers = val
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        saveBridgeSettings(bs);
+      },
+    ),
+  );
 
-  content.appendChild(makeInputRow('允许的 QQ 群号（逗号分隔）', bs.qq.allowGroups.join(','), '', (val) => {
-    bs.qq.allowGroups = val.split(',').map((s) => s.trim()).filter(Boolean);
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makeInputRow('允许的 QQ 群号（逗号分隔）', bs.qq.allowGroups.join(','), '', (val) => {
+      bs.qq.allowGroups = val
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      saveBridgeSettings(bs);
+    }),
+  );
 
-  content.appendChild(makePermModeRow('权限模式', bs.qq.permissionMode, (mode) => {
-    bs.qq.permissionMode = mode;
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makePermModeRow('权限模式', bs.qq.permissionMode, (mode) => {
+      bs.qq.permissionMode = mode;
+      saveBridgeSettings(bs);
+    }),
+  );
 }
 
 function renderTelegramTab(content: HTMLElement, bs: BridgeSettings): void {
   const hint = document.createElement('p');
   hint.className = 'provider-hint';
-  hint.textContent = '在 Telegram 找 @BotFather 发 /newbot 创建机器人获取 Token。如遇 CORS 问题需填写代理 URL。';
+  hint.textContent =
+    '在 Telegram 找 @BotFather 发 /newbot 创建机器人获取 Token。如遇 CORS 问题需填写代理 URL。';
   content.appendChild(hint);
 
-  content.appendChild(makeToggleRow('启用 Telegram', bs.telegram.enabled, (on) => {
-    bs.telegram.enabled = on;
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makeToggleRow('启用 Telegram', bs.telegram.enabled, (on) => {
+      bs.telegram.enabled = on;
+      saveBridgeSettings(bs);
+    }),
+  );
 
-  content.appendChild(makeInputRow('Bot Token', bs.telegram.botToken, '123456:ABC-DEF...', (val) => {
-    bs.telegram.botToken = val;
-    saveBridgeSettings(bs);
-  }, 'password'));
+  content.appendChild(
+    makeInputRow(
+      'Bot Token',
+      bs.telegram.botToken,
+      '123456:ABC-DEF...',
+      (val) => {
+        bs.telegram.botToken = val;
+        saveBridgeSettings(bs);
+      },
+      'password',
+    ),
+  );
 
-  content.appendChild(makeInputRow('CORS 代理 URL（可选）', bs.telegram.proxyUrl, 'https://your-proxy.com', (val) => {
-    bs.telegram.proxyUrl = val;
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makeInputRow('CORS 代理 URL（可选）', bs.telegram.proxyUrl, 'https://your-proxy.com', (val) => {
+      bs.telegram.proxyUrl = val;
+      saveBridgeSettings(bs);
+    }),
+  );
 
-  content.appendChild(makeInputRow('允许的用户 ID（逗号分隔）', bs.telegram.allowUsers.join(','), '987654321', (val) => {
-    bs.telegram.allowUsers = val.split(',').map((s) => Number(s.trim())).filter((n) => n > 0);
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makeInputRow(
+      '允许的用户 ID（逗号分隔）',
+      bs.telegram.allowUsers.join(','),
+      '987654321',
+      (val) => {
+        bs.telegram.allowUsers = val
+          .split(',')
+          .map((s) => Number(s.trim()))
+          .filter((n) => n > 0);
+        saveBridgeSettings(bs);
+      },
+    ),
+  );
 
-  content.appendChild(makePermModeRow('权限模式', bs.telegram.permissionMode, (mode) => {
-    bs.telegram.permissionMode = mode;
-    saveBridgeSettings(bs);
-  }));
+  content.appendChild(
+    makePermModeRow('权限模式', bs.telegram.permissionMode, (mode) => {
+      bs.telegram.permissionMode = mode;
+      saveBridgeSettings(bs);
+    }),
+  );
 }
 
-function makeToggleRow(label: string, value: boolean, onChange: (on: boolean) => void): HTMLDivElement {
+function makeToggleRow(
+  label: string,
+  value: boolean,
+  onChange: (on: boolean) => void,
+): HTMLDivElement {
   const row = document.createElement('div');
   row.className = 'setting-group setting-group-inline';
 
@@ -815,7 +880,13 @@ function makeToggleRow(label: string, value: boolean, onChange: (on: boolean) =>
   return row;
 }
 
-function makeInputRow(label: string, value: string, placeholder: string, onChange: (val: string) => void, type?: string): HTMLDivElement {
+function makeInputRow(
+  label: string,
+  value: string,
+  placeholder: string,
+  onChange: (val: string) => void,
+  type?: string,
+): HTMLDivElement {
   const row = document.createElement('div');
   row.className = 'setting-group';
 
@@ -833,7 +904,11 @@ function makeInputRow(label: string, value: string, placeholder: string, onChang
   return row;
 }
 
-function makePermModeRow(label: string, value: 'ask' | 'always', onChange: (mode: 'ask' | 'always') => void): HTMLDivElement {
+function makePermModeRow(
+  label: string,
+  value: 'ask' | 'always',
+  onChange: (mode: 'ask' | 'always') => void,
+): HTMLDivElement {
   const row = document.createElement('div');
   row.className = 'setting-group setting-group-inline';
 
@@ -865,6 +940,102 @@ function makePermModeRow(label: string, value: 'ask' | 'always', onChange: (mode
 
   row.appendChild(seg);
   return row;
+}
+
+// ---------------------------------------------------------------------------
+// Voice settings panel
+// ---------------------------------------------------------------------------
+
+export interface VoiceSettings {
+  speaker: string;
+  dashscopeApiKey: string;
+  proxyUrl: string;
+}
+
+export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
+  speaker: 'longxiaochun',
+  dashscopeApiKey: '',
+  proxyUrl: '',
+};
+
+const VOICE_SPEAKERS: Array<{ id: string; label: string }> = [
+  { id: 'longxiaochun', label: '甜美女声' },
+  { id: 'longxiaoxia', label: '温柔女声' },
+  { id: 'longyueer', label: '清新女声' },
+  { id: 'longjing', label: '端庄女声' },
+  { id: 'longshu', label: '知性男声' },
+  { id: 'longxiaobai', label: '阳光男声' },
+  { id: 'longcheng', label: '沉稳男声' },
+];
+
+export function loadVoiceSettings(): VoiceSettings {
+  const saved = loadSettings();
+  return { ...DEFAULT_VOICE_SETTINGS, ...(saved.voice || {}) };
+}
+
+function saveVoiceSettings(vs: VoiceSettings): void {
+  const saved = loadSettings();
+  saved.voice = vs;
+  persistSettings(saved);
+}
+
+function renderVoicePanel(): void {
+  const container = $('settings-panel-voice');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const vs = loadVoiceSettings();
+
+  const hint = document.createElement('p');
+  hint.className = 'provider-hint';
+  hint.textContent =
+    '输入框为空时点击波形按钮即可进入语音对话模式。' +
+    '免费语音模式与免费 AI 对话共享额度（每分钟 10 次），建议填写自己的百炼 API Key 以获得更好的体验。';
+  container.appendChild(hint);
+
+  // Speaker selection
+  const speakerGroup = document.createElement('div');
+  speakerGroup.className = 'setting-group';
+  const speakerLabel = document.createElement('label');
+  speakerLabel.textContent = '音色';
+  speakerGroup.appendChild(speakerLabel);
+
+  const speakerSelect = document.createElement('select');
+  VOICE_SPEAKERS.forEach((s) => {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    opt.textContent = s.label;
+    if (s.id === vs.speaker) opt.selected = true;
+    speakerSelect.appendChild(opt);
+  });
+  speakerSelect.addEventListener('change', () => {
+    vs.speaker = speakerSelect.value;
+    saveVoiceSettings(vs);
+  });
+  speakerGroup.appendChild(speakerSelect);
+  container.appendChild(speakerGroup);
+
+  // API Key
+  container.appendChild(
+    makeInputRow(
+      '百炼 API Key',
+      vs.dashscopeApiKey,
+      'sk-…（留空使用免费共享额度）',
+      (val) => {
+        vs.dashscopeApiKey = val;
+        saveVoiceSettings(vs);
+      },
+      'password',
+    ),
+  );
+
+  // Custom proxy URL
+  container.appendChild(
+    makeInputRow('WebSocket 代理地址（可选）', vs.proxyUrl, '留空使用默认免费代理', (val) => {
+      vs.proxyUrl = val;
+      saveVoiceSettings(vs);
+    }),
+  );
 }
 
 function normalizeCap(raw: unknown): number {

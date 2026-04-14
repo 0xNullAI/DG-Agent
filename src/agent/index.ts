@@ -12,5 +12,7 @@ export * as bluetooth from './bluetooth';
 export * as history from './history';
 export * as conversation from './conversation';
 export * as waveforms from './waveforms';
+export * as voice from './voice';
+export * as tts from './tts';
 export { PROMPT_PRESETS } from './prompts';
 export * as bridge from '../bridge';

@@ -1,13 +1,30 @@
 /**
  * chat.ts -- Chat UI manager for DG-Agent
- * Manages message rendering, auto-scroll, and input handling.
+ * Manages message rendering, auto-scroll, input handling, and voice mode.
+ *
+ * The send button is context-sensitive:
+ *   - Input empty + voice enabled → waveform icon (click to enter voice mode)
+ *   - Input has text → send icon (click to send)
+ *   - Agent busy → stop icon (click to abort)
+ *
+ * Voice mode is a continuous conversation loop: record → transcribe → send →
+ * TTS reply → record again. The chat messages area is replaced by a voice
+ * overlay showing status and partial transcript, but all content and safety
+ * policies remain active under the hood.
  */
+
+import * as voice from '../agent/voice';
+import * as tts from '../agent/tts';
 
 // -- DOM refs (set in initChat) --
 let messagesEl: HTMLDivElement;
 let inputEl: HTMLTextAreaElement;
 let sendBtn: HTMLButtonElement;
 let chatContainer: HTMLDivElement;
+let voiceOverlay: HTMLDivElement;
+let voiceOverlayStatus: HTMLDivElement;
+let voiceOverlayTranscript: HTMLDivElement;
+let voiceOverlayStop: HTMLButtonElement;
 
 // -- State --
 let userScrolledUp = false;
@@ -15,12 +32,18 @@ let typingEl: HTMLDivElement | null = null;
 let msgCounter = 0;
 let isBusy = false;
 let onAbortCb: (() => void) | null = null;
+/** Whether we are in continuous voice conversation mode. */
+let voiceMode = false;
+/** Cached send handler for use in voice loop. */
+let sendHandler: ((text: string) => void) | null = null;
 
 // -- Icons --
 const SEND_ICON_SVG =
   '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>';
 const STOP_ICON_SVG =
   '<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1.5"/></svg>';
+const WAVEFORM_ICON_SVG =
+  '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="8" x2="4" y2="16"/><line x1="8" y1="5" x2="8" y2="19"/><line x1="12" y1="3" x2="12" y2="21"/><line x1="16" y1="7" x2="16" y2="17"/><line x1="20" y1="10" x2="20" y2="14"/></svg>';
 
 // -- Initialise --
 
@@ -32,13 +55,19 @@ export function initChat(opts: {
   inputEl = document.getElementById('user-input') as HTMLTextAreaElement;
   sendBtn = document.getElementById('btn-send') as HTMLButtonElement;
   chatContainer = document.getElementById('chat-container') as HTMLDivElement;
+  voiceOverlay = document.getElementById('voice-overlay') as HTMLDivElement;
+  voiceOverlayStatus = document.getElementById('voice-overlay-status') as HTMLDivElement;
+  voiceOverlayTranscript = document.getElementById('voice-overlay-transcript') as HTMLDivElement;
+  voiceOverlayStop = document.getElementById('voice-overlay-stop') as HTMLButtonElement;
 
   onAbortCb = opts.onAbort || null;
+  sendHandler = opts.onSendMessage;
 
-  // Auto-resize textarea
+  // Auto-resize textarea & update button icon on input change
   inputEl.addEventListener('input', () => {
     inputEl.style.height = 'auto';
     inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
+    updateSendButton();
   });
 
   // Send on Enter (Shift+Enter = newline). Disabled while busy.
@@ -49,13 +78,23 @@ export function initChat(opts: {
     }
   });
 
-  // Send button doubles as stop button while a turn is in flight.
+  // Send button: context-sensitive click
   sendBtn.addEventListener('click', () => {
     if (isBusy) {
       if (onAbortCb) onAbortCb();
-    } else {
-      dispatchSend(opts.onSendMessage);
+      return;
     }
+    const text = inputEl.value.trim();
+    if (text) {
+      dispatchSend(opts.onSendMessage);
+    } else if (voice.isSupported() && voice.isEnabled()) {
+      enterVoiceMode();
+    }
+  });
+
+  // Voice overlay stop button
+  voiceOverlayStop.addEventListener('click', () => {
+    exitVoiceMode();
   });
 
   // Track whether user has scrolled away from bottom
@@ -63,6 +102,12 @@ export function initChat(opts: {
     const { scrollTop, scrollHeight, clientHeight } = chatContainer;
     userScrolledUp = scrollHeight - scrollTop - clientHeight > 60;
   });
+
+  // Set initial button state
+  updateSendButton();
+
+  // Voice overlay: tap to stop recording and send
+  initVoiceOverlayTapToSend();
 }
 
 function dispatchSend(onSendMessage: (text: string) => void): void {
@@ -70,7 +115,38 @@ function dispatchSend(onSendMessage: (text: string) => void): void {
   if (!text) return;
   inputEl.value = '';
   inputEl.style.height = 'auto';
+  updateSendButton();
   onSendMessage(text);
+}
+
+/**
+ * Update the send button icon/style based on current state:
+ * busy → stop; has text → send; empty + voice → waveform; empty → send (disabled look)
+ */
+function updateSendButton(): void {
+  if (isBusy) return; // busy state is managed by setChatBusy
+  const hasText = inputEl.value.trim().length > 0;
+  const voiceAvailable = voice.isSupported() && voice.isEnabled();
+
+  sendBtn.classList.remove('voice-mode', 'recording', 'connecting', 'transcribing', 'busy');
+
+  if (hasText) {
+    sendBtn.innerHTML = SEND_ICON_SVG;
+    sendBtn.title = '发送';
+    sendBtn.setAttribute('aria-label', '发送');
+    sendBtn.disabled = false;
+  } else if (voiceAvailable) {
+    sendBtn.innerHTML = WAVEFORM_ICON_SVG;
+    sendBtn.classList.add('voice-mode');
+    sendBtn.title = '语音对话';
+    sendBtn.setAttribute('aria-label', '语音对话');
+    sendBtn.disabled = false;
+  } else {
+    sendBtn.innerHTML = SEND_ICON_SVG;
+    sendBtn.title = '发送';
+    sendBtn.setAttribute('aria-label', '发送');
+    sendBtn.disabled = false;
+  }
 }
 
 // -- Public helpers --
@@ -84,10 +160,22 @@ export function setChatBusy(busy: boolean): void {
   isBusy = busy;
   inputEl.disabled = busy;
   sendBtn.disabled = false; // always clickable — either sends or aborts
-  sendBtn.innerHTML = busy ? STOP_ICON_SVG : SEND_ICON_SVG;
-  sendBtn.title = busy ? '停止本次回复' : '发送';
-  sendBtn.setAttribute('aria-label', busy ? '停止本次回复' : '发送');
-  sendBtn.classList.toggle('busy', busy);
+
+  if (busy) {
+    sendBtn.classList.remove('voice-mode', 'recording', 'connecting', 'transcribing');
+    sendBtn.innerHTML = STOP_ICON_SVG;
+    sendBtn.title = '停止本次回复';
+    sendBtn.setAttribute('aria-label', '停止本次回复');
+    sendBtn.classList.add('busy');
+  } else {
+    sendBtn.classList.remove('busy');
+    updateSendButton();
+
+    // In voice mode, when the agent finishes responding, auto-start next recording
+    if (voiceMode) {
+      voiceModeNextTurn();
+    }
+  }
 }
 
 // -- Message rendering --
@@ -194,6 +282,140 @@ export function scrollToBottom(force = false): void {
       chatContainer.scrollTop = chatContainer.scrollHeight;
     });
   }
+}
+
+// ---------------------------------------------------------------------------
+// Voice mode — continuous conversation
+// ---------------------------------------------------------------------------
+
+const VOICE_STATUS_LABELS: Record<string, string> = {
+  idle: '等待中',
+  connecting: '连接中…',
+  recording: '正在聆听…',
+  transcribing: '识别中…',
+};
+
+/** Whether we are waiting for TTS to finish before starting the next recording. */
+let waitingForTts = false;
+
+function enterVoiceMode(): void {
+  if (voiceMode) return;
+  voiceMode = true;
+  waitingForTts = false;
+
+  // Hide chat, show overlay
+  chatContainer.style.display = 'none';
+  voiceOverlay.classList.remove('hidden');
+  voiceOverlayTranscript.textContent = '';
+  voiceOverlayStatus.textContent = '正在启动…';
+
+  // Subscribe to voice events
+  voice.onStatusChange((s) => {
+    if (!voiceMode) return;
+    voiceOverlayStatus.textContent = VOICE_STATUS_LABELS[s] || s;
+  });
+  voice.onPartialTranscript((text) => {
+    if (!voiceMode) return;
+    voiceOverlayTranscript.textContent = text;
+  });
+
+  // Single TTS status callback — handles display + auto-continue
+  tts.onStatusChange((s) => {
+    if (!voiceMode) return;
+    if (s === 'playing' || s === 'synthesizing') {
+      voiceOverlayStatus.textContent = '正在回复…';
+    } else if (s === 'idle' && waitingForTts) {
+      waitingForTts = false;
+      startVoiceRecording();
+    }
+  });
+
+  // Start first recording
+  startVoiceRecording();
+}
+
+export function exitVoiceMode(): void {
+  if (!voiceMode) return;
+  voiceMode = false;
+  waitingForTts = false;
+
+  // Cancel any in-flight recording or playback
+  voice.cancelRecording();
+  tts.stop();
+
+  // Restore chat view
+  voiceOverlay.classList.add('hidden');
+  chatContainer.style.display = '';
+  voiceOverlayTranscript.textContent = '';
+  updateSendButton();
+  scrollToBottom(true);
+}
+
+/** Check if voice mode is active (for external modules). */
+export function isVoiceMode(): boolean {
+  return voiceMode;
+}
+
+async function startVoiceRecording(): Promise<void> {
+  if (!voiceMode) return;
+  voiceOverlayTranscript.textContent = '';
+  try {
+    await voice.startRecording();
+  } catch (err: any) {
+    voiceOverlayStatus.textContent = `录音失败: ${err.message || err}`;
+    setTimeout(() => {
+      if (voiceMode) exitVoiceMode();
+    }, 2000);
+  }
+}
+
+/**
+ * Called when the agent finishes a turn in voice mode.
+ * Waits for TTS to finish playing, then starts the next recording.
+ */
+function voiceModeNextTurn(): void {
+  if (!voiceMode) return;
+
+  const ttsStatus = tts.getStatus();
+  if (ttsStatus === 'playing' || ttsStatus === 'synthesizing') {
+    // The TTS onStatusChange callback set in enterVoiceMode will
+    // call startVoiceRecording when TTS goes idle.
+    waitingForTts = true;
+  } else {
+    startVoiceRecording();
+  }
+}
+
+/** Stop the current recording, transcribe, and auto-send the text. */
+async function voiceModeSendRecording(): Promise<void> {
+  if (!voiceMode || !sendHandler) return;
+  try {
+    const text = await voice.stopRecording();
+    if (text && voiceMode) {
+      voiceOverlayStatus.textContent = '发送中…';
+      voiceOverlayTranscript.textContent = text;
+      sendHandler(text);
+    } else if (voiceMode) {
+      // Empty transcription, restart recording
+      startVoiceRecording();
+    }
+  } catch (err: any) {
+    voiceOverlayStatus.textContent = `识别失败: ${err.message || err}`;
+    setTimeout(() => {
+      if (voiceMode) startVoiceRecording();
+    }, 1500);
+  }
+}
+
+/** Tap overlay (except stop button) to finish recording and send. */
+function initVoiceOverlayTapToSend(): void {
+  voiceOverlay.addEventListener('click', (e) => {
+    if (!voiceMode) return;
+    if ((e.target as HTMLElement).closest('.voice-overlay-stop')) return;
+    if (voice.getStatus() === 'recording') {
+      voiceModeSendRecording();
+    }
+  });
 }
 
 // -- Markdown helpers --

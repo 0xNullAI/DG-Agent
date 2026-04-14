@@ -467,6 +467,7 @@ export function boot(): void {
   // visibility change.
   function fullStop(): void {
     try {
+      chat.exitVoiceMode();
       conversation.fullStop();
     } catch (_) {
       /* */
@@ -493,9 +494,12 @@ export function boot(): void {
 
   // Social platform bridge — connect to QQ / Telegram if configured.
   // Errors are non-fatal; the app works fine without the bridge.
-  bridge.initBridge((text) => conversation.sendMessage(text)).then(() => {
-    updateBridgeOverlay();
-  }).catch((err) => {
-    console.error('[Boot] Bridge init failed (non-fatal):', err);
-  });
+  bridge
+    .initBridge((text) => conversation.sendMessage(text))
+    .then(() => {
+      updateBridgeOverlay();
+    })
+    .catch((err) => {
+      console.error('[Boot] Bridge init failed (non-fatal):', err);
+    });
 }
