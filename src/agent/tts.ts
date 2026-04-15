@@ -82,7 +82,7 @@ export async function speak(text: string): Promise<void> {
   const vs = loadVoiceSettings();
   taskId = generateTaskId();
   setStatus('connecting');
-  console.log('[TTS] task_id:', taskId, 'voice:', vs.speaker || 'longyan_v3');
+  console.log('[TTS] task_id:', taskId, 'voice:', vs.speaker || 'longyingtian');
 
   // Create audio context for playback
   audioCtx = new AudioContext({ sampleRate: TTS_SAMPLE_RATE });
@@ -116,9 +116,9 @@ export async function speak(text: string): Promise<void> {
             task_group: 'audio',
             task: 'tts',
             function: 'SpeechSynthesizer',
-            model: 'cosyvoice-v3-flash',
+            model: 'cosyvoice-v2',
             parameters: {
-              voice: vs.speaker || 'longyan_v3',
+              voice: vs.speaker || 'longyingtian',
               format: 'pcm',
               sample_rate: TTS_SAMPLE_RATE,
             },

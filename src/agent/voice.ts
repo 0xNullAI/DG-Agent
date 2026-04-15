@@ -227,7 +227,7 @@ export async function startRecording(): Promise<void> {
             task_group: 'audio',
             task: 'asr',
             function: 'recognition',
-            model: 'paraformer-realtime-v2',
+            model: 'qwen3-asr-flash-realtime-2026-02-10',
             parameters: {
               format: 'pcm',
               sample_rate: SAMPLE_RATE,
