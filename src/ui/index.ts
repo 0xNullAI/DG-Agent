@@ -332,11 +332,27 @@ async function handleSendMessage(text: string): Promise<void> {
 function showSafetyNotice(): void {
   const modal = $('safety-notice') as HTMLDivElement | null;
   const btn = $('safety-notice-accept') as HTMLButtonElement | null;
+  const checkbox = $('safety-notice-ignore') as HTMLInputElement | null;
   const countdownEl = $('safety-notice-countdown') as HTMLSpanElement | null;
   if (!modal || !btn || !countdownEl) return;
 
-  modal.classList.remove('hidden');
-  document.body.classList.add('safety-notice-open');
+  const openSafetyNotice = (): void => {
+    modal.classList.remove('hidden');
+    document.body.classList.add('safety-notice-open');
+  };
+
+  const closeSafetyNotice = (): void => {
+    modal.classList.add('hidden');
+    document.body.classList.remove('safety-notice-open');
+  };
+
+  const ignoreStorageKey = 'dg-agent-safety-notice-ignore';
+  if (localStorage.getItem(ignoreStorageKey) === 'true') {
+    closeSafetyNotice();
+    return;
+  }
+
+  openSafetyNotice();
 
   const TOTAL = 10;
   let remaining = TOTAL;
@@ -357,8 +373,10 @@ function showSafetyNotice(): void {
 
   btn.addEventListener('click', () => {
     if (btn.disabled) return;
-    modal.classList.add('hidden');
-    document.body.classList.remove('safety-notice-open');
+    closeSafetyNotice();
+    if (checkbox?.checked) {
+      localStorage.setItem(ignoreStorageKey, 'true');
+    }
   });
 }
 
