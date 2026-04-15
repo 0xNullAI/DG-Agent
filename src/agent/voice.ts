@@ -65,6 +65,7 @@ let speechFrames = 0;
 let silenceStart = 0;
 
 function setStatus(s: VoiceStatus): void {
+  if (status !== s) console.log(`[ASR] status: ${status} -> ${s}`);
   status = s;
   statusCb?.(s);
 }
@@ -112,7 +113,11 @@ export function isEnabled(): boolean {
  * Start recording: open mic, connect WebSocket, stream audio chunks.
  */
 export async function startRecording(): Promise<void> {
-  if (status === 'recording' || status === 'connecting') return;
+  console.log('[ASR] startRecording() called, current status:', status);
+  if (status === 'recording' || status === 'connecting') {
+    console.log('[ASR] already recording/connecting — skip');
+    return;
+  }
 
   setStatus('connecting');
   taskId = generateTaskId();
@@ -121,12 +126,15 @@ export async function startRecording(): Promise<void> {
   speechDetected = false;
   speechFrames = 0;
   silenceStart = 0;
+  console.log('[ASR] task_id:', taskId);
 
   try {
     // Get microphone
+    console.log('[ASR] requesting microphone…');
     mediaStream = await navigator.mediaDevices.getUserMedia({
       audio: { channelCount: 1, sampleRate: SAMPLE_RATE },
     });
+    console.log('[ASR] microphone acquired');
 
     // Set up audio processing for raw PCM extraction
     audioContext = new AudioContext({ sampleRate: SAMPLE_RATE });
@@ -134,11 +142,16 @@ export async function startRecording(): Promise<void> {
 
     // ScriptProcessorNode (widely supported, including Safari)
     scriptNode = audioContext.createScriptProcessor(4096, 1, 1);
+    let audioChunkCount = 0;
     scriptNode.onaudioprocess = (e) => {
       if (ws?.readyState !== WebSocket.OPEN || finishing) return;
       const float32 = e.inputBuffer.getChannelData(0);
       const int16 = float32ToInt16(float32);
       ws.send(int16.buffer as ArrayBuffer);
+      audioChunkCount++;
+      if (audioChunkCount % 25 === 1) {
+        console.log(`[ASR] sent audio chunk #${audioChunkCount} (${int16.byteLength} bytes)`);
+      }
 
       // VAD: detect speech end by monitoring audio energy
       if (!loadVoiceSettings().autoStopEnabled) return;
@@ -151,6 +164,7 @@ export async function startRecording(): Promise<void> {
           if (speechFrames >= SPEECH_CONFIRM_FRAMES) {
             speechDetected = true;
             silenceStart = 0;
+            console.log(`[ASR] VAD: speech detected (rms=${rms.toFixed(4)})`);
           }
         } else {
           silenceStart = 0;
@@ -159,8 +173,10 @@ export async function startRecording(): Promise<void> {
         const now = Date.now();
         if (silenceStart === 0) {
           silenceStart = now;
+          console.log(`[ASR] VAD: silence started (rms=${rms.toFixed(4)})`);
         } else if (now - silenceStart > SILENCE_DURATION * 1000) {
           // Silence long enough after speech — notify
+          console.log(`[ASR] VAD: speech end after ${SILENCE_DURATION}s silence — firing callback`);
           speechEndCb?.();
           // Reset so we don't fire again
           speechDetected = false;
@@ -178,6 +194,7 @@ export async function startRecording(): Promise<void> {
 
     // Connect WebSocket to proxy
     const wsUrl = resolveWsUrl('asr');
+    console.log('[ASR] opening WebSocket:', wsUrl);
     ws = new WebSocket(wsUrl);
     ws.binaryType = 'arraybuffer';
     const thisWs = ws;
@@ -185,7 +202,11 @@ export async function startRecording(): Promise<void> {
     thisWs.onopen = () => {
       // Guard against races: cancelRecording/cleanup may have cleared or
       // replaced ws before this late onopen fires.
-      if (ws !== thisWs || thisWs.readyState !== WebSocket.OPEN) return;
+      if (ws !== thisWs || thisWs.readyState !== WebSocket.OPEN) {
+        console.log('[ASR] onopen fired but ws was replaced/closed — ignoring');
+        return;
+      }
+      console.log('[ASR] WebSocket open — sending run-task');
       thisWs.send(
         JSON.stringify({
           header: {
@@ -214,13 +235,15 @@ export async function startRecording(): Promise<void> {
       if (typeof e.data !== 'string') return;
       try {
         const msg = JSON.parse(e.data);
+        console.log('[ASR] <-', msg.header?.event, msg);
         handleAsrMessage(msg);
-      } catch {
-        // ignore parse errors
+      } catch (err) {
+        console.warn('[ASR] parse error', err);
       }
     };
 
-    ws.onerror = () => {
+    ws.onerror = (ev) => {
+      console.warn('[ASR] WebSocket onerror', ev);
       const wasConnecting = status === 'connecting';
       const err = new Error('语音识别 WebSocket 连接失败');
       cleanup();
@@ -233,7 +256,8 @@ export async function startRecording(): Promise<void> {
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
+      console.log(`[ASR] WebSocket close code=${ev.code} reason="${ev.reason}" wasClean=${ev.wasClean}`);
       if (finishing && pendingResolve) {
         // Connection closed before we got final result; return what we have
         pendingResolve(finalTranscript);
@@ -243,6 +267,7 @@ export async function startRecording(): Promise<void> {
       cleanup();
     };
   } catch (err) {
+    console.error('[ASR] startRecording error:', err);
     cleanup();
     throw err;
   }
@@ -252,6 +277,7 @@ export async function startRecording(): Promise<void> {
  * Stop recording and get the final transcription.
  */
 export function stopRecording(): Promise<string> {
+  console.log('[ASR] stopRecording() called, status:', status);
   return new Promise<string>((resolve, reject) => {
     if (status !== 'recording' && status !== 'connecting') {
       reject(new Error('未在录音'));
@@ -262,6 +288,7 @@ export function stopRecording(): Promise<string> {
     pendingReject = reject;
     finishing = true;
     setStatus('transcribing');
+    console.log('[ASR] -> finish-task (waiting for final transcript)');
 
     // Stop audio processing
     scriptNode?.disconnect();
@@ -306,6 +333,7 @@ export function stopRecording(): Promise<string> {
 }
 
 export function cancelRecording(): void {
+  console.log('[ASR] cancelRecording() called, status:', status);
   pendingResolve = null;
   pendingReject = null;
   finishing = false;

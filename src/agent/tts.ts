@@ -39,6 +39,7 @@ let nextStartTime = 0;
 let activeSources: AudioBufferSourceNode[] = [];
 
 function setStatus(s: TtsStatus): void {
+  if (status !== s) console.log(`[TTS] status: ${status} -> ${s}`);
   status = s;
   statusCb?.(s);
 }
@@ -69,7 +70,11 @@ export function isEnabled(): boolean {
  * Interrupts any currently playing audio first.
  */
 export async function speak(text: string): Promise<void> {
-  if (!text.trim() || !isEnabled()) return;
+  console.log(`[TTS] speak() called, text length=${text.length}`);
+  if (!text.trim() || !isEnabled()) {
+    console.log('[TTS] empty text or disabled — skip');
+    return;
+  }
 
   // Stop any current playback
   stop();
@@ -77,6 +82,7 @@ export async function speak(text: string): Promise<void> {
   const vs = loadVoiceSettings();
   taskId = generateTaskId();
   setStatus('connecting');
+  console.log('[TTS] task_id:', taskId, 'voice:', vs.speaker || 'longyan_v3');
 
   // Create audio context for playback
   audioCtx = new AudioContext({ sampleRate: TTS_SAMPLE_RATE });
@@ -86,13 +92,18 @@ export async function speak(text: string): Promise<void> {
 
   return new Promise<void>((resolve, reject) => {
     const wsUrl = _resolveWsUrl('tts');
+    console.log('[TTS] opening WebSocket:', wsUrl);
     ws = new WebSocket(wsUrl);
     ws.binaryType = 'arraybuffer';
 
     const thisWs = ws;
     thisWs.onopen = () => {
       // Guard against races: stop() may have replaced/cleared ws before onopen fires.
-      if (ws !== thisWs || thisWs.readyState !== WebSocket.OPEN) return;
+      if (ws !== thisWs || thisWs.readyState !== WebSocket.OPEN) {
+        console.log('[TTS] onopen fired but ws was replaced/closed — ignoring');
+        return;
+      }
+      console.log('[TTS] WebSocket open — sending run-task');
       setStatus('synthesizing');
       thisWs.send(
         JSON.stringify({
@@ -117,14 +128,20 @@ export async function speak(text: string): Promise<void> {
       );
     };
 
+    let audioChunkCount = 0;
     ws.onmessage = (e) => {
       if (e.data instanceof ArrayBuffer) {
         // Binary frame: PCM audio data
+        audioChunkCount++;
+        if (audioChunkCount === 1 || audioChunkCount % 20 === 0) {
+          console.log(`[TTS] <- audio chunk #${audioChunkCount} (${e.data.byteLength} bytes)`);
+        }
         handleAudioChunk(e.data);
       } else if (typeof e.data === 'string') {
         try {
           const msg = JSON.parse(e.data);
           const event = msg.header?.event;
+          console.log('[TTS] <-', event, msg);
           if (event === 'task-finished') {
             // All audio received
             ws?.close();
@@ -136,22 +153,24 @@ export async function speak(text: string): Promise<void> {
             resolve();
           } else if (event === 'task-failed') {
             const errMsg = msg.payload?.message || msg.header?.error_message || 'TTS 合成失败';
-            console.error('[TTS]', errMsg);
+            console.error('[TTS] task-failed:', errMsg);
             stop();
             reject(new Error(errMsg));
           }
-        } catch {
-          // ignore
+        } catch (err) {
+          console.warn('[TTS] parse error', err);
         }
       }
     };
 
-    ws.onerror = () => {
+    ws.onerror = (ev) => {
+      console.warn('[TTS] WebSocket onerror', ev);
       stop();
       reject(new Error('TTS WebSocket 连接失败'));
     };
 
-    ws.onclose = () => {
+    ws.onclose = (ev) => {
+      console.log(`[TTS] WebSocket close code=${ev.code} reason="${ev.reason}" wasClean=${ev.wasClean}`);
       ws = null;
       if (status === 'connecting' || status === 'synthesizing') {
         if (audioQueue.length === 0 && activeSources.length === 0) {
@@ -165,6 +184,9 @@ export async function speak(text: string): Promise<void> {
 
 /** Stop any current TTS playback and synthesis. */
 export function stop(): void {
+  if (ws || audioCtx || activeSources.length || audioQueue.length) {
+    console.log('[TTS] stop() called, status:', status);
+  }
   // Close WebSocket
   if (ws) {
     ws.onclose = null;
