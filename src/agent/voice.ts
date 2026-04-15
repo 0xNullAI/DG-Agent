@@ -50,8 +50,11 @@ let partialCb: PartialTranscriptCallback | null = null;
 let speechEndCb: SpeechEndCallback | null = null;
 let taskId = '';
 let finalTranscript = '';
-/** Text from sentences Paraformer already marked complete. */
-let committedTranscript = '';
+/** sentence_id -> latest text for that sentence; joined in id order to form
+ *  finalTranscript. Using a map avoids double-counting when the server emits
+ *  multiple result-generated events for the same sentence (including repeat
+ *  `sentence_end: true` frames). */
+const sentencesById = new Map<number, string>();
 let pendingResolve: ((text: string) => void) | null = null;
 let pendingReject: ((err: Error) => void) | null = null;
 /** Invoked when startRecording's WebSocket fails before stopRecording is called. */
@@ -126,7 +129,7 @@ export async function startRecording(): Promise<void> {
   setStatus('connecting');
   taskId = generateTaskId();
   finalTranscript = '';
-  committedTranscript = '';
+  sentencesById.clear();
   finishing = false;
   speechDetected = false;
   speechFrames = 0;
@@ -379,20 +382,17 @@ function handleAsrMessage(msg: any): void {
     // but we only keep `transcription_enabled`). Accept either.
     const sentence = output.transcription || output.sentence;
     if (sentence && typeof sentence.text === 'string') {
-      const current = sentence.text;
-      // Both models signal completion via `sentence_end: true`; Paraformer
-      // may also supply a non-null `end_time`. On completion the next
-      // `result-generated` starts a fresh sentence at `text = ""`, so commit
-      // completed sentences into a running prefix instead of letting the
-      // latest one overwrite everything.
-      const isEnd =
-        sentence.sentence_end === true ||
-        (typeof sentence.end_time === 'number' && sentence.end_time > 0);
-      finalTranscript = committedTranscript + current;
+      // Key by sentence_id so repeated result-generated events for the same
+      // sentence (including duplicate `sentence_end: true` frames) just
+      // overwrite the same slot instead of stacking up — otherwise the same
+      // utterance gets appended multiple times (e.g. "你好你好你好").
+      const id = typeof sentence.sentence_id === 'number' ? sentence.sentence_id : 0;
+      sentencesById.set(id, sentence.text);
+      finalTranscript = [...sentencesById.keys()]
+        .sort((a, b) => a - b)
+        .map((k) => sentencesById.get(k) || '')
+        .join('');
       partialCb?.(finalTranscript);
-      if (isEnd) {
-        committedTranscript += current;
-      }
     }
   }
 
