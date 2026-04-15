@@ -20,8 +20,8 @@ export const MAX_TOOL_CALLS_PER_TURN = 5;
 /** Hard ceiling on adjust_strength calls within a single user turn. */
 export const MAX_ADJUST_STRENGTH_PER_TURN = 2;
 
-/** Hard ceiling on burst calls within a single user turn. */
-export const MAX_BURST_PER_TURN = 1;
+/** Hard ceiling on burst calls per channel within a single user turn. */
+export const MAX_BURST_PER_CHANNEL_PER_TURN = 1;
 
 /** Hard ceiling on the duration of a single burst, in milliseconds. */
 export const MAX_BURST_DURATION_MS = 5000;
