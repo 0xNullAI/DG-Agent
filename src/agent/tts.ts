@@ -255,12 +255,28 @@ export function startSpeaking(): void {
  */
 export function appendText(chunk: string): void {
   if (!chunk) return;
+  const sanitized = sanitizeForTts(chunk);
+  if (!sanitized) return;
   if (!ws || finishPending) return;
   if (!taskStarted) {
-    pendingTextBuffer.push(chunk);
+    pendingTextBuffer.push(sanitized);
     return;
   }
-  if (ws.readyState === WebSocket.OPEN) sendContinueTask(ws, chunk);
+  if (ws.readyState === WebSocket.OPEN) sendContinueTask(ws, sanitized);
+}
+
+/**
+ * Strip characters CosyVoice PlainText can't synthesize. Empirically,
+ * emoji and pictographs trigger error 418 ("InvalidParameter"); markdown
+ * punctuation like `*` / `_` is also dropped so it isn't read aloud.
+ */
+function sanitizeForTts(text: string): string {
+  return text
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, '')
+    .replace(/[*_`#>]+/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /**
