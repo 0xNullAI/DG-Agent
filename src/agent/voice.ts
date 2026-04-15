@@ -50,6 +50,8 @@ let partialCb: PartialTranscriptCallback | null = null;
 let speechEndCb: SpeechEndCallback | null = null;
 let taskId = '';
 let finalTranscript = '';
+/** Text from sentences Paraformer already marked complete. */
+let committedTranscript = '';
 let pendingResolve: ((text: string) => void) | null = null;
 let pendingReject: ((err: Error) => void) | null = null;
 /** Invoked when startRecording's WebSocket fails before stopRecording is called. */
@@ -124,6 +126,7 @@ export async function startRecording(): Promise<void> {
   setStatus('connecting');
   taskId = generateTaskId();
   finalTranscript = '';
+  committedTranscript = '';
   finishing = false;
   speechDetected = false;
   speechFrames = 0;
@@ -371,8 +374,20 @@ function handleAsrMessage(msg: any): void {
     const output = payload.output || {};
     const sentence = output.sentence;
     if (sentence && typeof sentence.text === 'string') {
-      finalTranscript = sentence.text;
+      const current = sentence.text;
+      // Paraformer streams each sentence as an in-progress text, then signals
+      // completion via either `sentence_end: true` or a non-null `end_time`.
+      // On completion the next `result-generated` starts a fresh sentence at
+      // `sentence.text = ""`, so we have to commit completed sentences into a
+      // running prefix instead of letting the latest one overwrite everything.
+      const isEnd =
+        sentence.sentence_end === true ||
+        (typeof sentence.end_time === 'number' && sentence.end_time > 0);
+      finalTranscript = committedTranscript + current;
       partialCb?.(finalTranscript);
+      if (isEnd) {
+        committedTranscript += current;
+      }
     }
   }
 
