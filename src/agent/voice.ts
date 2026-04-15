@@ -180,10 +180,13 @@ export async function startRecording(): Promise<void> {
     const wsUrl = resolveWsUrl('asr');
     ws = new WebSocket(wsUrl);
     ws.binaryType = 'arraybuffer';
+    const thisWs = ws;
 
-    ws.onopen = () => {
-      // Send run-task
-      ws!.send(
+    thisWs.onopen = () => {
+      // Guard against races: cancelRecording/cleanup may have cleared or
+      // replaced ws before this late onopen fires.
+      if (ws !== thisWs || thisWs.readyState !== WebSocket.OPEN) return;
+      thisWs.send(
         JSON.stringify({
           header: {
             action: 'run-task',
