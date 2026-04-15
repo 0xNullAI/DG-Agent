@@ -27,9 +27,13 @@ const FREE_PROXY_URL = 'wss://dg-agent-proxy-eloracuikl.cn-hangzhou.fcapp.run';
 const SAMPLE_RATE = 16000;
 
 /** RMS threshold below which audio is considered silence. */
-const SILENCE_THRESHOLD = 0.015;
+const SILENCE_THRESHOLD = 0.02;
 /** Seconds of continuous silence after speech to trigger auto-stop. */
 const SILENCE_DURATION = 1.5;
+/** Audio frames (each ~256 ms at 16 kHz / 4096 buffer) of sustained voice
+ *  required before we treat the user as actually speaking. Prevents single
+ *  noise spikes from arming the silence countdown before the user talks. */
+const SPEECH_CONFIRM_FRAMES = 3;
 
 // ---------------------------------------------------------------------------
 // Module state
@@ -55,6 +59,8 @@ let finishing = false;
 // VAD (Voice Activity Detection) state
 /** Whether we have detected speech in the current recording session. */
 let speechDetected = false;
+/** Consecutive above-threshold frames observed so far (before confirmation). */
+let speechFrames = 0;
 /** Timestamp (ms) when silence began after speech, or 0 if currently speaking. */
 let silenceStart = 0;
 
@@ -113,6 +119,7 @@ export async function startRecording(): Promise<void> {
   finalTranscript = '';
   finishing = false;
   speechDetected = false;
+  speechFrames = 0;
   silenceStart = 0;
 
   try {
@@ -137,8 +144,17 @@ export async function startRecording(): Promise<void> {
       if (!loadVoiceSettings().autoStopEnabled) return;
       const rms = computeRms(float32);
       if (rms > SILENCE_THRESHOLD) {
-        speechDetected = true;
-        silenceStart = 0;
+        // Require several consecutive above-threshold frames before
+        // treating this as real speech (avoids single-spike false positives).
+        if (!speechDetected) {
+          speechFrames++;
+          if (speechFrames >= SPEECH_CONFIRM_FRAMES) {
+            speechDetected = true;
+            silenceStart = 0;
+          }
+        } else {
+          silenceStart = 0;
+        }
       } else if (speechDetected) {
         const now = Date.now();
         if (silenceStart === 0) {
@@ -148,8 +164,13 @@ export async function startRecording(): Promise<void> {
           speechEndCb?.();
           // Reset so we don't fire again
           speechDetected = false;
+          speechFrames = 0;
           silenceStart = 0;
         }
+      } else {
+        // Below threshold and no confirmed speech yet — decay any partial
+        // speech-frame count so transient noise eventually resets.
+        speechFrames = Math.max(0, speechFrames - 1);
       }
     };
     source.connect(scriptNode);
@@ -173,7 +194,7 @@ export async function startRecording(): Promise<void> {
             task_group: 'audio',
             task: 'asr',
             function: 'recognition',
-            model: 'fun-asr',
+            model: 'paraformer-realtime-v2',
             parameters: {
               format: 'pcm',
               sample_rate: SAMPLE_RATE,
