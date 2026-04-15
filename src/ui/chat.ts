@@ -319,6 +319,13 @@ function enterVoiceMode(): void {
     voiceOverlayTranscript.textContent = text;
   });
   // VAD: auto-send when speech ends (silence detected after speaking)
+  voice.onStartError((err) => {
+    if (!voiceMode) return;
+    voiceOverlayStatus.textContent = `连接失败: ${err.message}`;
+    setTimeout(() => {
+      if (voiceMode) exitVoiceMode();
+    }, 2500);
+  });
   voice.onSpeechEnd(() => {
     if (!voiceMode) return;
     if (voice.getStatus() === 'recording') {
@@ -384,7 +391,7 @@ function voiceModeNextTurn(): void {
   if (!voiceMode) return;
 
   const ttsStatus = tts.getStatus();
-  if (ttsStatus === 'playing' || ttsStatus === 'synthesizing') {
+  if (ttsStatus === 'connecting' || ttsStatus === 'synthesizing' || ttsStatus === 'playing') {
     // The TTS onStatusChange callback set in enterVoiceMode will
     // call startVoiceRecording when TTS goes idle.
     waitingForTts = true;

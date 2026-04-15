@@ -120,7 +120,8 @@ function handleWsUpgrade(req, socket, head) {
     return;
   }
 
-  const apiKey = process.env.BAILIAN_API_KEY;
+  const userKey = url.searchParams.get('api_key');
+  const apiKey = userKey || process.env.BAILIAN_API_KEY;
   if (!apiKey) {
     socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
     socket.destroy();

@@ -47,6 +47,8 @@ let taskId = '';
 let finalTranscript = '';
 let pendingResolve: ((text: string) => void) | null = null;
 let pendingReject: ((err: Error) => void) | null = null;
+/** Invoked when startRecording's WebSocket fails before stopRecording is called. */
+let startErrorCb: ((err: Error) => void) | null = null;
 /** Whether we have sent finish-task and are waiting for final result. */
 let finishing = false;
 
@@ -80,6 +82,11 @@ export function onPartialTranscript(cb: PartialTranscriptCallback): void {
 /** Register a callback invoked when VAD detects speech has ended (silence after speech). */
 export function onSpeechEnd(cb: SpeechEndCallback): void {
   speechEndCb = cb;
+}
+
+/** Register a callback invoked if the ASR WebSocket fails during startup. */
+export function onStartError(cb: (err: Error) => void): void {
+  startErrorCb = cb;
 }
 
 export function getStatus(): VoiceStatus {
@@ -190,10 +197,16 @@ export async function startRecording(): Promise<void> {
     };
 
     ws.onerror = () => {
+      const wasConnecting = status === 'connecting';
+      const err = new Error('语音识别 WebSocket 连接失败');
       cleanup();
-      pendingReject?.(new Error('语音识别 WebSocket 连接失败'));
-      pendingResolve = null;
-      pendingReject = null;
+      if (pendingReject) {
+        pendingReject(err);
+        pendingResolve = null;
+        pendingReject = null;
+      } else if (wasConnecting) {
+        startErrorCb?.(err);
+      }
     };
 
     ws.onclose = () => {
@@ -327,11 +340,16 @@ function handleAsrMessage(msg: any): void {
 
 function resolveWsUrl(service: 'asr' | 'tts'): string {
   const vs: VoiceSettings = loadVoiceSettings();
-  if (vs.proxyUrl) {
-    const base = vs.proxyUrl.replace(/\/+$/, '');
-    return `${base}/ws/${service}`;
+  const usingCustomProxy = !!vs.proxyUrl;
+  const base = usingCustomProxy ? vs.proxyUrl.replace(/\/+$/, '') : FREE_PROXY_URL;
+  const url = `${base}/ws/${service}`;
+  // Only append api_key when using a custom proxy that the user controls.
+  // The hosted free proxy currently ignores query keys, so appending one
+  // would just leak the key without effect.
+  if (usingCustomProxy && vs.dashscopeApiKey) {
+    return `${url}?api_key=${encodeURIComponent(vs.dashscopeApiKey)}`;
   }
-  return `${FREE_PROXY_URL}/ws/${service}`;
+  return url;
 }
 
 function cleanup(): void {
