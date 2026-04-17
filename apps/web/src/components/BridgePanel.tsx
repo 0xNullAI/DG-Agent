@@ -12,13 +12,13 @@ interface BridgePanelProps {
 
 export function BridgePanel({ enabled, bridgeStatus, bridgeLogs }: BridgePanelProps) {
   return (
-    <Card>
+    <Card className="flex h-full min-h-0 flex-col">
       <CardHeader className="pb-3">
         <CardTitle>桥接状态</CardTitle>
         <CardDescription>查看 Telegram / QQ 桥接连接状态与最近日志。</CardDescription>
       </CardHeader>
 
-      <CardContent className="pt-0">
+      <CardContent className="min-h-0 flex-1 pt-0">
         <div className="flex flex-wrap gap-2">
           {(bridgeStatus?.adapters ?? []).map((adapter) => (
             <Badge key={adapter.platform} variant={adapter.connected ? 'success' : 'default'}>
@@ -28,13 +28,13 @@ export function BridgePanel({ enabled, bridgeStatus, bridgeLogs }: BridgePanelPr
           {!enabled && <Badge variant="default">桥接功能未启用</Badge>}
         </div>
 
-        <ScrollArea className="mt-4 max-h-72 pr-1">
+        <ScrollArea className="mt-4 h-full min-h-0 pr-1">
           <div className="flex flex-col gap-3">
             {bridgeLogs.length === 0 && <div className="text-sm text-[var(--text-soft)]">还没有桥接日志。</div>}
             {bridgeLogs.map((entry, index) => (
               <pre
                 key={`${entry.timestamp}-${index}`}
-                className="m-0 rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] p-4 text-sm leading-6 text-[var(--text-soft)]"
+                className="m-0 whitespace-pre-wrap break-all rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] p-4 text-sm leading-6 text-[var(--text-soft)]"
               >
                 [{formatTimestamp(entry.timestamp)}] {entry.level.toUpperCase()} {entry.text}
               </pre>

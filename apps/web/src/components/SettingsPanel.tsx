@@ -186,17 +186,15 @@ export function SettingsPanel({
 
       <div className="settings settings-grouped">
         <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as typeof settingsTab)} className="px-5 pt-4">
-          <TabsList className="grid w-full grid-cols-2 gap-2 md:grid-cols-5">
+          <TabsList className="grid w-full grid-cols-2 gap-0 md:grid-cols-5">
             <TabsTrigger value="general">常规</TabsTrigger>
             <TabsTrigger value="model">模型</TabsTrigger>
             <TabsTrigger value="safety">安全</TabsTrigger>
             <TabsTrigger value="bridge">桥接</TabsTrigger>
             <TabsTrigger value="voice">语音</TabsTrigger>
           </TabsList>
-          <TabsContent value={settingsTab} className="mt-0" />
-        </Tabs>
-
-        <section className={settingsTab === 'general' ? 'settings-group' : 'hidden'}>
+          <TabsContent value="general" className="mt-4">
+        <section className="settings-group">
           <h3 className="settings-group-title">基础</h3>
 
           <label>
@@ -250,7 +248,66 @@ export function SettingsPanel({
           </label>
         </section>
 
-        <section className={settingsTab === 'model' ? 'settings-group' : 'hidden'}>
+        <section className="settings-group">
+          <h3 className="settings-group-title">模式与提示词</h3>
+
+          <label>
+            <span>模式</span>
+            <SettingSelect
+              value={settingsDraft.promptPresetId}
+              onValueChange={(value) =>
+                setSettingsDraft((current) => ({
+                  ...current,
+                  promptPresetId: value,
+                }))
+              }
+              options={[
+                ...BUILTIN_PROMPT_PRESETS.map((preset) => ({ value: preset.id, label: preset.name })),
+                ...settingsDraft.savedPromptPresets.map((preset) => ({ value: preset.id, label: `${preset.name}（已保存）` })),
+              ]}
+            />
+          </label>
+
+          <label>
+            <span>自定义提示词</span>
+            <Textarea
+              value={settingsDraft.customPrompt}
+              onChange={(event) =>
+                setSettingsDraft((current) => ({
+                  ...current,
+                  customPrompt: event.target.value,
+                }))
+              }
+              rows={5}
+              placeholder="可选：在当前模式提示词上额外叠加你的自定义要求。"
+            />
+          </label>
+
+          <div className="settings-actions">
+            <Button variant="secondary" onClick={onSaveCurrentPromptPreset}>
+              保存提示词
+            </Button>
+          </div>
+
+          {settingsDraft.savedPromptPresets.length > 0 && (
+            <div className="saved-prompt-list">
+              {settingsDraft.savedPromptPresets.map((preset) => (
+                <div key={preset.id} className="saved-prompt-item">
+                  <Button variant="ghost" className="saved-prompt-name" onClick={() => onLoadSavedPromptPreset(preset.id)}>
+                    {preset.name}
+                  </Button>
+                  <Button variant="ghost" className="saved-prompt-delete" onClick={() => onDeleteSavedPromptPreset(preset.id)}>
+                    删除
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+          </TabsContent>
+
+          <TabsContent value="model" className="mt-4">
+        <section className="settings-group">
           <h3 className="settings-group-title">模型服务</h3>
 
           <label>
@@ -282,8 +339,10 @@ export function SettingsPanel({
             <span>在当前设备记住 API 密钥</span>
           </label>
         </section>
+          </TabsContent>
 
-        <section className={settingsTab === 'safety' ? 'settings-group' : 'hidden'}>
+          <TabsContent value="safety" className="mt-4">
+        <section className="settings-group">
           <h3 className="settings-group-title">安全</h3>
 
           <label>
@@ -379,65 +438,10 @@ export function SettingsPanel({
             />
           </label>
         </section>
+          </TabsContent>
 
-        <section className={settingsTab === 'general' ? 'settings-group' : 'hidden'}>
-          <h3 className="settings-group-title">模式与提示词</h3>
-
-          <label>
-            <span>模式</span>
-            <SettingSelect
-              value={settingsDraft.promptPresetId}
-              onValueChange={(value) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  promptPresetId: value,
-                }))
-              }
-              options={[
-                ...BUILTIN_PROMPT_PRESETS.map((preset) => ({ value: preset.id, label: preset.name })),
-                ...settingsDraft.savedPromptPresets.map((preset) => ({ value: preset.id, label: `${preset.name}（已保存）` })),
-              ]}
-            />
-          </label>
-
-          <label>
-            <span>自定义提示词</span>
-            <Textarea
-              value={settingsDraft.customPrompt}
-              onChange={(event) =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  customPrompt: event.target.value,
-                }))
-              }
-              rows={5}
-              placeholder="可选：在当前模式提示词上额外叠加你的自定义要求。"
-            />
-          </label>
-
-          <div className="settings-actions">
-            <Button variant="secondary" onClick={onSaveCurrentPromptPreset}>
-              保存提示词
-            </Button>
-          </div>
-
-          {settingsDraft.savedPromptPresets.length > 0 && (
-            <div className="saved-prompt-list">
-              {settingsDraft.savedPromptPresets.map((preset) => (
-                <div key={preset.id} className="saved-prompt-item">
-                  <Button variant="ghost" className="saved-prompt-name" onClick={() => onLoadSavedPromptPreset(preset.id)}>
-                    {preset.name}
-                  </Button>
-                  <Button variant="ghost" className="saved-prompt-delete" onClick={() => onDeleteSavedPromptPreset(preset.id)}>
-                    删除
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className={settingsTab === 'bridge' ? 'settings-group' : 'hidden'}>
+          <TabsContent value="bridge" className="mt-4">
+        <section className="settings-group">
           <h3 className="settings-group-title">桥接</h3>
 
           <label className="checkbox-row">
@@ -672,7 +676,10 @@ export function SettingsPanel({
           )}
         </section>
 
-        <section className={settingsTab === 'voice' ? 'settings-group' : 'hidden'}>
+          </TabsContent>
+
+          <TabsContent value="voice" className="mt-4">
+        <section className="settings-group">
           <h3 className="settings-group-title">语音</h3>
 
           <label className="checkbox-row">
@@ -776,6 +783,8 @@ export function SettingsPanel({
             </>
           )}
         </section>
+          </TabsContent>
+        </Tabs>
 
         <div className="settings-actions settings-actions-footer">
           <div className="text-sm text-[var(--text-faint)]">设置会自动保存到当前浏览器。</div>

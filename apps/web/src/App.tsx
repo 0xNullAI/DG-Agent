@@ -791,8 +791,8 @@ export function App() {
               </div>
             </SheetHeader>
 
-            <Tabs value={inspectorTab} onValueChange={(value) => setInspectorTab(value as InspectorTab)} className="mt-5 flex h-[calc(100vh-120px)] flex-col">
-              <TabsList className="mt-4 grid w-full grid-cols-2 gap-2 lg:grid-cols-5">
+            <Tabs value={inspectorTab} onValueChange={(value) => setInspectorTab(value as InspectorTab)} className="mt-5 flex min-h-0 flex-1 flex-col">
+              <TabsList className="mt-4 mr-1 grid w-[calc(100%-0.25rem)] grid-cols-2 gap-0 lg:grid-cols-5">
                 <TabsTrigger value="runtime">运行</TabsTrigger>
                 <TabsTrigger value="settings">设置</TabsTrigger>
                 <TabsTrigger value="waveforms">波形</TabsTrigger>
@@ -800,7 +800,7 @@ export function App() {
                 <TabsTrigger value="events">事件</TabsTrigger>
               </TabsList>
 
-              <TabsContent value={inspectorTab} className="mt-5 min-h-0 flex-1 overflow-y-auto pr-1">
+              <TabsContent value={inspectorTab} className="mt-5 min-h-0 flex-1 overflow-hidden pr-1">
                 {renderInspectorPanel()}
               </TabsContent>
             </Tabs>
