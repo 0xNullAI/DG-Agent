@@ -286,11 +286,6 @@ export class AgentRuntime {
           type: 'session-updated',
           sessionId: session.id,
         });
-        iterationItems.push({
-          kind: 'message',
-          role: 'assistant',
-          content: iterationAssistantMessage,
-        });
       }
 
       for (const toolCall of llmResult.toolCalls ?? []) {

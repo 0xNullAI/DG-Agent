@@ -173,6 +173,37 @@ class TwoStepLlm implements LlmPort {
   }
 }
 
+class InspectingTwoStepLlm implements LlmPort {
+  readonly conversations: Array<ReadonlyArray<NonNullable<Parameters<LlmPort['runTurn']>[0]['conversation']>[number]>> = [];
+
+  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+    this.conversations.push([...(input.conversation ?? [])]);
+
+    const hasToolOutput = input.conversation?.some((item) => item.kind === 'function_call_output');
+    if (!hasToolOutput) {
+      return {
+        assistantMessage: '准备启动 A',
+        toolCalls: [
+          {
+            id: 'tool-1',
+            name: 'start',
+            args: {
+              channel: 'A',
+              strength: 30,
+              waveformId: 'pulse_mid',
+              loop: true,
+            },
+          },
+        ],
+      };
+    }
+
+    return {
+      assistantMessage: 'A 通道已经启动完毕。',
+    };
+  }
+}
+
 class RepeatedAdjustLlm implements LlmPort {
   async runTurn() {
     return {
@@ -301,6 +332,33 @@ describe('AgentRuntime', () => {
     const session = await runtime.getSessionSnapshot('test');
     expect(session.messages.at(-1)?.content).toContain('启动完毕');
     expect(session.deviceState.strengthA).toBe(10);
+  });
+
+  it('does not duplicate intermediate assistant narration in the next iteration context', async () => {
+    const llm = new InspectingTwoStepLlm();
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      llm,
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'test',
+      text: '启动A',
+      context: {
+        sessionId: 'test',
+        sourceType: 'cli',
+        traceId: 'trace-loop-no-dup',
+      },
+    });
+
+    const nextIterationConversation = llm.conversations[1] ?? [];
+    const narrations = nextIterationConversation.filter(
+      (item) => item.kind === 'message' && item.role === 'assistant' && item.content === '准备启动 A',
+    );
+
+    expect(narrations).toHaveLength(1);
   });
 
   it('clamps cold start strength before executing device command', async () => {

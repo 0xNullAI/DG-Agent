@@ -8,7 +8,7 @@ const alertVariants = cva(
     variants: {
       variant: {
         default: 'border-[var(--surface-border)] bg-[var(--bg-elevated)] text-[var(--text)]',
-        info: 'border-[var(--surface-border)] bg-[var(--accent-soft)] text-[var(--text)]',
+        info: 'border-[var(--surface-border)] bg-[var(--success-soft)] text-[var(--success)]',
         warning: 'border-[var(--surface-border)] bg-[var(--warning-soft)] text-[var(--warning)]',
         destructive: 'border-[var(--surface-border)] bg-[var(--danger-soft)] text-[var(--danger)]',
       },

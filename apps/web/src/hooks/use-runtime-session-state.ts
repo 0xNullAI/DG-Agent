@@ -86,16 +86,32 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
     const unsubscribe = client.subscribe((event) => {
       setEvents((current) => [event, ...current].slice(0, 20));
 
+      if (event.type === 'device-state-changed') {
+        setDeviceConnected(event.state.connected);
+      }
+
+      const isActiveSessionEvent =
+        !('sessionId' in event) || event.sessionId == null || event.sessionId === sessionId;
+
+      if (!isActiveSessionEvent) {
+        return;
+      }
+
       if (event.type === 'assistant-message-delta') {
         setStreamingAssistantText(event.content);
       }
 
-      if (event.type === 'assistant-message-completed' || event.type === 'assistant-message-aborted') {
-        setStreamingAssistantText('');
+      if (event.type === 'session-updated') {
+        onRuntimeEventRef.current?.(event);
+        void syncCurrentSession().then(() => {
+          if (!active) return;
+          setStreamingAssistantText('');
+        });
+        return;
       }
 
-      if (event.type === 'device-state-changed') {
-        setDeviceConnected(event.state.connected);
+      if (event.type === 'assistant-message-completed' || event.type === 'assistant-message-aborted') {
+        setStreamingAssistantText('');
       }
 
       onRuntimeEventRef.current?.(event);

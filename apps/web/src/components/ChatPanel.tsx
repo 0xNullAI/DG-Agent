@@ -19,6 +19,7 @@ interface TimerNotice {
 interface ChatPanelProps {
   activeSessionId: string | null;
   text: string;
+  statusMessage: string | null;
   onTextChange: (value: string) => void;
   onVoice: () => void;
   onAbortVoice: () => void;
@@ -43,6 +44,8 @@ interface ChatPanelProps {
 
 const MESSAGE_BATCH_SIZE = 120;
 const DEVICE_STRENGTH_CAP = 200;
+const CHAT_SYSTEM_NOTICE_CLASS_NAME =
+  'max-w-[85%] rounded-full border border-[var(--surface-border)] bg-[var(--bg-soft)] px-4 py-1.5 text-center text-xs text-[var(--text-soft)]';
 
 function summarizeAssistantContent(content: string): string {
   const prefix = 'Fake LLM 已完成工具执行：';
@@ -82,6 +85,7 @@ function isToolExecutionSummary(content: string): boolean {
 export function ChatPanel({
   activeSessionId,
   text,
+  statusMessage,
   onTextChange,
   onVoice,
   onAbortVoice,
@@ -135,7 +139,7 @@ export function ChatPanel({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: 'end' });
-  }, [messages, streamingAssistantText, busy]);
+  }, [messages, streamingAssistantText, busy, statusMessage]);
 
   useEffect(() => {
     setVisibleMessageCount(MESSAGE_BATCH_SIZE);
@@ -302,11 +306,17 @@ export function ChatPanel({
 
           {timerNotices.map((notice) => (
             <div key={notice.key} className="flex justify-center">
-              <div className="max-w-[85%] rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-soft)] px-4 py-2 text-sm text-[var(--text-soft)]">
+              <div className={CHAT_SYSTEM_NOTICE_CLASS_NAME}>
                 {notice.text}
               </div>
             </div>
           ))}
+
+          {statusMessage && (
+            <div className="flex justify-center">
+              <div className={CHAT_SYSTEM_NOTICE_CLASS_NAME}>{statusMessage}</div>
+            </div>
+          )}
 
           <div ref={messagesEndRef} className="h-40 shrink-0 sm:h-40" />
         </div>
