@@ -893,6 +893,32 @@ textarea:focus {
 
 .control-tabs {
   margin-top: 1rem;
+  background: var(--bg-strong);
+  border-color: var(--surface-border);
+  padding: 0.25rem;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--surface-border) 65%, transparent);
+}
+
+.control-tab-trigger {
+  color: var(--text-soft);
+  border-color: transparent;
+  background: transparent;
+}
+
+.control-tab-trigger:hover {
+  background: var(--bg-soft);
+  color: var(--text);
+}
+
+.control-tab-trigger[data-state='active'] {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--button-text);
+}
+
+.control-tab-trigger[data-state='active']:hover {
+  background: var(--accent);
+  color: var(--button-text);
 }
 
 .settings {

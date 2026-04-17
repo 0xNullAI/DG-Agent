@@ -185,13 +185,13 @@ export function SettingsPanel({
       </div>
 
       <div className="settings settings-grouped">
-        <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as typeof settingsTab)} className="px-5 pt-4">
-          <TabsList className="grid w-full grid-cols-2 gap-0 md:grid-cols-5">
-            <TabsTrigger value="general">常规</TabsTrigger>
-            <TabsTrigger value="model">模型</TabsTrigger>
-            <TabsTrigger value="safety">安全</TabsTrigger>
-            <TabsTrigger value="bridge">桥接</TabsTrigger>
-            <TabsTrigger value="voice">语音</TabsTrigger>
+        <Tabs value={settingsTab} onValueChange={(value) => setSettingsTab(value as typeof settingsTab)} className="control-tabs-shell px-5 pt-4">
+          <TabsList className="control-tabs grid w-full grid-cols-2 gap-0 md:grid-cols-5">
+            <TabsTrigger className="control-tab-trigger" value="general">常规</TabsTrigger>
+            <TabsTrigger className="control-tab-trigger" value="model">模型</TabsTrigger>
+            <TabsTrigger className="control-tab-trigger" value="safety">安全</TabsTrigger>
+            <TabsTrigger className="control-tab-trigger" value="bridge">桥接</TabsTrigger>
+            <TabsTrigger className="control-tab-trigger" value="voice">语音</TabsTrigger>
           </TabsList>
           <TabsContent value="general" className="mt-4">
         <section className="settings-group">

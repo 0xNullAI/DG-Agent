@@ -767,13 +767,13 @@ export function App() {
               </div>
             </SheetHeader>
 
-            <Tabs value={inspectorTab} onValueChange={(value) => setInspectorTab(value as InspectorTab)} className="mt-5 flex min-h-0 flex-1 flex-col">
-              <TabsList className="mt-4 mr-1 grid w-[calc(100%-0.25rem)] grid-cols-2 gap-0 lg:grid-cols-5">
-                <TabsTrigger value="runtime">运行</TabsTrigger>
-                <TabsTrigger value="settings">设置</TabsTrigger>
-                <TabsTrigger value="waveforms">波形</TabsTrigger>
-                <TabsTrigger value="bridge">桥接</TabsTrigger>
-                <TabsTrigger value="events">事件</TabsTrigger>
+            <Tabs value={inspectorTab} onValueChange={(value) => setInspectorTab(value as InspectorTab)} className="mt-5 flex min-h-0 flex-1 flex-col control-tabs-shell">
+              <TabsList className="control-tabs mt-4 mr-1 grid w-[calc(100%-0.25rem)] grid-cols-2 gap-0 lg:grid-cols-5">
+                <TabsTrigger className="control-tab-trigger" value="runtime">运行</TabsTrigger>
+                <TabsTrigger className="control-tab-trigger" value="settings">设置</TabsTrigger>
+                <TabsTrigger className="control-tab-trigger" value="waveforms">波形</TabsTrigger>
+                <TabsTrigger className="control-tab-trigger" value="bridge">桥接</TabsTrigger>
+                <TabsTrigger className="control-tab-trigger" value="events">事件</TabsTrigger>
               </TabsList>
 
               <TabsContent value={inspectorTab} className="mt-5 min-h-0 flex-1 overflow-hidden">
