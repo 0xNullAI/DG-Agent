@@ -166,37 +166,9 @@ export function ChatPanel({
 
   return (
     <Card className="relative flex min-h-full w-full flex-1 flex-col overflow-hidden rounded-none border-0 bg-transparent shadow-none">
-      <CardHeader className="relative z-20 gap-2 border-b border-[var(--surface-border)] bg-[var(--glass)] px-4 py-2.5 backdrop-blur-xl sm:px-6">
-        <div className="flex min-h-9 w-full items-center justify-between gap-3 sm:grid sm:min-h-[46px] sm:grid-cols-[1fr_minmax(0,940px)_1fr] sm:items-center">
-          <div className="hidden sm:block" />
-          <div className="min-w-0 flex-1 sm:flex sm:w-full sm:justify-center">
-            {deviceState.connected ? (
-              <div className="grid w-full max-w-[420px] gap-2">
-                {[
-                  { label: 'A', value: deviceState.strengthA, max: maxStrengthA },
-                  { label: 'B', value: deviceState.strengthB, max: maxStrengthB },
-                ].map((channel) => (
-                  <div
-                    key={channel.label}
-                    className="grid min-h-[18px] grid-cols-[18px_minmax(160px,1fr)_28px] items-center gap-2"
-                  >
-                    <span className="text-sm font-semibold text-[var(--accent)]">{channel.label}</span>
-                    <div className="relative h-1 rounded-full bg-[var(--bg-soft)]">
-                      <div
-                        className="absolute top-1/2 h-3.5 w-[2px] -translate-y-1/2 rounded-full bg-[var(--danger)]"
-                        style={{
-                          left: `calc(${Math.max(0, Math.min(100, (channel.max / DEVICE_STRENGTH_CAP) * 100))}% - 1px)`,
-                        }}
-                      />
-                    </div>
-                    <span className="text-right text-sm font-medium text-[var(--text-soft)]">{channel.value}</span>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2 sm:ml-auto sm:justify-self-end">
+      <CardHeader className="relative z-20 gap-0 bg-[var(--glass)] pt-2.5 backdrop-blur-xl">
+        <div className="flex min-h-9 w-full items-center justify-end gap-2 sm:min-h-[46px]">
+          <div className="flex shrink-0 items-center gap-2">
             <Button
               variant="secondary"
               size="sm"
@@ -221,6 +193,22 @@ export function ChatPanel({
             </Button>
           </div>
         </div>
+        {deviceState.connected ? (
+          <div>
+            <div className="-mx-6 mt-[9px] border-t border-[var(--surface-border)] lg:-mx-1" />
+            <div
+              className="grid items-center px-[10%] pt-0.5"
+              style={{
+                gridTemplateColumns: '35fr 10fr 35fr',
+              }}
+            >
+              <ChannelStrengthBar channel="A" value={deviceState.strengthA} max={maxStrengthA} />
+              <div aria-hidden="true" />
+              <ChannelStrengthBar channel="B" value={deviceState.strengthB} max={maxStrengthB} />
+            </div>
+            <div className="-mx-6 mt-0.5 border-t border-[var(--surface-border)] lg:-mx-1" />
+          </div>
+        ) : null}
       </CardHeader>
 
       <CardContent className="main-content-scroll min-h-0 flex flex-1 flex-col overflow-y-auto px-4 pb-8 pt-3 [scrollbar-gutter:stable] sm:px-6">
@@ -249,7 +237,7 @@ export function ChatPanel({
             if (message.kind === 'trace-system') {
               return (
                 <div key={message.id} className="flex justify-center">
-                  <div className="max-w-[85%] rounded-[8px] border-l-[3px] border-l-[var(--accent)] bg-[var(--accent-soft)] px-4 py-2 text-sm text-[var(--text-soft)]">
+                  <div className="max-w-[85%] rounded-[8px] border-l-[3px] border-l-[var(--accent)] bg-[var(--accent-soft)] px-3.5 py-1 text-[13px] leading-[1.35] text-[var(--text-soft)]">
                     {message.content}
                   </div>
                 </div>
@@ -269,7 +257,7 @@ export function ChatPanel({
             if (message.role === 'system') {
               return (
                 <div key={message.id} className="flex justify-center">
-                  <div className="max-w-[85%] rounded-[8px] border-l-[3px] border-l-[var(--accent)] bg-[var(--accent-soft)] px-4 py-2 text-sm text-[var(--text-soft)]">
+                  <div className="max-w-[85%] rounded-[8px] border-l-[3px] border-l-[var(--accent)] bg-[var(--accent-soft)] px-3.5 py-1.5 text-[13px] leading-[1.35] text-[var(--text-soft)]">
                     {message.content}
                   </div>
                 </div>
@@ -357,6 +345,43 @@ export function ChatPanel({
       </CardFooter>
     </Card>
   );
+}
+
+interface ChannelStrengthBarProps {
+  channel: 'A' | 'B';
+  value: number;
+  max: number;
+}
+
+function ChannelStrengthBar({ channel, value, max }: ChannelStrengthBarProps) {
+  const normalizedValue = clampPercentage((value / DEVICE_STRENGTH_CAP) * 100);
+  const normalizedMax = clampPercentage((max / DEVICE_STRENGTH_CAP) * 100);
+
+  return (
+    <div className="grid w-full grid-cols-[16px_minmax(0,1fr)_26px] items-center gap-2">
+      <span className="justify-self-start text-[10px] font-semibold leading-none tracking-[0.12em] text-[var(--accent)]">
+        {channel}
+      </span>
+      <div className="relative h-1.5 w-full justify-self-stretch overflow-hidden rounded-full bg-[var(--bg-soft)]">
+        <div
+          className="absolute inset-y-0 left-0 rounded-full bg-[var(--accent)]/80 transition-[width] duration-300 ease-out"
+          style={{ width: `${normalizedValue}%` }}
+        />
+        <div
+          className="absolute inset-y-[-2px] w-[2px] rounded-full bg-[var(--danger)]/85"
+          style={{ left: `calc(${normalizedMax}% - 1px)` }}
+        />
+      </div>
+      <span className="justify-self-end text-right text-[10px] font-medium tabular-nums leading-none text-[var(--text-soft)]">
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function clampPercentage(value: number): number {
+  if (!Number.isFinite(value)) return 0;
+  return Math.max(0, Math.min(100, value));
 }
 
 type TimelineItem =
