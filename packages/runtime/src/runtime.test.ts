@@ -208,6 +208,120 @@ class BurstOnlyLlm implements LlmPort {
   }
 }
 
+class ThrowingDevice extends TestDevice {
+  override async execute(command: DeviceCommand): Promise<DeviceCommandResult> {
+    if (command.type === 'start') {
+      throw new Error('蓝牙写入失败。');
+    }
+    return super.execute(command);
+  }
+}
+
+class DuplicateAssistantLlm implements LlmPort {
+  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+    const hasToolOutput = input.conversation?.some((item) => item.kind === 'function_call_output');
+    if (!hasToolOutput) {
+      return {
+        assistantMessage: '先从很轻的强度开始。',
+        toolCalls: [
+          {
+            id: 'tool-1',
+            name: 'start',
+            args: {
+              channel: 'A',
+              strength: 10,
+              waveformId: 'pulse_mid',
+              loop: true,
+            },
+          },
+        ],
+      };
+    }
+
+    return {
+      assistantMessage: '先从很轻的强度开始。',
+    };
+  }
+}
+
+class TimerFollowUpLlm implements LlmPort {
+  readonly toolCountsBySource: Array<{ sourceType: string; toolCount: number }> = [];
+
+  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+    this.toolCountsBySource.push({
+      sourceType: input.context.sourceType,
+      toolCount: input.tools.length,
+    });
+
+    const hasToolOutput = input.conversation?.some((item) => item.kind === 'function_call_output');
+    if (input.context.sourceType === 'system') {
+      return {
+        assistantMessage: '我还在等你的反馈。',
+      };
+    }
+
+    if (!hasToolOutput) {
+      return {
+        assistantMessage: '我先等你反馈。',
+        toolCalls: [
+          {
+            id: 'tool-timer',
+            name: 'timer',
+            args: { seconds: 1, label: '等待反馈' },
+          },
+        ],
+      };
+    }
+
+    return {
+      assistantMessage: '我先等你反馈。',
+    };
+  }
+}
+
+class DeniedToolFollowUpLlm implements LlmPort {
+  readonly calls: Array<{ toolCount: number; message: string; syntheticDenySeen: boolean }> = [];
+
+  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+    const syntheticDenySeen = Boolean(
+      input.conversation?.some(
+        (item) =>
+          item.kind === 'message' &&
+          item.role === 'user' &&
+          item.content.includes('[内部提醒] 刚才请求的工具'),
+      ),
+    );
+
+    this.calls.push({
+      toolCount: input.tools.length,
+      message: input.message,
+      syntheticDenySeen,
+    });
+
+    if (syntheticDenySeen || input.tools.length === 0) {
+      return {
+        assistantMessage: '这一步没有执行，因为你刚才拒绝了这次操作。',
+      };
+    }
+
+    return {
+      assistantMessage: '',
+      toolCalls: [
+        {
+          id: 'tool-denied-1',
+          name: 'start',
+          args: {
+            channel: 'A',
+            strength: 10,
+            waveformId: 'pulse_mid',
+            loop: true,
+          },
+        },
+      ],
+    };
+  }
+}
+
 class AbortableLlm implements LlmPort {
   async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
     input.onTextDelta?.('thinking');
@@ -244,8 +358,14 @@ class TestPermission implements PermissionPort {
   }
 }
 
+class DenyingPermission implements PermissionPort {
+  async request() {
+    return { type: 'deny', reason: '用户拒绝本次操作。' } as const;
+  }
+}
+
 class TestSessionStore implements SessionStorePort {
-  constructor(private readonly sessions = new Map<string, ReturnType<TestSessionStore['cloneSession']>>()) {}
+  constructor(private readonly sessions = new Map<string, TestSessionStoreEntry>()) {}
 
   async get(sessionId: string) {
     const session = this.sessions.get(sessionId);
@@ -264,19 +384,23 @@ class TestSessionStore implements SessionStorePort {
     this.sessions.delete(sessionId);
   }
 
-  private cloneSession(session: {
-    id: string;
-    createdAt: number;
-    updatedAt: number;
-    messages: Array<{ id: string; role: 'system' | 'user' | 'assistant'; content: string; createdAt: number }>;
-    deviceState: DeviceState;
-  }) {
+  private cloneSession(session: TestSessionStoreEntry): TestSessionStoreEntry {
     return {
       ...session,
       messages: session.messages.map((message) => ({ ...message })),
       deviceState: { ...session.deviceState },
+      metadata: session.metadata ? structuredClone(session.metadata) : undefined,
     };
   }
+}
+
+interface TestSessionStoreEntry {
+  id: string;
+  createdAt: number;
+  updatedAt: number;
+  messages: Array<{ id: string; role: 'system' | 'user' | 'assistant'; content: string; createdAt: number }>;
+  deviceState: DeviceState;
+  metadata?: Record<string, unknown>;
 }
 
 describe('AgentRuntime', () => {
@@ -301,6 +425,7 @@ describe('AgentRuntime', () => {
     const session = await runtime.getSessionSnapshot('test');
     expect(session.messages.at(-1)?.content).toContain('启动完毕');
     expect(session.deviceState.strengthA).toBe(10);
+    expect(session.messages.some((message) => message.role === 'system')).toBe(false);
   });
 
   it('clamps cold start strength before executing device command', async () => {
@@ -359,6 +484,33 @@ describe('AgentRuntime', () => {
     expect(session.messages).toHaveLength(2);
     expect(session.messages[1]?.content).toContain('已手动中止');
     expect(events.some((event) => event.type === 'assistant-message-aborted')).toBe(true);
+  });
+
+  it('does not recreate a deleted session when an in-flight reply is aborted during deletion', async () => {
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      llm: new AbortableLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    const sendPromise = runtime.sendUserMessage({
+      sessionId: 'deleted-while-busy',
+      text: 'delete me later',
+      context: {
+        sessionId: 'deleted-while-busy',
+        sourceType: 'cli',
+        traceId: 'trace-delete-while-busy',
+      },
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    await runtime.deleteSession('deleted-while-busy');
+    await expect(sendPromise).rejects.toThrow('Assistant reply aborted.');
+
+    const sessions = await runtime.listSessions();
+    expect(sessions.some((session) => session.id === 'deleted-while-busy')).toBe(false);
+    expect(await runtime.getSessionTrace('deleted-while-busy')).toEqual([]);
   });
 
   it('persists a friendly assistant error message when the provider fails', async () => {
@@ -525,5 +677,168 @@ describe('AgentRuntime', () => {
 
     const session = await runtime.getSessionSnapshot('test');
     expect(session.deviceState.strengthA).toBe(40);
+  });
+
+  it('uses ephemeral timer triggers, keeps them out of history, and disables tools on system turns', async () => {
+    const llm = new TimerFollowUpLlm();
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      llm,
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    const followUpCompleted = new Promise<void>((resolve) => {
+      const unsubscribe = runtime.subscribe((event) => {
+        if (event.type !== 'assistant-message-completed') return;
+        if (event.message.content !== '我还在等你的反馈。') return;
+        unsubscribe();
+        resolve();
+      });
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'timer-test',
+      text: '等我反馈',
+      context: {
+        sessionId: 'timer-test',
+        sourceType: 'cli',
+        traceId: 'trace-timer',
+      },
+    });
+
+    await followUpCompleted;
+
+    const session = await runtime.getSessionSnapshot('timer-test');
+    const traceEntries = await runtime.getSessionTrace('timer-test');
+    expect(session.messages.map((message) => message.content)).toEqual(['等我反馈', '我先等你反馈。', '我还在等你的反馈。']);
+    expect(session.messages.some((message) => message.content.includes('[Timer due]'))).toBe(false);
+    expect(session.messages.some((message) => message.content.includes('[内部提醒]'))).toBe(false);
+    expect(traceEntries.some((entry) => entry.kind === 'timer-scheduled')).toBe(true);
+    expect(traceEntries.some((entry) => entry.kind === 'timer-fired')).toBe(true);
+    expect(llm.toolCountsBySource.some((entry) => entry.sourceType === 'system' && entry.toolCount === 0)).toBe(true);
+  });
+
+  it('does not persist the same assistant narration twice across a tool iteration and final reply', async () => {
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      llm: new DuplicateAssistantLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'duplicate-assistant',
+      text: '轻一点开始',
+      context: {
+        sessionId: 'duplicate-assistant',
+        sourceType: 'cli',
+        traceId: 'trace-duplicate-assistant',
+      },
+    });
+
+    const session = await runtime.getSessionSnapshot('duplicate-assistant');
+    expect(session.messages.filter((message) => message.role === 'assistant' && message.content === '先从很轻的强度开始。')).toHaveLength(1);
+  });
+
+  it('uses an ephemeral deny trigger to get a final assistant reply without persisting the trigger text', async () => {
+    const llm = new DeniedToolFollowUpLlm();
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      llm,
+      permission: new DenyingPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'denied-follow-up',
+      text: '启动 A',
+      context: {
+        sessionId: 'denied-follow-up',
+        sourceType: 'cli',
+        traceId: 'trace-denied-follow-up',
+      },
+    });
+
+    const session = await runtime.getSessionSnapshot('denied-follow-up');
+    const traceEntries = await runtime.getSessionTrace('denied-follow-up');
+
+    expect(session.messages.map((message) => message.content)).toEqual([
+      '启动 A',
+      '这一步没有执行，因为你刚才拒绝了这次操作。',
+    ]);
+    expect(session.messages.some((message) => message.content.includes('[内部提醒]'))).toBe(false);
+    expect(traceEntries.some((entry) => entry.kind === 'tool-denied')).toBe(true);
+    expect(llm.calls).toHaveLength(2);
+    expect(llm.calls[1]?.toolCount).toBe(0);
+    expect(llm.calls[1]?.syntheticDenySeen).toBe(true);
+  });
+
+  it('persists a system notice when tool execution fails after approval', async () => {
+    const llm = new DeniedToolFollowUpLlm();
+    const runtime = new AgentRuntime({
+      device: new ThrowingDevice(),
+      llm,
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'failed-follow-up',
+      text: '启动 A',
+      context: {
+        sessionId: 'failed-follow-up',
+        sourceType: 'cli',
+        traceId: 'trace-failed-follow-up',
+      },
+    });
+
+    const session = await runtime.getSessionSnapshot('failed-follow-up');
+    const traceEntries = await runtime.getSessionTrace('failed-follow-up');
+
+    expect(session.messages.map((message) => message.content)).toEqual([
+      '启动 A',
+      '这一步没有执行，因为你刚才拒绝了这次操作。',
+    ]);
+    expect(session.messages.some((message) => message.content.includes('[内部提醒]'))).toBe(false);
+    expect(traceEntries.some((entry) => entry.kind === 'tool-failed')).toBe(true);
+    expect(llm.calls[1]?.toolCount).toBe(0);
+    expect(llm.calls[1]?.syntheticDenySeen).toBe(true);
+  });
+
+  it('normalizes legacy timer trigger messages away and collapses assistant duplicates they caused', async () => {
+    const now = Date.now();
+    const sessionStore = new TestSessionStore(
+      new Map([
+        [
+          'legacy-session',
+          {
+            id: 'legacy-session',
+            createdAt: now,
+            updatedAt: now,
+            messages: [
+              { id: 'u1', role: 'user', content: '继续', createdAt: now },
+              { id: 'a1', role: 'assistant', content: '我先等你反馈。', createdAt: now + 1 },
+              { id: 't1', role: 'user', content: '[Timer due]\nlabel: 等待反馈\nseconds: 5', createdAt: now + 2 },
+              { id: 'a2', role: 'assistant', content: '我先等你反馈。', createdAt: now + 3 },
+            ],
+            deviceState: createEmptyDeviceState(),
+          },
+        ],
+      ]),
+    );
+
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      llm: new TestLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      sessionStore,
+    });
+
+    const session = await runtime.getSessionSnapshot('legacy-session');
+    expect(session.messages.filter((message) => message.role === 'assistant' && message.content === '我先等你反馈。')).toHaveLength(1);
+    expect(session.messages.some((message) => message.content.includes('定时提醒：等待反馈'))).toBe(false);
+    expect(session.messages.some((message) => message.content.includes('[Timer due]'))).toBe(false);
   });
 });

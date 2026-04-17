@@ -37,6 +37,7 @@ import { useWaveformManager } from './hooks/use-waveform-manager.js';
 import { createSessionId, isReplyAbortError } from './utils/app-runtime-helpers.js';
 import { buildWarnings } from './utils/runtime-warnings.js';
 import { formatUiErrorMessage, getRecentToolActivities } from './utils/ui-formatters.js';
+import { buildTraceFeed } from './utils/trace-feed.js';
 
 type InspectorTab = 'runtime' | 'settings' | 'waveforms' | 'bridge' | 'events';
 
@@ -103,6 +104,7 @@ export function App() {
     client,
     modes,
     bridgeManager,
+    resetPermissionGrants,
   } = useBrowserAppServices({
     settings,
     setPendingPermission,
@@ -140,6 +142,7 @@ export function App() {
     events,
     clearEvents,
     session,
+    sessionTrace,
     setSession,
     savedSessions,
     setSavedSessions,
@@ -367,6 +370,7 @@ export function App() {
     const nextSettings = settingsStore.clearSessionPermissionModeOverride();
     setSettingsDraft(nextSettings);
     setSettings(nextSettings);
+    resetPermissionGrants();
 
     if (activeSessionId) {
       try {
@@ -417,6 +421,7 @@ export function App() {
 
   function selectSession(sessionId: string): void {
     if (sessionId === activeSessionId) return;
+    resetPermissionGrants();
     setActiveSessionId(sessionId);
     setText('');
     clearStreamingAssistantText();
@@ -490,6 +495,7 @@ export function App() {
   const deviceState = session?.deviceState ?? createEmptyDeviceState();
   const warnings = buildWarnings(settings, modes, speechCapabilities);
   const toolActivities = getRecentToolActivities(events);
+  const traceFeed = buildTraceFeed(sessionTrace);
   const errorToastItems = errorMessage
     ? [{ key: `error:${errorMessage}`, text: errorMessage, variant: 'destructive' as const }]
     : [];
@@ -501,8 +507,7 @@ export function App() {
   const eventToastItems = events
     .filter(
       (event) =>
-        event.type === 'assistant-message-aborted' ||
-        event.type === 'tool-call-denied',
+        event.type === 'assistant-message-aborted',
     )
     .slice(0, 4)
     .map((event) => {
@@ -512,30 +517,6 @@ export function App() {
             key: `event:aborted:${event.sessionId}:${event.message.id}`,
             text: '已停止当前回复。',
             variant: 'info' as const,
-          };
-        case 'tool-call-denied':
-          return {
-            key: `event:denied:${event.sessionId}:${event.toolCall.id}:${event.reason}`,
-            text: `工具被拒绝：${event.toolCall.name} · ${localizeToastText(event.reason)}`,
-            variant: 'warning' as const,
-          };
-      }
-    });
-  const timerNotices = events
-    .filter((event) => event.type === 'timer-scheduled' || event.type === 'timer-fired')
-    .slice(0, 4)
-    .reverse()
-    .map((event) => {
-      switch (event.type) {
-        case 'timer-scheduled':
-          return {
-            key: `event:timer-scheduled:${event.sessionId}:${event.label}:${event.dueAt}`,
-            text: `已设定定时：${event.label}`,
-          };
-        case 'timer-fired':
-          return {
-            key: `event:timer-fired:${event.sessionId}:${event.label}:${event.firedAt}`,
-            text: `定时已触发：${event.label}`,
           };
       }
     });
@@ -868,12 +849,12 @@ export function App() {
               voiceState={voiceState}
               speechRecognitionSupported={speechCapabilities.recognitionSupported}
               session={session}
+              traceFeed={traceFeed}
               streamingAssistantText={streamingAssistantText}
               deviceState={deviceState}
               maxStrengthA={settings.maxStrengthA}
               maxStrengthB={settings.maxStrengthB}
               toolActivities={toolActivities}
-              timerNotices={timerNotices}
               onConnect={() => void connect()}
               onEmergencyStop={() => void stop()}
             />

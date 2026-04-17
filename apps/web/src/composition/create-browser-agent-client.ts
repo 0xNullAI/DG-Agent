@@ -1,5 +1,5 @@
 import { createEmbeddedAgentClient, type AgentClient } from '@dg-agent/client';
-import type { LlmPort, LlmTurnInput, LlmTurnResult, PermissionPort, SessionStorePort, WaveformLibraryPort } from '@dg-agent/contracts';
+import type { LlmPort, LlmTurnInput, LlmTurnResult, PermissionPort, SessionStorePort, SessionTraceStorePort, WaveformLibraryPort } from '@dg-agent/contracts';
 import { CoyoteProtocolAdapter, getWebBluetoothAvailability, WebBluetoothDevicePort } from '@dg-agent/device-webbluetooth';
 import { BrowserPermissionPort } from '@dg-agent/permissions-browser';
 import { resolveProviderRuntimeSettings } from '@dg-agent/providers-catalog';
@@ -19,6 +19,7 @@ class UnavailableLlmPort implements LlmPort {
 export interface CreateBrowserAgentClientOptions {
   settings: BrowserAppSettings;
   sessionStore?: SessionStorePort;
+  sessionTraceStore?: SessionTraceStorePort;
   waveformLibrary: WaveformLibraryPort;
   permissionPort?: PermissionPort;
 }
@@ -69,6 +70,7 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
       maxStrengthB: settings.maxStrengthB,
     }),
     sessionStore: options.sessionStore,
+    sessionTraceStore: options.sessionTraceStore,
     waveformLibrary: options.waveformLibrary,
   });
 }

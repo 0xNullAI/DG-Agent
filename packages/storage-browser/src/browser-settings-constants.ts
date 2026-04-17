@@ -6,3 +6,4 @@ export const VOICE_API_KEY_SESSION = 'dg-agent-rewrite.voice-api-key.session';
 
 export const TIMED_PERMISSION_WINDOW_MS = 5 * 60 * 1000;
 export const SESSION_KEY_PREFIX = 'session:';
+export const SESSION_TRACE_KEY_PREFIX = 'trace:';

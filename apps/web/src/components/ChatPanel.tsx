@@ -5,14 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import type { TraceFeedItem } from '../utils/trace-feed.js';
 
 interface ToolActivity {
   kind: 'proposed' | 'executed' | 'denied';
-  text: string;
-}
-
-interface TimerNotice {
-  key: string;
   text: string;
 }
 
@@ -31,12 +27,12 @@ interface ChatPanelProps {
   voiceState: 'idle' | 'listening' | 'sending' | 'speaking';
   speechRecognitionSupported: boolean;
   session: SessionSnapshot | null;
+  traceFeed: TraceFeedItem[];
   streamingAssistantText: string;
   deviceState: DeviceState;
   maxStrengthA: number;
   maxStrengthB: number;
   toolActivities: ToolActivity[];
-  timerNotices: TimerNotice[];
   onConnect: () => void;
   onEmergencyStop: () => void;
 }
@@ -94,12 +90,12 @@ export function ChatPanel({
   voiceState,
   speechRecognitionSupported,
   session,
+  traceFeed,
   streamingAssistantText,
   deviceState,
   maxStrengthA,
   maxStrengthB,
   toolActivities,
-  timerNotices,
   onConnect,
   onEmergencyStop,
 }: ChatPanelProps) {
@@ -108,8 +104,9 @@ export function ChatPanel({
   const listening = voiceState === 'listening';
   const hasText = text.trim().length > 0;
   const messages = session?.messages ?? [];
+  const timelineItems = buildRenderableTimeline(messages, traceFeed);
   const [visibleMessageCount, setVisibleMessageCount] = useState(MESSAGE_BATCH_SIZE);
-  const renderedMessages = messages.slice(-visibleMessageCount);
+  const renderedMessages = timelineItems.slice(-visibleMessageCount);
   const voiceModeAvailable = voiceEnabled && speechRecognitionSupported;
   const connectButtonLabel = deviceState.connected ? '重连设备' : '连接设备';
   const emergencyStopDisabled = !activeSessionId || !deviceState.connected;
@@ -232,19 +229,29 @@ export function ChatPanel({
             </div>
           )}
 
-          {messages.length > renderedMessages.length && (
+          {timelineItems.length > renderedMessages.length && (
             <div className="flex justify-center">
               <Button
                 variant="ghost"
                 className="rounded-full px-4 text-sm text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
                 onClick={() => setVisibleMessageCount((current) => current + MESSAGE_BATCH_SIZE)}
               >
-                加载更早消息（还有 {messages.length - renderedMessages.length} 条）
+                加载更早消息（还有 {timelineItems.length - renderedMessages.length} 条）
               </Button>
             </div>
           )}
 
           {renderedMessages.map((message) => {
+            if (message.kind === 'trace-system') {
+              return (
+                <div key={message.id} className="flex justify-center">
+                  <div className="max-w-[85%] rounded-[8px] border-l-[3px] border-l-[var(--accent)] bg-[var(--accent-soft)] px-4 py-2 text-sm text-[var(--text-soft)]">
+                    {message.content}
+                  </div>
+                </div>
+              );
+            }
+
             if (message.role === 'assistant' && isToolExecutionSummary(message.content)) {
               return (
                 <div key={message.id} className="flex justify-center">
@@ -299,15 +306,6 @@ export function ChatPanel({
               </div>
             </div>
           )}
-
-          {timerNotices.map((notice) => (
-            <div key={notice.key} className="flex justify-center">
-              <div className="max-w-[85%] rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-soft)] px-4 py-2 text-sm text-[var(--text-soft)]">
-                {notice.text}
-              </div>
-            </div>
-          ))}
-
           <div ref={messagesEndRef} className="h-40 shrink-0 sm:h-40" />
         </div>
       </CardContent>
@@ -355,4 +353,25 @@ export function ChatPanel({
       </CardFooter>
     </Card>
   );
+}
+
+type TimelineItem =
+  | (SessionSnapshot['messages'][number] & { kind: 'message' })
+  | { kind: 'trace-system'; id: string; content: string; createdAt: number };
+
+function buildRenderableTimeline(messages: SessionSnapshot['messages'], traceFeed: TraceFeedItem[]): TimelineItem[] {
+  const items: TimelineItem[] = [
+    ...messages.map((message) => ({
+      ...message,
+      kind: 'message' as const,
+    })),
+    ...traceFeed.map((item) => ({
+      kind: 'trace-system' as const,
+      id: `trace-feed:${item.id}`,
+      content: item.text,
+      createdAt: item.createdAt,
+    })),
+  ];
+
+  return items.sort((left, right) => left.createdAt - right.createdAt);
 }

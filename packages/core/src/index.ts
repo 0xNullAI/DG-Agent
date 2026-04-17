@@ -61,6 +61,32 @@ export interface SessionSnapshot {
   metadata?: Record<string, unknown>;
 }
 
+export type RuntimeTraceEntryKind =
+  | 'tool-call'
+  | 'tool-result'
+  | 'tool-denied'
+  | 'tool-failed'
+  | 'timer-scheduled'
+  | 'timer-fired';
+
+export interface RuntimeTraceEntry {
+  id: string;
+  createdAt: number;
+  kind: RuntimeTraceEntryKind;
+  turnId?: string;
+  sourceType?: SourceType;
+  synthetic?: boolean;
+  toolCallId?: string;
+  toolName?: string;
+  args?: Record<string, unknown>;
+  output?: string;
+  detail?: string;
+  label?: string;
+  seconds?: number;
+  dueAt?: number;
+  firedAt?: number;
+}
+
 export type DeviceCommand =
   | { type: 'start'; channel: Channel; strength: number; waveform: WaveformDefinition; loop: boolean }
   | { type: 'stop'; channel?: Channel }
@@ -105,6 +131,7 @@ export type RuntimeEvent =
   | { type: 'timer-scheduled'; sessionId: string; label: string; dueAt: number }
   | { type: 'timer-fired'; sessionId: string; label: string; firedAt: number }
   | { type: 'tool-call-denied'; sessionId: string; toolCall: ToolCall; reason: string }
+  | { type: 'tool-call-failed'; sessionId: string; toolCall: ToolCall; error: string }
   | { type: 'device-command-executed'; sessionId: string; command: DeviceCommand; result: DeviceCommandResult }
   | { type: 'device-state-changed'; state: DeviceState }
   | { type: 'runtime-warning'; sessionId?: string; message: string };

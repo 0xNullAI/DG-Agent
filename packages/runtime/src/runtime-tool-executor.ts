@@ -1,4 +1,4 @@
-import type { DevicePort, LoggerPort, PermissionPort } from '@dg-agent/contracts';
+import type { DevicePort, LoggerPort, PermissionPort, SessionTraceStorePort } from '@dg-agent/contracts';
 import type { ActionContext, DeviceCommand, RuntimeEvent, SessionSnapshot, ToolCall, ToolExecutionPlan } from '@dg-agent/core';
 import { summarizeCommand } from './default-policies.js';
 import { DeviceCommandQueue } from './device-command-queue.js';
@@ -13,10 +13,11 @@ interface ScheduledTimer {
   timer: ReturnType<typeof setTimeout>;
 }
 
-interface RuntimeFollowUpInput {
+export interface TimerFiredTrigger {
   sessionId: string;
-  text: string;
-  context: ActionContext;
+  label: string;
+  seconds: number;
+  firedAt: number;
 }
 
 export interface RuntimeToolExecutorOptions {
@@ -28,7 +29,8 @@ export interface RuntimeToolExecutorOptions {
   logger: LoggerPort;
   toolCallConfig: ToolCallConfig;
   emit: (event: RuntimeEvent) => void;
-  sendUserMessage: (input: RuntimeFollowUpInput) => Promise<void>;
+  enqueueTimerTrigger: (trigger: TimerFiredTrigger) => void;
+  traceStore: SessionTraceStorePort;
 }
 
 export interface ExecuteToolCallInput {
@@ -53,29 +55,52 @@ export class RuntimeToolExecutor {
       sessionId: session.id,
       toolCall,
     });
+    await this.options.traceStore.append(session.id, {
+      kind: 'tool-call',
+      turnId: context.traceId,
+      sourceType: context.sourceType,
+      toolCallId: toolCall.id,
+      toolName: toolCall.name,
+      args: toolCall.args,
+    });
 
     const quotaError = consumeTurnQuota(toolCall.name, turnState, this.options.toolCallConfig);
     if (quotaError) {
-      return this.denyToolCall(session.id, toolCall, quotaError);
+      return this.denyToolCall(session, toolCall, quotaError, context);
     }
 
     if (isDeviceToolName(toolCall.name)) {
       const currentState = await this.options.device.getState();
       session.deviceState = currentState;
       if (!currentState.connected) {
-        return this.denyToolCall(session.id, toolCall, '设备未连接。');
+        return this.denyToolCall(session, toolCall, '设备未连接。', context);
       }
     }
 
     const planResult = await this.resolvePlan(session.id, toolCall);
     if ('error' in planResult) {
-      return JSON.stringify({ error: planResult.error });
+      await this.options.traceStore.append(session.id, {
+        kind: 'tool-denied',
+        turnId: context.traceId,
+        sourceType: context.sourceType,
+        toolCallId: toolCall.id,
+        toolName: toolCall.name,
+        args: toolCall.args,
+        detail: planResult.error,
+      });
+      return JSON.stringify({
+        error: planResult.error,
+        _meta: {
+          kind: 'tool-denied',
+          toolName: toolCall.name,
+        },
+      });
     }
 
     throwIfAborted(abortSignal);
 
     if (planResult.plan.type === 'timer') {
-      return this.scheduleTimer(session, planResult.plan.command);
+      return this.scheduleTimer(session, planResult.plan.command, context);
     }
 
     return this.executeDeviceCommand({
@@ -115,30 +140,37 @@ export class RuntimeToolExecutor {
     }
   }
 
-  private scheduleTimer(
+  private async scheduleTimer(
     session: SessionSnapshot,
     command: Extract<ToolExecutionPlan, { type: 'timer' }>['command'],
-  ): string {
+    context: ActionContext,
+  ): Promise<string> {
     const dueAt = Date.now() + command.seconds * 1000;
     const timerId = `${session.id}:${command.label}:${dueAt}`;
     const timer = setTimeout(() => {
+      const firedAt = Date.now();
       this.scheduledTimers.delete(timerId);
       this.options.emit({
         type: 'timer-fired',
         sessionId: session.id,
         label: command.label,
-        firedAt: Date.now(),
+        firedAt,
       });
-      void this.options.sendUserMessage({
+      this.options.enqueueTimerTrigger({
         sessionId: session.id,
-        text: `[Timer due]\nlabel: ${command.label}\nseconds: ${command.seconds}`,
-        context: {
-          sessionId: session.id,
-          sourceType: 'system',
-          traceId: `timer-${Date.now()}`,
-        },
+        label: command.label,
+        seconds: command.seconds,
+        firedAt,
       });
     }, command.seconds * 1000);
+    await this.options.traceStore.append(session.id, {
+      kind: 'timer-scheduled',
+      turnId: context.traceId,
+      sourceType: context.sourceType,
+      label: command.label,
+      seconds: command.seconds,
+      dueAt,
+    });
 
     this.scheduledTimers.set(timerId, {
       sessionId: session.id,
@@ -176,7 +208,7 @@ export class RuntimeToolExecutor {
     const currentState = await this.options.device.getState();
     const burstError = validateBurstExecution(command, currentState, this.options.toolCallConfig);
     if (burstError) {
-      return this.denyToolCall(session.id, toolCall, burstError);
+      return this.denyToolCall(session, toolCall, burstError, context);
     }
 
     let decision = this.options.policyEngine.evaluate({
@@ -196,14 +228,14 @@ export class RuntimeToolExecutor {
       throwIfAborted(abortSignal);
 
       if (permission.type === 'deny') {
-        return this.denyToolCall(session.id, toolCall, permission.reason ?? decision.reason);
+        return this.denyToolCall(session, toolCall, permission.reason ?? decision.reason, context);
       }
 
       decision = { type: 'allow' };
     }
 
     if (decision.type === 'deny') {
-      return this.denyToolCall(session.id, toolCall, decision.reason);
+      return this.denyToolCall(session, toolCall, decision.reason, context);
     }
 
     if (decision.type === 'clamp') {
@@ -217,32 +249,83 @@ export class RuntimeToolExecutor {
 
     throwIfAborted(abortSignal);
 
-    const result = await this.options.queue.enqueue(command);
-    session.deviceState = result.state;
+    try {
+      const result = await this.options.queue.enqueue(command);
+      session.deviceState = result.state;
 
-    this.options.emit({
-      type: 'device-command-executed',
-      sessionId: session.id,
-      command,
-      result,
-    });
+      this.options.emit({
+        type: 'device-command-executed',
+        sessionId: session.id,
+        command,
+        result,
+      });
 
-    return JSON.stringify({
-      ok: true,
-      command,
-      state: result.state,
-      notes: result.notes ?? [],
-    });
+      const output = JSON.stringify({
+        ok: true,
+        command,
+        state: result.state,
+        notes: result.notes ?? [],
+      });
+      await this.options.traceStore.append(session.id, {
+        kind: 'tool-result',
+        turnId: context.traceId,
+        sourceType: context.sourceType,
+        toolCallId: toolCall.id,
+        toolName: toolCall.name,
+        args: toolCall.args,
+        output,
+      });
+      return output;
+    } catch (error) {
+      const reason = error instanceof Error ? error.message : String(error);
+      this.options.emit({
+        type: 'tool-call-failed',
+        sessionId: session.id,
+        toolCall,
+        error: reason,
+      });
+      await this.options.traceStore.append(session.id, {
+        kind: 'tool-failed',
+        turnId: context.traceId,
+        sourceType: context.sourceType,
+        toolCallId: toolCall.id,
+        toolName: toolCall.name,
+        args: toolCall.args,
+        detail: reason,
+      });
+      return JSON.stringify({
+        error: reason,
+        _meta: {
+          kind: 'tool-failed',
+          toolName: toolCall.name,
+        },
+      });
+    }
   }
 
-  private denyToolCall(sessionId: string, toolCall: ToolCall, reason: string): string {
+  private async denyToolCall(session: SessionSnapshot, toolCall: ToolCall, reason: string, context: ActionContext): Promise<string> {
     this.options.emit({
       type: 'tool-call-denied',
-      sessionId,
+      sessionId: session.id,
       toolCall,
       reason,
     });
-    return JSON.stringify({ error: reason });
+    await this.options.traceStore.append(session.id, {
+      kind: 'tool-denied',
+      turnId: context.traceId,
+      sourceType: context.sourceType,
+      toolCallId: toolCall.id,
+      toolName: toolCall.name,
+      args: toolCall.args,
+      detail: reason,
+    });
+    return JSON.stringify({
+      error: reason,
+      _meta: {
+        kind: 'tool-denied',
+        toolName: toolCall.name,
+      },
+    });
   }
 }
 

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { AgentClient } from '@dg-agent/client';
 import type { PermissionRequest } from '@dg-agent/contracts';
-import { createEmptyDeviceState, createMessage, type RuntimeEvent, type SessionSnapshot } from '@dg-agent/core';
+import { createEmptyDeviceState, createMessage, type RuntimeEvent, type RuntimeTraceEntry, type SessionSnapshot } from '@dg-agent/core';
 import { BridgeAdapterRegistry, BridgeManager, BridgePermissionPort, MessageQueue, type PlatformAdapter } from './index.js';
 import type { BridgePlatformMessage } from './index.js';
 
@@ -78,6 +78,10 @@ class FakeAgentClient implements AgentClient {
       messages: [],
       deviceState: createEmptyDeviceState(),
     };
+  }
+
+  async getSessionTrace(_sessionId: string): Promise<RuntimeTraceEntry[]> {
+    return [];
   }
 
   async deleteSession(): Promise<void> {}

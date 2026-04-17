@@ -16,7 +16,7 @@ export interface ToolCallConfigInput {
 
 export function createDefaultToolCallConfig(): ToolCallConfig {
   return {
-    maxToolIterations: 20,
+    maxToolIterations: 5,
     maxToolCallsPerTurn: 5,
     maxAdjustStrengthCallsPerTurn: 2,
     maxBurstCallsPerTurn: 1,

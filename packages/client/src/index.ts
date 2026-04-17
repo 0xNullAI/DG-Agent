@@ -6,7 +6,7 @@ import {
   type SessionResponse,
   type SessionsResponse,
 } from '@dg-agent/api-contracts';
-import type { RuntimeEvent, SessionSnapshot } from '@dg-agent/core';
+import type { RuntimeEvent, RuntimeTraceEntry, SessionSnapshot } from '@dg-agent/core';
 import { AgentRuntime, type AgentRuntimeOptions, type SendUserMessageInput } from '@dg-agent/runtime';
 
 export interface AgentClient {
@@ -14,6 +14,7 @@ export interface AgentClient {
   readonly supportsLiveEvents: boolean;
   listSessions(): Promise<SessionSnapshot[]>;
   getSessionSnapshot(sessionId: string): Promise<SessionSnapshot>;
+  getSessionTrace(sessionId: string): Promise<RuntimeTraceEntry[]>;
   deleteSession(sessionId: string): Promise<void>;
   connectDevice(sessionId?: string): Promise<void>;
   disconnectDevice(): Promise<void>;
@@ -35,6 +36,10 @@ class EmbeddedAgentClient implements AgentClient {
 
   getSessionSnapshot(sessionId: string): Promise<SessionSnapshot> {
     return this.runtime.getSessionSnapshot(sessionId);
+  }
+
+  getSessionTrace(sessionId: string): Promise<RuntimeTraceEntry[]> {
+    return this.runtime.getSessionTrace(sessionId);
   }
 
   deleteSession(sessionId: string): Promise<void> {
@@ -86,6 +91,10 @@ export class HttpAgentClient implements AgentClient {
 
   async getSessionSnapshot(sessionId: string): Promise<SessionSnapshot> {
     return this.request<SessionResponse>(apiRoutes.session(sessionId));
+  }
+
+  async getSessionTrace(_sessionId: string): Promise<RuntimeTraceEntry[]> {
+    return [];
   }
 
   async deleteSession(sessionId: string): Promise<void> {

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import type { AgentClient } from '@dg-agent/client';
 import type { PermissionRequest } from '@dg-agent/contracts';
-import { createEmptyDeviceState, createMessage, type RuntimeEvent, type SessionSnapshot } from '@dg-agent/core';
+import { createEmptyDeviceState, createMessage, type RuntimeEvent, type RuntimeTraceEntry, type SessionSnapshot } from '@dg-agent/core';
 import {
   BridgeAdapterRegistry,
   BridgeManager,
@@ -84,6 +84,10 @@ class FakeAgentClient implements AgentClient {
       messages: [],
       deviceState: createEmptyDeviceState(),
     };
+  }
+
+  async getSessionTrace(_sessionId: string): Promise<RuntimeTraceEntry[]> {
+    return [];
   }
 
   async deleteSession(): Promise<void> {}

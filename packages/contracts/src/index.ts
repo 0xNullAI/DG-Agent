@@ -5,6 +5,7 @@ import type {
   DeviceState,
   MessageRole,
   PermissionDecision,
+  RuntimeTraceEntry,
   SessionSnapshot,
   ToolDefinition,
   ToolCall,
@@ -62,6 +63,12 @@ export interface SessionStorePort {
   save(session: SessionSnapshot): Promise<void>;
   list(): Promise<SessionSnapshot[]>;
   delete(sessionId: string): Promise<void>;
+}
+
+export interface SessionTraceStorePort {
+  list(sessionId: string): Promise<RuntimeTraceEntry[]>;
+  append(sessionId: string, entry: Omit<RuntimeTraceEntry, 'id' | 'createdAt'>): Promise<RuntimeTraceEntry>;
+  clear(sessionId: string): Promise<void>;
 }
 
 export interface WaveformLibraryPort {

@@ -72,6 +72,10 @@ export class BrowserPermissionPort implements PermissionPort {
 
     return { type: 'approve-once' };
   }
+
+  clearGrants(): void {
+    this.grants.clear();
+  }
 }
 
 function formatPermissionMessage(input: PermissionRequest): string {

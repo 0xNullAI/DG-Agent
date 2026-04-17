@@ -8,7 +8,7 @@ import { createBrowserBridgeAdapters } from '@dg-agent/bridge-browser';
 import { BridgeAdapterRegistry, BridgeManager, BridgePermissionPort } from '@dg-agent/bridge-core';
 import type { PermissionDecision } from '@dg-agent/core';
 import { BrowserPermissionPort } from '@dg-agent/permissions-browser';
-import { BrowserSessionStore, type BrowserAppSettings } from '@dg-agent/storage-browser';
+import { BrowserSessionStore, BrowserSessionTraceStore, type BrowserAppSettings } from '@dg-agent/storage-browser';
 import { BrowserUpdateChecker } from '@dg-agent/update-browser';
 import { BrowserWaveformLibrary } from '@dg-agent/waveforms-browser';
 import { createBrowserAgentClient, describeBrowserModes } from './create-browser-agent-client.js';
@@ -31,6 +31,7 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
   const { settings, setPendingPermission } = options;
 
   const sessionStore = useMemo(() => new BrowserSessionStore(), []);
+  const sessionTraceStore = useMemo(() => new BrowserSessionTraceStore(), []);
   const waveformLibrary = useMemo(() => new BrowserWaveformLibrary(), []);
   const bridgeRegistry = useMemo(() => new BridgeAdapterRegistry(), []);
   const updateChecker = useMemo(
@@ -106,10 +107,11 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
       createBrowserAgentClient({
         settings,
         sessionStore,
+        sessionTraceStore,
         waveformLibrary,
         permissionPort: bridgePermissionPort,
       }),
-    [bridgePermissionPort, sessionStore, settings, waveformLibrary],
+    [bridgePermissionPort, sessionStore, sessionTraceStore, settings, waveformLibrary],
   );
   const modes = useMemo(() => describeBrowserModes(settings), [settings]);
   const bridgeManager = useMemo(
@@ -122,6 +124,13 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
     [bridgeRegistry, client, settings.bridge],
   );
 
+  const resetPermissionGrants = useMemo(
+    () => () => {
+      bridgePermissionPort.clearGrants();
+    },
+    [bridgePermissionPort],
+  );
+
   return {
     waveformLibrary,
     updateChecker,
@@ -131,5 +140,6 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
     client,
     modes,
     bridgeManager,
+    resetPermissionGrants,
   };
 }

@@ -56,4 +56,10 @@ export class BridgePermissionPort {
 
     return decision;
   }
+
+  clearGrants(): void {
+    this.grants.clear();
+    const fallback = this.options.fallback as { clearGrants?: () => void };
+    fallback.clearGrants?.();
+  }
 }

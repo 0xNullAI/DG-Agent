@@ -25,13 +25,18 @@ export function createTurnState(): TurnState {
   };
 }
 
-export function buildConversationItems(session: SessionSnapshot, turnState: TurnState): LlmConversationItem[] {
+export function buildConversationItems(
+  session: SessionSnapshot,
+  turnState: TurnState,
+  currentInput?: LlmConversationItem | null,
+): LlmConversationItem[] {
   return [
     ...selectModelContextMessages(session.messages).map<LlmConversationItem>((message) => ({
       kind: 'message',
       role: message.role,
       content: message.content,
     })),
+    ...(currentInput ? [currentInput] : []),
     ...turnState.workingItems,
   ];
 }
@@ -99,6 +104,10 @@ function shouldSkipModelContextMessage(message: SessionSnapshot['messages'][numb
 
   const content = message.content.trim();
   if (!content) return true;
+
+  if (message.role === 'system') {
+    return true;
+  }
 
   if (content === '✋ 已手动中止。') return true;
   if (content.startsWith('出错了：')) return true;
