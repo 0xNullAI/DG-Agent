@@ -502,9 +502,7 @@ export function App() {
     .filter(
       (event) =>
         event.type === 'assistant-message-aborted' ||
-        event.type === 'tool-call-denied' ||
-        event.type === 'timer-scheduled' ||
-        event.type === 'timer-fired',
+        event.type === 'tool-call-denied',
     )
     .slice(0, 4)
     .map((event) => {
@@ -521,17 +519,23 @@ export function App() {
             text: `工具被拒绝：${event.toolCall.name} · ${localizeToastText(event.reason)}`,
             variant: 'warning' as const,
           };
+      }
+    });
+  const timerNotices = events
+    .filter((event) => event.type === 'timer-scheduled' || event.type === 'timer-fired')
+    .slice(0, 4)
+    .reverse()
+    .map((event) => {
+      switch (event.type) {
         case 'timer-scheduled':
           return {
             key: `event:timer-scheduled:${event.sessionId}:${event.label}:${event.dueAt}`,
             text: `已设定定时：${event.label}`,
-            variant: 'info' as const,
           };
         case 'timer-fired':
           return {
             key: `event:timer-fired:${event.sessionId}:${event.label}:${event.firedAt}`,
             text: `定时已触发：${event.label}`,
-            variant: 'info' as const,
           };
       }
     });
@@ -869,6 +873,7 @@ export function App() {
               maxStrengthA={settings.maxStrengthA}
               maxStrengthB={settings.maxStrengthB}
               toolActivities={toolActivities}
+              timerNotices={timerNotices}
               onConnect={() => void connect()}
               onEmergencyStop={() => void stop()}
             />

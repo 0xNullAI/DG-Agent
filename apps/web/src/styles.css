@@ -79,10 +79,12 @@ html,
 body,
 #root {
   min-height: 100%;
+  height: 100%;
 }
 
 body {
   margin: 0;
+  overflow: hidden;
   font-family:
     Inter,
     'PingFang SC',

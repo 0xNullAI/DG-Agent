@@ -11,6 +11,11 @@ interface ToolActivity {
   text: string;
 }
 
+interface TimerNotice {
+  key: string;
+  text: string;
+}
+
 interface ChatPanelProps {
   activeSessionId: string | null;
   text: string;
@@ -31,6 +36,7 @@ interface ChatPanelProps {
   maxStrengthA: number;
   maxStrengthB: number;
   toolActivities: ToolActivity[];
+  timerNotices: TimerNotice[];
   onConnect: () => void;
   onEmergencyStop: () => void;
 }
@@ -93,6 +99,7 @@ export function ChatPanel({
   maxStrengthA,
   maxStrengthB,
   toolActivities,
+  timerNotices,
   onConnect,
   onEmergencyStop,
 }: ChatPanelProps) {
@@ -292,6 +299,14 @@ export function ChatPanel({
               </div>
             </div>
           )}
+
+          {timerNotices.map((notice) => (
+            <div key={notice.key} className="flex justify-center">
+              <div className="max-w-[85%] rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-soft)] px-4 py-2 text-sm text-[var(--text-soft)]">
+                {notice.text}
+              </div>
+            </div>
+          ))}
 
           <div ref={messagesEndRef} className="h-40 shrink-0 sm:h-40" />
         </div>

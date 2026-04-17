@@ -18,6 +18,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
   const [deviceConnected, setDeviceConnected] = useState(false);
   const [streamingAssistantText, setStreamingAssistantText] = useState('');
   const onRuntimeEventRef = useRef(onRuntimeEvent);
+  const syncRequestIdRef = useRef(0);
 
   useEffect(() => {
     onRuntimeEventRef.current = onRuntimeEvent;
@@ -70,9 +71,10 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
     const sessionId = activeSessionId;
 
     async function syncCurrentSession(): Promise<void> {
+      const requestId = ++syncRequestIdRef.current;
       const [currentSession, sessions] = await Promise.all([client.getSessionSnapshot(sessionId), client.listSessions()]);
 
-      if (!active) return;
+      if (!active || requestId !== syncRequestIdRef.current) return;
 
       setSession(currentSession);
       setSavedSessions(sessions);
