@@ -47,7 +47,7 @@ export function WaveformsPanel({ waveforms, customWaveforms, onImport, onRemove,
                 key={waveform.id}
                 className="flex items-center justify-between gap-3 rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] p-3"
               >
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 pl-2">
                   <div className="font-semibold text-[var(--text)]">{waveform.name}</div>
                   <div className="mt-1 text-sm text-[var(--text-soft)]">
                     {waveform.id} · {waveform.frames.length} 帧
