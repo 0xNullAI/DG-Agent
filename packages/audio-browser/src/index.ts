@@ -118,19 +118,20 @@ export class BrowserSpeechRecognitionController implements SpeechRecognitionCont
       recognition.continuous = false;
 
       recognition.onresult = (event) => {
-        let aggregate = '';
-        for (let index = event.resultIndex; index < event.results.length; index++) {
+        let finalTranscript = '';
+        let interimTranscript = '';
+        for (let index = 0; index < event.results.length; index++) {
           const result = event.results[index];
           if (!result) continue;
-          aggregate += result[0]?.transcript ?? '';
+          const text = result[0]?.transcript ?? '';
           if (result.isFinal) {
-            transcript += result[0]?.transcript ?? '';
+            finalTranscript += text;
+          } else {
+            interimTranscript += text;
           }
         }
-        if (!transcript && aggregate) {
-          transcript = aggregate;
-        }
-        request.onPartialTranscript?.(aggregate.trim() ? aggregate.trim() : transcript.trim());
+        transcript = finalTranscript.trim();
+        request.onPartialTranscript?.(`${finalTranscript}${interimTranscript}`.trim());
       };
 
       recognition.onerror = (event) => {
