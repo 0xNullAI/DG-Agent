@@ -1,6 +1,6 @@
 import { createEmbeddedAgentClient, type AgentClient } from '@dg-agent/client';
-import type { LlmPort, LlmTurnInput, LlmTurnResult, PermissionPort, SessionStorePort, SessionTraceStorePort, WaveformLibraryPort } from '@dg-agent/contracts';
-import { CoyoteProtocolAdapter, getWebBluetoothAvailability, WebBluetoothDevicePort } from '@dg-agent/device-webbluetooth';
+import type { DevicePort, LlmPort, LlmTurnInput, LlmTurnResult, PermissionPort, SessionStorePort, SessionTraceStorePort, WaveformLibraryPort } from '@dg-agent/contracts';
+import { getWebBluetoothAvailability } from '@dg-agent/device-webbluetooth';
 import { BrowserPermissionPort } from '@dg-agent/permissions-browser';
 import { resolveProviderRuntimeSettings } from '@dg-agent/providers-catalog';
 import { OpenAiHttpLlmPort } from '@dg-agent/providers-openai-http';
@@ -18,6 +18,7 @@ class UnavailableLlmPort implements LlmPort {
 
 export interface CreateBrowserAgentClientOptions {
   settings: BrowserAppSettings;
+  device: DevicePort;
   sessionStore?: SessionStorePort;
   sessionTraceStore?: SessionTraceStorePort;
   waveformLibrary: WaveformLibraryPort;
@@ -28,10 +29,6 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
   const { settings } = options;
   const config = settings;
   const provider = resolveProviderRuntimeSettings(config.provider);
-
-  const device = new WebBluetoothDevicePort({
-    protocol: new CoyoteProtocolAdapter(),
-  });
 
   const llm =
     provider.browserSupported && provider.apiKey
@@ -49,7 +46,7 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
         );
 
   return createEmbeddedAgentClient({
-    device,
+    device: options.device,
     llm,
     permission:
       options.permissionPort ??

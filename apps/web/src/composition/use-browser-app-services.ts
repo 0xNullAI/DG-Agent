@@ -6,6 +6,7 @@ import {
 } from '@dg-agent/audio-browser';
 import { createBrowserBridgeAdapters } from '@dg-agent/bridge-browser';
 import { BridgeAdapterRegistry, BridgeManager, BridgePermissionPort } from '@dg-agent/bridge-core';
+import { CoyoteProtocolAdapter, WebBluetoothDevicePort } from '@dg-agent/device-webbluetooth';
 import type { PermissionDecision } from '@dg-agent/core';
 import { BrowserPermissionPort } from '@dg-agent/permissions-browser';
 import { BrowserSessionStore, BrowserSessionTraceStore, type BrowserAppSettings } from '@dg-agent/storage-browser';
@@ -35,6 +36,14 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
   const sessionTraceStore = useMemo(() => new BrowserSessionTraceStore(), []);
   const waveformLibrary = useMemo(() => new BrowserWaveformLibrary(), []);
   const bridgeRegistry = useMemo(() => new BridgeAdapterRegistry(), []);
+  const deviceProtocol = useMemo(() => new CoyoteProtocolAdapter(), []);
+  const device = useMemo(
+    () =>
+      new WebBluetoothDevicePort({
+        protocol: deviceProtocol,
+      }),
+    [deviceProtocol],
+  );
   const updateChecker = useMemo(
     () =>
       new BrowserUpdateChecker({
@@ -108,12 +117,13 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
     () =>
       createBrowserAgentClient({
         settings,
+        device,
         sessionStore,
         sessionTraceStore,
         waveformLibrary,
         permissionPort: bridgePermissionPort,
       }),
-    [bridgePermissionPort, sessionStore, sessionTraceStore, settings, waveformLibrary],
+    [bridgePermissionPort, device, sessionStore, sessionTraceStore, settings, waveformLibrary],
   );
   const modes = useMemo(() => describeBrowserModes(settings), [settings]);
   const bridgeManager = useMemo(
@@ -135,6 +145,7 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
 
   return {
     waveformLibrary,
+    device,
     updateChecker,
     speechRecognition,
     speechSynthesizer,
