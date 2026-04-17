@@ -1,0 +1,17 @@
+{
+  "name": "@dg-agent/device-webbluetooth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@dg-agent/contracts": "0.1.0",
+    "@dg-agent/core": "0.1.0"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "build": "tsc -p tsconfig.json"
+  }
+}
+

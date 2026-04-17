@@ -1,0 +1,25 @@
+{
+  "name": "dg-agent-rewrite",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@11.6.2",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace @dg-agent/web",
+    "typecheck": "npm run typecheck --workspaces --if-present --include-workspace-root=false",
+    "build": "npm run build --workspaces --if-present --include-workspace-root=false",
+    "test": "npm run test --workspaces --if-present --include-workspace-root=false"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "tsx": "^4.19.2",
+    "vite": "^5.4.11",
+    "vitest": "^2.1.8"
+  }
+}

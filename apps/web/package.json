@@ -1,0 +1,51 @@
+{
+  "name": "@dg-agent/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@dg-agent/audio-browser": "0.1.0",
+    "@dg-agent/bridge-browser": "0.1.0",
+    "@dg-agent/bridge-core": "0.1.0",
+    "@dg-agent/client": "0.1.0",
+    "@dg-agent/core": "0.1.0",
+    "@dg-agent/device-webbluetooth": "0.1.0",
+    "@dg-agent/permissions-browser": "0.1.0",
+    "@dg-agent/prompts-basic": "0.1.0",
+    "@dg-agent/providers-catalog": "0.1.0",
+    "@dg-agent/providers-openai-http": "0.1.0",
+    "@dg-agent/safety-browser": "0.1.0",
+    "@dg-agent/storage-browser": "0.1.0",
+    "@dg-agent/testkit": "0.1.0",
+    "@dg-agent/theme-browser": "0.1.0",
+    "@dg-agent/update-browser": "0.1.0",
+    "@dg-agent/waveforms-basic": "0.1.0",
+    "@dg-agent/waveforms-browser": "0.1.0",
+    "@radix-ui/react-checkbox": "^1.3.3",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-scroll-area": "^1.2.10",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-separator": "^1.1.8",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-tabs": "^1.1.13",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^1.8.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tailwind-merge": "^3.5.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.2.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "playwright": "^1.59.1",
+    "tailwindcss": "^4.2.2"
+  }
+}

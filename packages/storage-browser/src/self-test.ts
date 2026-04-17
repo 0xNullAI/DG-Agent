@@ -1,0 +1,130 @@
+import assert from 'node:assert/strict';
+import { createProviderSettings } from '@dg-agent/providers-catalog';
+import { BrowserAppSettingsStore } from './index.js';
+
+const SETTINGS_KEY = 'dg-agent-rewrite.browser-settings';
+const API_KEYS_LOCAL = 'dg-agent-rewrite.provider-api-keys.local';
+const API_KEYS_SESSION = 'dg-agent-rewrite.provider-api-keys.session';
+const VOICE_API_KEY_LOCAL = 'dg-agent-rewrite.voice-api-key.local';
+const VOICE_API_KEY_SESSION = 'dg-agent-rewrite.voice-api-key.session';
+
+class MemoryStorage {
+  private readonly values = new Map<string, string>();
+
+  getItem(key: string): string | null {
+    return this.values.get(key) ?? null;
+  }
+
+  setItem(key: string, value: string): void {
+    this.values.set(key, value);
+  }
+
+  removeItem(key: string): void {
+    this.values.delete(key);
+  }
+}
+
+function testSessionScopedKeys(): void {
+  const localStorageRef = new MemoryStorage();
+  const sessionStorageRef = new MemoryStorage();
+  const store = new BrowserAppSettingsStore({ localStorageRef, sessionStorageRef });
+  const openai = {
+    ...createProviderSettings('openai'),
+    apiKey: ' sk-live ',
+    baseUrl: 'https://api.openai.com/v1/',
+  };
+
+  const saved = store.save({
+    ...store.load(),
+    rememberApiKey: false,
+    provider: openai,
+    providerConfigs: {
+      openai,
+    },
+    voice: {
+      ...store.load().voice,
+      apiKey: ' voice-secret ',
+    },
+  });
+
+  const persistedSettings = JSON.parse(localStorageRef.getItem(SETTINGS_KEY) ?? '{}') as Record<string, unknown>;
+  assert.equal(saved.provider.apiKey, 'sk-live');
+  assert.equal(saved.voice.apiKey, 'voice-secret');
+  assert.equal(Object.hasOwn(persistedSettings.provider as object, 'apiKey'), false);
+  assert.equal(Object.hasOwn(persistedSettings.voice as object, 'apiKey'), false);
+  assert.equal(localStorageRef.getItem(API_KEYS_LOCAL), null);
+  assert.match(sessionStorageRef.getItem(API_KEYS_SESSION) ?? '', /sk-live/);
+  assert.equal(sessionStorageRef.getItem(VOICE_API_KEY_SESSION), 'voice-secret');
+}
+
+function testAllowAllOverride(): void {
+  const localStorageRef = new MemoryStorage();
+  const sessionStorageRef = new MemoryStorage();
+  const store = new BrowserAppSettingsStore({ localStorageRef, sessionStorageRef });
+
+  const saved = store.save({
+    ...store.load(),
+    permissionMode: 'allow-all',
+  });
+
+  const persistedSettings = JSON.parse(localStorageRef.getItem(SETTINGS_KEY) ?? '{}') as {
+    permissionMode?: string;
+  };
+  assert.equal(saved.permissionMode, 'allow-all');
+  assert.equal(persistedSettings.permissionMode, 'confirm');
+  assert.equal(store.load().permissionMode, 'allow-all');
+  assert.equal(store.clearSessionPermissionModeOverride().permissionMode, 'confirm');
+}
+
+function testLegacyApiKeyFallback(): void {
+  const localStorageRef = new MemoryStorage();
+  const sessionStorageRef = new MemoryStorage();
+  localStorageRef.setItem(API_KEYS_LOCAL, 'legacy-openai-key');
+
+  const store = new BrowserAppSettingsStore({
+    localStorageRef,
+    sessionStorageRef,
+    env: {
+      VITE_PROVIDER_ID: 'openai',
+    },
+  });
+
+  const loaded = store.load();
+  assert.equal(loaded.provider.providerId, 'openai');
+  assert.equal(loaded.provider.apiKey, 'legacy-openai-key');
+  assert.equal(loaded.providerConfigs.openai?.apiKey, 'legacy-openai-key');
+}
+
+function testRememberedKeys(): void {
+  const localStorageRef = new MemoryStorage();
+  const sessionStorageRef = new MemoryStorage();
+  const store = new BrowserAppSettingsStore({ localStorageRef, sessionStorageRef });
+  const qwen = {
+    ...createProviderSettings('qwen'),
+    apiKey: ' qwen-key ',
+  };
+
+  store.save({
+    ...store.load(),
+    rememberApiKey: true,
+    provider: qwen,
+    providerConfigs: {
+      qwen,
+    },
+    voice: {
+      ...store.load().voice,
+      apiKey: ' voice-key ',
+    },
+  });
+
+  assert.match(localStorageRef.getItem(API_KEYS_LOCAL) ?? '', /qwen-key/);
+  assert.equal(localStorageRef.getItem(VOICE_API_KEY_LOCAL), 'voice-key');
+  assert.equal(sessionStorageRef.getItem(API_KEYS_SESSION), null);
+  assert.equal(sessionStorageRef.getItem(VOICE_API_KEY_SESSION), null);
+}
+
+testSessionScopedKeys();
+testAllowAllOverride();
+testLegacyApiKeyFallback();
+testRememberedKeys();
+console.log('storage-browser self-test passed');
