@@ -18,6 +18,14 @@ import { WaveformsPanel } from './components/WaveformsPanel.js';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -94,6 +102,8 @@ export function App() {
   const [controlOpen, setControlOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [savePromptDialogOpen, setSavePromptDialogOpen] = useState(false);
+  const [promptPresetName, setPromptPresetName] = useState('');
 
   const {
     waveformLibrary,
@@ -448,12 +458,28 @@ export function App() {
       return;
     }
 
-    const name = window.prompt('请输入这组提示词的名称');
-    if (!name?.trim()) return;
+    setPromptPresetName('');
+    setSavePromptDialogOpen(true);
+  }
+
+  function confirmSaveCurrentPromptPreset(): void {
+    const prompt = settingsDraft.customPrompt.trim();
+    if (!prompt) {
+      setSavePromptDialogOpen(false);
+      setPromptPresetName('');
+      setErrorMessage('请先输入自定义提示词，再保存预设。');
+      return;
+    }
+
+    const name = promptPresetName.trim();
+    if (!name) {
+      setErrorMessage('请输入这组提示词的名称。');
+      return;
+    }
 
     const preset = {
       id: `saved-${Date.now().toString(36)}`,
-      name: name.trim(),
+      name,
       prompt,
     };
 
@@ -462,19 +488,9 @@ export function App() {
       promptPresetId: preset.id,
       savedPromptPresets: [preset, ...current.savedPromptPresets],
     }));
+    setSavePromptDialogOpen(false);
+    setPromptPresetName('');
     setStatusMessage('已保存自定义提示词。');
-  }
-
-  function loadSavedPromptPreset(presetId: string): void {
-    const preset = settingsDraft.savedPromptPresets.find((item) => item.id === presetId);
-    if (!preset) return;
-
-    setSettingsDraft((current) => ({
-      ...current,
-      promptPresetId: preset.id,
-      customPrompt: preset.prompt,
-    }));
-    setStatusMessage(`已载入提示词：${preset.name}`);
   }
 
   function deleteSavedPromptPreset(presetId: string): void {
@@ -560,7 +576,6 @@ export function App() {
             settingsDraft={settingsDraft}
             setSettingsDraft={setSettingsDraft}
             onSaveCurrentPromptPreset={saveCurrentPromptPreset}
-            onLoadSavedPromptPreset={loadSavedPromptPreset}
             onDeleteSavedPromptPreset={deleteSavedPromptPreset}
             onResetSettings={resetSettings}
           />
@@ -701,6 +716,50 @@ export function App() {
             onAllowSession={() => resolvePermission({ type: 'approve-scoped' })}
           />
         )}
+
+        <Dialog
+          open={savePromptDialogOpen}
+          onOpenChange={(open) => {
+            setSavePromptDialogOpen(open);
+            if (!open) {
+              setPromptPresetName('');
+            }
+          }}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>保存提示词</DialogTitle>
+              <DialogDescription>给当前这组自定义提示词起一个名称，之后可以在设置里快速复用。</DialogDescription>
+            </DialogHeader>
+
+            <form
+              className="mt-4 flex flex-col gap-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                confirmSaveCurrentPromptPreset();
+              }}
+            >
+              <label className="flex flex-col gap-2">
+                <span className="text-sm text-[var(--text-soft)]">提示词名称</span>
+                <Input
+                  value={promptPresetName}
+                  onChange={(event) => setPromptPresetName(event.target.value)}
+                  placeholder="例如：温柔引导 / 强刺激谨慎版"
+                  autoFocus
+                />
+              </label>
+
+              <DialogFooter>
+                <Button type="button" variant="secondary" onClick={() => setSavePromptDialogOpen(false)}>
+                  取消
+                </Button>
+                <Button type="submit" disabled={!promptPresetName.trim()}>
+                  保存
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
 
         {editingWaveform && (
           <section className="permission-modal-backdrop">

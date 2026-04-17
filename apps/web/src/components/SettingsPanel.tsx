@@ -30,7 +30,6 @@ interface SettingsPanelProps {
   settingsDraft: BrowserAppSettings;
   setSettingsDraft: Dispatch<SetStateAction<BrowserAppSettings>>;
   onSaveCurrentPromptPreset: () => void;
-  onLoadSavedPromptPreset: (presetId: string) => void;
   onDeleteSavedPromptPreset: (presetId: string) => void;
   onResetSettings: () => void;
 }
@@ -69,12 +68,12 @@ export function SettingsPanel({
   settingsDraft,
   setSettingsDraft,
   onSaveCurrentPromptPreset,
-  onLoadSavedPromptPreset,
   onDeleteSavedPromptPreset,
   onResetSettings,
 }: SettingsPanelProps) {
   const [settingsTab, setSettingsTab] = useState<'general' | 'model' | 'safety' | 'bridge' | 'voice'>('general');
   const selectedProviderDef = getProviderDefinition(settingsDraft.provider.providerId);
+  const selectedSavedPromptPreset = settingsDraft.savedPromptPresets.find((preset) => preset.id === settingsDraft.promptPresetId);
 
   function updateProviderField<K extends keyof BrowserAppSettings['provider']>(
     key: K,
@@ -293,22 +292,12 @@ export function SettingsPanel({
             <Button variant="secondary" onClick={onSaveCurrentPromptPreset}>
               保存提示词
             </Button>
+            {selectedSavedPromptPreset && (
+              <Button variant="destructive" onClick={() => onDeleteSavedPromptPreset(selectedSavedPromptPreset.id)}>
+                删除提示词
+              </Button>
+            )}
           </div>
-
-          {settingsDraft.savedPromptPresets.length > 0 && (
-            <div className="saved-prompt-list">
-              {settingsDraft.savedPromptPresets.map((preset) => (
-                <div key={preset.id} className="saved-prompt-item">
-                  <Button variant="ghost" className="saved-prompt-name" onClick={() => onLoadSavedPromptPreset(preset.id)}>
-                    {preset.name}
-                  </Button>
-                  <Button variant="ghost" className="saved-prompt-delete" onClick={() => onDeleteSavedPromptPreset(preset.id)}>
-                    删除
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
         </section>
           </TabsContent>
 
