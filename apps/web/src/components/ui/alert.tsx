@@ -8,9 +8,9 @@ const alertVariants = cva(
     variants: {
       variant: {
         default: 'border-[var(--surface-border)] bg-[var(--bg-elevated)] text-[var(--text)]',
-        info: 'border-[var(--surface-border)] bg-[var(--success-soft)] text-[var(--success)]',
-        warning: 'border-[var(--surface-border)] bg-[var(--warning-soft)] text-[var(--warning)]',
-        destructive: 'border-[var(--surface-border)] bg-[var(--danger-soft)] text-[var(--danger)]',
+        info: 'border-[var(--success-border)] bg-[var(--success-surface)] text-[var(--success)]',
+        warning: 'border-[var(--warning-border)] bg-[var(--warning-surface)] text-[var(--warning)]',
+        destructive: 'border-[var(--danger-border)] bg-[var(--danger-surface)] text-[var(--danger)]',
       },
     },
     defaultVariants: {
