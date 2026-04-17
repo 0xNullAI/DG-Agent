@@ -43,11 +43,13 @@ export interface ConversationMessage {
 export interface ToolCall {
   id: string;
   name: string;
+  displayName?: string;
   args: Record<string, unknown>;
 }
 
 export interface ToolDefinition {
   name: string;
+  displayName?: string;
   description: string;
   parameters: Record<string, unknown>;
 }
@@ -78,6 +80,7 @@ export interface RuntimeTraceEntry {
   synthetic?: boolean;
   toolCallId?: string;
   toolName?: string;
+  toolDisplayName?: string;
   args?: Record<string, unknown>;
   output?: string;
   detail?: string;

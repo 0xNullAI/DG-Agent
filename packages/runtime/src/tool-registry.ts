@@ -1,10 +1,12 @@
 import type { WaveformLibraryPort } from '@dg-agent/contracts';
-import type { ToolCall, ToolDefinition, ToolExecutionPlan } from '@dg-agent/core';
+import type { DeviceCommand, ToolCall, ToolDefinition, ToolExecutionPlan } from '@dg-agent/core';
 import { z } from 'zod';
 
 export interface ToolHandler {
   name: string;
+  displayName?: string;
   definition: ToolDefinition | (() => Promise<ToolDefinition> | ToolDefinition);
+  summarizeCommand?: (command: DeviceCommand) => string;
   toExecutionPlan(args: Record<string, unknown>): Promise<ToolExecutionPlan> | ToolExecutionPlan;
 }
 
@@ -26,10 +28,21 @@ export class ToolRegistry {
 
   async listDefinitions(): Promise<ToolDefinition[]> {
     return Promise.all(
-      [...this.handlers.values()].map((handler) =>
-        typeof handler.definition === 'function' ? handler.definition() : handler.definition,
-      ),
+      [...this.handlers.values()].map(async (handler) => {
+        const definition = typeof handler.definition === 'function' ? await handler.definition() : handler.definition;
+        return handler.displayName && !definition.displayName
+          ? { ...definition, displayName: handler.displayName }
+          : definition;
+      }),
     );
+  }
+
+  getDisplayName(name: string): string | undefined {
+    return this.handlers.get(name)?.displayName;
+  }
+
+  summarizeCommand(name: string, command: DeviceCommand): string | undefined {
+    return this.handlers.get(name)?.summarizeCommand?.(command);
   }
 }
 
@@ -57,6 +70,11 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
 
   registry.register({
     name: 'start',
+    displayName: '启动通道',
+    summarizeCommand(command) {
+      if (command.type !== 'start') return '启动通道';
+      return `启动 ${command.channel} 通道，强度 ${command.strength}，波形 ${command.waveform.id}`;
+    },
     async definition() {
       const waveformDescription = await buildWaveformDescriptionText(deps.waveformLibrary);
       return {
@@ -122,6 +140,11 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
 
   registry.register({
     name: 'stop',
+    displayName: '停止通道',
+    summarizeCommand(command) {
+      if (command.type !== 'stop') return '停止通道';
+      return command.channel ? `停止 ${command.channel} 通道` : '停止全部通道';
+    },
     definition: {
       name: 'stop',
       description: [
@@ -158,6 +181,11 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
 
   registry.register({
     name: 'adjust_strength',
+    displayName: '调节强度',
+    summarizeCommand(command) {
+      if (command.type !== 'adjustStrength') return '调节强度';
+      return `调整 ${command.channel} 通道强度 ${command.delta > 0 ? '+' : ''}${command.delta}`;
+    },
     definition: {
       name: 'adjust_strength',
       description: [
@@ -201,6 +229,11 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
 
   registry.register({
     name: 'change_wave',
+    displayName: '切换波形',
+    summarizeCommand(command) {
+      if (command.type !== 'changeWave') return '切换波形';
+      return `切换 ${command.channel} 通道波形为 ${command.waveform.id}`;
+    },
     async definition() {
       const waveformDescription = await buildWaveformDescriptionText(deps.waveformLibrary);
       return {
@@ -258,6 +291,11 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
 
   registry.register({
     name: 'burst',
+    displayName: '脉冲增强',
+    summarizeCommand(command) {
+      if (command.type !== 'burst') return '脉冲增强';
+      return `对 ${command.channel} 通道执行脉冲，强度 ${command.strength}，持续 ${command.durationMs}ms`;
+    },
     definition: {
       name: 'burst',
       description: [
@@ -315,6 +353,10 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
 
   registry.register({
     name: 'emergency_stop',
+    displayName: '紧急停止',
+    summarizeCommand(command) {
+      return command.type === 'emergencyStop' ? '紧急停止' : '紧急停止';
+    },
     definition: {
       name: 'emergency_stop',
       description: '立即停止全部输出。仅在需要紧急终止时使用。',
@@ -333,6 +375,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
 
   registry.register({
     name: 'timer',
+    displayName: '设置定时器',
     definition: {
       name: 'timer',
       description: [

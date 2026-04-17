@@ -16,6 +16,7 @@ import { createBrowserAgentClient, describeBrowserModes } from './create-browser
 export interface PendingPermissionRequest {
   input: {
     toolName: string;
+    toolDisplayName?: string;
     summary: string;
     args: Record<string, unknown>;
   };
@@ -84,6 +85,7 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
             setPendingPermission({
               input: {
                 toolName: input.toolName,
+                toolDisplayName: input.toolDisplayName,
                 summary: input.summary,
                 args: input.args,
               },

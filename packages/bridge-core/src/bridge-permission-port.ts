@@ -45,6 +45,7 @@ export class BridgePermissionPort {
       adapter,
       userId,
       input.toolName,
+      input.toolDisplayName,
       input.summary,
       input.args,
       this.confirmTimeoutMs,

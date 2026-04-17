@@ -12,6 +12,7 @@ export async function requestPermissionRemote(
   adapter: PlatformAdapter,
   userId: string,
   toolName: string,
+  toolDisplayName: string | undefined,
   summary: string,
   args: Record<string, unknown>,
   timeoutMs: number,
@@ -22,26 +23,26 @@ export async function requestPermissionRemote(
 > {
   const timedExpiry = Date.now() + 5 * 60_000;
   const prompt =
-    `AI requests permission to operate the device.\n` +
-    `Tool: ${toolName}\n` +
-    `Summary: ${summary}\n\n` +
-    `Args:\n${safeFormatArgs(args)}\n\n` +
-    `Reply 1 to allow once, 2 to allow for 5 minutes, 3 to allow for this session, 4 to deny.`;
+    `AI 请求权限以操作设备。\n` +
+    `工具：${toolDisplayName ?? toolName}\n` +
+    `说明：${summary}\n\n` +
+    `参数：\n${safeFormatArgs(args)}\n\n` +
+    `回复 1 允许本次，2 允许 5 分钟，3 允许本会话，4 拒绝。`;
 
   try {
     await adapter.sendMessage(userId, prompt);
   } catch {
-    return { type: 'deny', reason: 'Failed to send remote permission request.' };
+    return { type: 'deny', reason: '发送远程权限请求失败。' };
   }
 
   const reply = await adapter.waitForReply(userId, timeoutMs);
   if (reply === null) {
     try {
-      await adapter.sendMessage(userId, 'Permission request timed out, so the action was denied automatically.');
+      await adapter.sendMessage(userId, '权限请求已超时，系统已自动拒绝这次操作。');
     } catch {
       // Ignore follow-up send failures.
     }
-    return { type: 'deny', reason: 'Remote permission request timed out.' };
+    return { type: 'deny', reason: '远程权限请求已超时。' };
   }
 
   const trimmed = reply.trim();
@@ -53,14 +54,14 @@ export async function requestPermissionRemote(
     case '3':
       return { type: 'approve-scoped' };
     case '4':
-      return { type: 'deny', reason: 'Remote user denied the request.' };
+      return { type: 'deny', reason: '远程用户拒绝了这次请求。' };
     default:
       try {
-        await adapter.sendMessage(userId, `Invalid choice "${trimmed}". Reply with 1, 2, 3, or 4 next time.`);
+        await adapter.sendMessage(userId, `无效选项“${trimmed}”。下次请回复 1、2、3 或 4。`);
       } catch {
         // Ignore follow-up send failures.
       }
-      return { type: 'deny', reason: 'Remote user denied the request.' };
+      return { type: 'deny', reason: '远程用户拒绝了这次请求。' };
   }
 }
 

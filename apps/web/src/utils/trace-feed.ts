@@ -27,9 +27,9 @@ function formatTraceEntry(entry: RuntimeTraceEntry): string | null {
     case 'tool-result':
       return formatExecutedTrace(entry);
     case 'tool-denied':
-      return `未执行：${entry.toolName ?? '工具'}。原因：${entry.detail ?? '未知原因。'}`;
+      return `未执行：${entry.toolDisplayName ?? entry.toolName ?? '工具'}。原因：${entry.detail ?? '未知原因。'}`;
     case 'tool-failed':
-      return `执行失败：${entry.toolName ?? '工具'}。原因：${entry.detail ?? '未知错误。'}`;
+      return `执行失败：${entry.toolDisplayName ?? entry.toolName ?? '工具'}。原因：${entry.detail ?? '未知错误。'}`;
     case 'timer-scheduled':
       return entry.label && typeof entry.seconds === 'number' ? `已设定定时：${entry.label}（${entry.seconds} 秒后）` : null;
     default:
@@ -84,6 +84,6 @@ function formatExecutedTrace(entry: RuntimeTraceEntry): string | null {
     case 'emergency_stop':
       return '已执行：紧急停止';
     default:
-      return `已执行：${entry.toolName}`;
+      return `已执行：${entry.toolDisplayName ?? entry.toolName}`;
   }
 }

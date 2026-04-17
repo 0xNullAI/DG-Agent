@@ -20,7 +20,7 @@ export function PermissionModal({
   return (
     <section className="permission-modal-backdrop">
       <div className="permission-modal">
-        <div className="eyebrow">Permission Request</div>
+        <div className="eyebrow">权限请求</div>
         <h2>确认设备操作</h2>
         <div className="permission-summary">{summary}</div>
         <pre className="permission-args">{JSON.stringify(args, null, 2)}</pre>

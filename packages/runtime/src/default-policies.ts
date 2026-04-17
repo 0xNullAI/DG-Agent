@@ -138,23 +138,6 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
   ];
 }
 
-export function summarizeCommand(command: DeviceCommand): string {
-  switch (command.type) {
-    case 'start':
-      return `Start channel ${command.channel} at strength ${command.strength} with waveform ${command.waveform.id}`;
-    case 'stop':
-      return command.channel ? `Stop channel ${command.channel}` : 'Stop all channels';
-    case 'adjustStrength':
-      return `Adjust channel ${command.channel} by ${command.delta > 0 ? '+' : ''}${command.delta}`;
-    case 'changeWave':
-      return `Change channel ${command.channel} to waveform ${command.waveform.id}`;
-    case 'burst':
-      return `Burst channel ${command.channel} to ${command.strength} for ${command.durationMs}ms`;
-    case 'emergencyStop':
-      return 'Emergency stop';
-  }
-}
-
 function normalizeStrengthLimit(value: number | undefined): number {
   const raw = typeof value === 'number' ? value : DEFAULT_USER_MAX_STRENGTH;
   return clamp(raw, 0, 200);

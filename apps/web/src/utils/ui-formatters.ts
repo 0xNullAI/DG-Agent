@@ -66,17 +66,17 @@ export function getRecentToolActivities(events: RuntimeEvent[]): Array<{ kind: '
         case 'tool-call-proposed':
           return {
             kind: 'proposed' as const,
-            text: `请求工具：${event.toolCall.name}`,
+            text: `请求工具：${event.toolCall.displayName ?? event.toolCall.name}`,
           };
         case 'tool-call-denied':
           return {
             kind: 'denied' as const,
-            text: `工具被拒绝：${event.toolCall.name} · ${event.reason}`,
+            text: `工具被拒绝：${event.toolCall.displayName ?? event.toolCall.name} · ${event.reason}`,
           };
         case 'tool-call-failed':
           return {
             kind: 'denied' as const,
-            text: `工具执行失败：${event.toolCall.name} · ${event.error}`,
+            text: `工具执行失败：${event.toolCall.displayName ?? event.toolCall.name} · ${event.error}`,
           };
         case 'device-command-executed':
           return {
@@ -125,12 +125,12 @@ export function getChatNotices(events: RuntimeEvent[]): Array<{ kind: 'tool' | '
         case 'tool-call-denied':
           return {
             kind: 'warning' as const,
-            text: `工具被拒绝：${event.toolCall.name} · ${event.reason}`,
+            text: `工具被拒绝：${event.toolCall.displayName ?? event.toolCall.name} · ${event.reason}`,
           };
         case 'tool-call-failed':
           return {
             kind: 'warning' as const,
-            text: `工具执行失败：${event.toolCall.name} · ${event.error}`,
+            text: `工具执行失败：${event.toolCall.displayName ?? event.toolCall.name} · ${event.error}`,
           };
         case 'timer-scheduled':
           return {

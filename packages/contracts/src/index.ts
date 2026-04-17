@@ -50,6 +50,7 @@ export interface LlmPort {
 export interface PermissionRequest {
   context: ActionContext;
   toolName: string;
+  toolDisplayName?: string;
   summary: string;
   args: Record<string, unknown>;
 }

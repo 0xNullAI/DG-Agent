@@ -1,6 +1,5 @@
 import type { DevicePort, LoggerPort, PermissionPort, SessionTraceStorePort } from '@dg-agent/contracts';
 import type { ActionContext, DeviceCommand, RuntimeEvent, SessionSnapshot, ToolCall, ToolExecutionPlan } from '@dg-agent/core';
-import { summarizeCommand } from './default-policies.js';
 import { DeviceCommandQueue } from './device-command-queue.js';
 import { throwIfAborted } from './runtime-errors.js';
 import { consumeTurnQuota, type TurnState } from './runtime-turn-state.js';
@@ -48,12 +47,14 @@ export class RuntimeToolExecutor {
 
   async execute(input: ExecuteToolCallInput): Promise<string> {
     const { session, toolCall, context, turnState, abortSignal } = input;
+    const toolDisplayName = this.options.toolRegistry.getDisplayName(toolCall.name);
+    const displayToolCall = toolDisplayName ? { ...toolCall, displayName: toolDisplayName } : toolCall;
 
     throwIfAborted(abortSignal);
     this.options.emit({
       type: 'tool-call-proposed',
       sessionId: session.id,
-      toolCall,
+      toolCall: displayToolCall,
     });
     await this.options.traceStore.append(session.id, {
       kind: 'tool-call',
@@ -61,23 +62,24 @@ export class RuntimeToolExecutor {
       sourceType: context.sourceType,
       toolCallId: toolCall.id,
       toolName: toolCall.name,
+      toolDisplayName,
       args: toolCall.args,
     });
 
     const quotaError = consumeTurnQuota(toolCall.name, turnState, this.options.toolCallConfig);
     if (quotaError) {
-      return this.denyToolCall(session, toolCall, quotaError, context);
+      return this.denyToolCall(session, displayToolCall, quotaError, context);
     }
 
     if (isDeviceToolName(toolCall.name)) {
       const currentState = await this.options.device.getState();
       session.deviceState = currentState;
       if (!currentState.connected) {
-        return this.denyToolCall(session, toolCall, '设备未连接。', context);
+        return this.denyToolCall(session, displayToolCall, '设备未连接。', context);
       }
     }
 
-    const planResult = await this.resolvePlan(session.id, toolCall);
+    const planResult = await this.resolvePlan(session.id, displayToolCall);
     if ('error' in planResult) {
       await this.options.traceStore.append(session.id, {
         kind: 'tool-denied',
@@ -85,6 +87,7 @@ export class RuntimeToolExecutor {
         sourceType: context.sourceType,
         toolCallId: toolCall.id,
         toolName: toolCall.name,
+        toolDisplayName,
         args: toolCall.args,
         detail: planResult.error,
       });
@@ -105,7 +108,7 @@ export class RuntimeToolExecutor {
 
     return this.executeDeviceCommand({
       session,
-      toolCall,
+      toolCall: displayToolCall,
       context,
       command: planResult.plan.command,
       abortSignal,
@@ -221,7 +224,8 @@ export class RuntimeToolExecutor {
       const permission = await this.options.permission.request({
         context,
         toolName: toolCall.name,
-        summary: summarizeCommand(command),
+        toolDisplayName: toolCall.displayName,
+        summary: this.options.toolRegistry.summarizeCommand(toolCall.name, command) ?? toolCall.displayName ?? toolCall.name,
         args: toolCall.args,
       });
 
@@ -272,6 +276,7 @@ export class RuntimeToolExecutor {
         sourceType: context.sourceType,
         toolCallId: toolCall.id,
         toolName: toolCall.name,
+        toolDisplayName: toolCall.displayName,
         args: toolCall.args,
         output,
       });
@@ -290,6 +295,7 @@ export class RuntimeToolExecutor {
         sourceType: context.sourceType,
         toolCallId: toolCall.id,
         toolName: toolCall.name,
+        toolDisplayName: toolCall.displayName,
         args: toolCall.args,
         detail: reason,
       });
@@ -316,6 +322,7 @@ export class RuntimeToolExecutor {
       sourceType: context.sourceType,
       toolCallId: toolCall.id,
       toolName: toolCall.name,
+      toolDisplayName: toolCall.displayName,
       args: toolCall.args,
       detail: reason,
     });

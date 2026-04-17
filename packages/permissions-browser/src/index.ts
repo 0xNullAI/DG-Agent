@@ -81,10 +81,10 @@ export class BrowserPermissionPort implements PermissionPort {
 function formatPermissionMessage(input: PermissionRequest): string {
   return [
     'AI 请求执行设备操作',
-    `工具: ${input.toolName}`,
-    `说明: ${input.summary}`,
+    `工具：${input.toolDisplayName ?? input.toolName}`,
+    `说明：${input.summary}`,
     '',
-    '参数:',
+    '参数：',
     safeFormatJson(input.args),
     '',
     '是否允许本次操作？',
