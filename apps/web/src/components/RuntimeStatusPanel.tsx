@@ -84,7 +84,7 @@ export function RuntimeStatusPanel({
             <div className="mt-1 text-lg font-semibold">{deviceState.battery ?? 0}%</div>
           </div>
           <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4">
-            <div className="text-sm text-[var(--text-faint)]">语音模式</div>
+            <div className="text-sm text-[var(--text-faint)]">语音识别</div>
             <div className="mt-1 text-lg font-semibold">{voiceMode ? voiceState : '关闭'}</div>
           </div>
           <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4">

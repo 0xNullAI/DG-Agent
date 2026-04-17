@@ -145,6 +145,7 @@ export class DashscopeProxySpeechRecognitionController implements SpeechRecognit
   private speechFrames = 0;
   private silenceStart = 0;
   private finalTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  private manualStop = false;
 
   constructor(private readonly options: BrowserSpeechRecognitionOptions = {}) {}
 
@@ -155,6 +156,7 @@ export class DashscopeProxySpeechRecognitionController implements SpeechRecognit
 
     this.abort(true);
     this.partialTranscriptCb = request.onPartialTranscript ?? null;
+    this.manualStop = Boolean(request.manualStop);
 
     return await new Promise<string>((resolve, reject) => {
       this.pendingResolve = resolve;
@@ -173,6 +175,10 @@ export class DashscopeProxySpeechRecognitionController implements SpeechRecognit
     if (!silent) {
       reject?.(new Error(SPEECH_ABORTED_ERROR_MESSAGE));
     }
+  }
+
+  stop(): void {
+    this.finishRecording();
   }
 
   private async startSession(): Promise<void> {
@@ -213,7 +219,7 @@ export class DashscopeProxySpeechRecognitionController implements SpeechRecognit
       const int16 = float32ToInt16(float32);
       this.ws.send(int16.buffer as ArrayBuffer);
 
-      if (!this.options.autoStopEnabled) return;
+      if (this.manualStop || !this.options.autoStopEnabled) return;
       this.handleVadFrame(float32);
     };
 
@@ -431,6 +437,7 @@ export class DashscopeProxySpeechRecognitionController implements SpeechRecognit
   private cleanup(): void {
     this.teardownCapture();
     this.partialTranscriptCb = null;
+    this.manualStop = false;
     this.finishing = false;
     this.speechDetected = false;
     this.speechFrames = 0;

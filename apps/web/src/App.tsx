@@ -49,6 +49,18 @@ import { buildTraceFeed } from './utils/trace-feed.js';
 
 type InspectorTab = 'runtime' | 'settings' | 'waveforms' | 'bridge' | 'events';
 
+function formatVoiceStateLabel(voiceState: 'idle' | 'listening' | 'speaking'): string {
+  switch (voiceState) {
+    case 'listening':
+      return '录音中';
+    case 'speaking':
+      return '朗读中';
+    case 'idle':
+    default:
+      return '空闲';
+  }
+}
+
 function localizeToastText(text: string): string {
   if (/Device is not connected\./i.test(text)) {
     return '设备尚未连接。';
@@ -121,13 +133,11 @@ export function App() {
   });
 
   const [updateStatus, setUpdateStatus] = useState<UpdateCheckerStatus>(() => updateChecker.getStatus());
-  const sendTextMessageRef = useRef<((message: string) => Promise<'sent' | 'aborted' | 'failed'>) | null>(null);
 
   const voice = useVoiceController({
     speechRecognition,
     speechSynthesizer,
     ttsEnabled: settings.ttsEnabled,
-    sendTextMessageRef,
     setText,
     setErrorMessage,
     setStatusMessage,
@@ -166,8 +176,6 @@ export function App() {
     voiceMode,
     voiceState,
     voiceTranscript,
-    transcribeVoiceInput,
-    abortVoiceCapture,
     toggleVoiceMode,
     stopSpeechPlayback,
     stopAllVoiceActivity,
@@ -327,10 +335,6 @@ export function App() {
       setBusy(false);
     }
   }, [activeSessionId, client, refreshCurrentSession, stopSpeechPlayback]);
-
-  useEffect(() => {
-    sendTextMessageRef.current = sendTextMessage;
-  }, [sendTextMessage]);
 
   async function send(): Promise<void> {
     const draft = text;
@@ -643,7 +647,7 @@ export function App() {
         <div className="flex w-full max-w-[940px] flex-col gap-3">
           {voiceMode && (
             <section className="pointer-events-auto mx-auto w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] rounded-[12px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-3 text-center shadow-[var(--shadow)]">
-              <div className="text-sm font-medium text-[var(--text)]">语音状态：{voiceState}</div>
+              <div className="text-sm font-medium text-[var(--text)]">语音状态：{formatVoiceStateLabel(voiceState)}</div>
               <div className="mt-1 whitespace-normal break-words text-sm text-[var(--text-soft)]">
                 {voiceTranscript || '正在等待你的语音输入…'}
               </div>
@@ -916,8 +920,6 @@ export function App() {
               text={text}
               statusMessage={statusMessage}
               onTextChange={setText}
-              onVoice={() => void transcribeVoiceInput()}
-              onAbortVoice={abortVoiceCapture}
               onAbortReply={() => void abortCurrentReply()}
               onToggleVoiceMode={() => void toggleVoiceMode()}
               onSend={() => void send()}

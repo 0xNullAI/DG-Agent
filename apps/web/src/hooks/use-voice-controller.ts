@@ -1,26 +1,23 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch, type MutableRefObject, type SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import type { RuntimeEvent } from '@dg-agent/core';
 import type { SpeechRecognitionController, SpeechSynthesisSession, SpeechSynthesizer } from '@dg-agent/audio-browser';
 import { isSpeechAbortError, isSpeechSynthesisAbortError } from '../utils/app-runtime-helpers.js';
-
-type SendTextMessageResult = 'sent' | 'aborted' | 'failed';
 
 export interface UseVoiceControllerOptions {
   speechRecognition: SpeechRecognitionController;
   speechSynthesizer: SpeechSynthesizer;
   ttsEnabled: boolean;
-  sendTextMessageRef: MutableRefObject<((message: string) => Promise<SendTextMessageResult>) | null>;
   setText: Dispatch<SetStateAction<string>>;
   setErrorMessage: Dispatch<SetStateAction<string | null>>;
   setStatusMessage: Dispatch<SetStateAction<string | null>>;
 }
 
 export function useVoiceController(options: UseVoiceControllerOptions) {
-  const { speechRecognition, speechSynthesizer, ttsEnabled, sendTextMessageRef, setText, setErrorMessage, setStatusMessage } =
+  const { speechRecognition, speechSynthesizer, ttsEnabled, setText, setErrorMessage, setStatusMessage } =
     options;
 
   const [voiceMode, setVoiceMode] = useState(false);
-  const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'sending' | 'speaking'>('idle');
+  const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'speaking'>('idle');
   const [voiceTranscript, setVoiceTranscript] = useState('');
   const speechSessionRef = useRef<SpeechSynthesisSession | null>(null);
   const voiceModeRef = useRef(voiceMode);
@@ -56,87 +53,57 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
     speechSynthesizer.stop();
   }, [speechSynthesizer]);
 
-  const transcribeVoiceInput = useCallback(async (): Promise<void> => {
-    try {
-      setErrorMessage(null);
-      setVoiceState('listening');
+  const finishVoiceModeWithTranscript = useCallback(
+    (transcript: string): void => {
+      const normalized = transcript.trim();
+      setVoiceMode(false);
       setVoiceTranscript('');
-      const transcript = await speechRecognition.transcribeOnce({
+      setVoiceState('idle');
+
+      if (!normalized) {
+        setStatusMessage('未识别到内容。');
+        return;
+      }
+
+      setText((current) => (current ? `${current}\n${normalized}` : normalized));
+      setStatusMessage('语音内容已填入输入框，请确认后再发送。');
+    },
+    [setStatusMessage, setText],
+  );
+
+  const startVoiceModeCapture = useCallback((): void => {
+    setErrorMessage(null);
+    setVoiceMode(true);
+    setVoiceState('listening');
+    setVoiceTranscript('');
+    setStatusMessage('语音识别已开始，再次点击结束识别。');
+
+    void speechRecognition
+      .transcribeOnce({
+        manualStop: true,
         onPartialTranscript: (partial) => setVoiceTranscript(partial),
-      });
-      if (!transcript) {
-        setStatusMessage('No speech detected.');
-        setVoiceState('idle');
-        return;
-      }
-
-      setVoiceTranscript(transcript);
-      setText((current) => (current ? `${current}\n${transcript}` : transcript));
-      setStatusMessage('Voice input captured.');
-      setVoiceState('idle');
-    } catch (error) {
-      if (isSpeechAbortError(error)) {
-        setVoiceTranscript('');
-        setVoiceState('idle');
-        return;
-      }
-      setErrorMessage(error instanceof Error ? error.message : String(error));
-      setVoiceState('idle');
-    }
-  }, [setErrorMessage, setStatusMessage, setText, speechRecognition]);
-
-  const captureVoiceAndSend = useCallback(
-    async (force = false): Promise<void> => {
-      if (!voiceModeRef.current && !force) {
-        setVoiceState('idle');
-        return;
-      }
-
-      try {
-        setErrorMessage(null);
-        setVoiceState('listening');
-        setVoiceTranscript('');
-        const transcript = await speechRecognition.transcribeOnce({
-          onPartialTranscript: (partial) => setVoiceTranscript(partial),
-        });
-        if (!voiceModeRef.current && !force) {
-          setVoiceState('idle');
-          return;
-        }
-
-        if (!transcript.trim()) {
-          setStatusMessage('No speech detected.');
-          setVoiceState('idle');
-          return;
-        }
-
-        setVoiceTranscript(transcript);
-        setText(transcript);
-        setVoiceState('sending');
-        const result = (await sendTextMessageRef.current?.(transcript)) ?? 'failed';
-        if (result === 'sent') {
-          setText('');
-        } else {
-          setVoiceState('idle');
-        }
-      } catch (error) {
+      })
+      .then((transcript) => finishVoiceModeWithTranscript(transcript))
+      .catch((error) => {
         if (isSpeechAbortError(error)) {
+          setVoiceMode(false);
           setVoiceTranscript('');
           setVoiceState('idle');
           return;
         }
         setErrorMessage(error instanceof Error ? error.message : String(error));
+        setVoiceMode(false);
+        setVoiceTranscript('');
         setVoiceState('idle');
-      }
-    },
-    [sendTextMessageRef, setErrorMessage, setStatusMessage, setText, speechRecognition],
-  );
+      });
+  }, [finishVoiceModeWithTranscript, setErrorMessage, setStatusMessage, speechRecognition]);
 
   const abortVoiceCapture = useCallback((): void => {
     speechRecognition.abort();
+    setVoiceMode(false);
     setVoiceTranscript('');
     setVoiceState('idle');
-    setStatusMessage('Voice capture stopped.');
+    setStatusMessage('语音录制已停止。');
   }, [setStatusMessage, speechRecognition]);
 
   const stopAllVoiceActivity = useCallback(
@@ -153,17 +120,16 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
   );
 
   const toggleVoiceMode = useCallback(async (): Promise<void> => {
-    if (voiceModeRef.current) {
-      stopAllVoiceActivity({ disableMode: true });
-      setStatusMessage('Voice mode stopped.');
+    if (!voiceModeRef.current) {
+      startVoiceModeCapture();
       return;
     }
 
-    setVoiceMode(true);
-    setVoiceTranscript('');
-    setStatusMessage('Voice mode started.');
-    await captureVoiceAndSend(true);
-  }, [captureVoiceAndSend, setStatusMessage, stopAllVoiceActivity]);
+    if (voiceState === 'listening') {
+      speechRecognition.stop();
+      setStatusMessage('正在结束识别…');
+    }
+  }, [setStatusMessage, speechRecognition, startVoiceModeCapture, voiceState]);
 
   const handleRuntimeEvent = useCallback(
     (event: RuntimeEvent): void => {
@@ -175,35 +141,26 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
       if (event.type === 'assistant-message-aborted') {
         stopSpeechPlayback();
         setVoiceState('idle');
-        setStatusMessage('Assistant reply stopped.');
+        setStatusMessage('助手回复已停止。');
         return;
       }
 
       if (event.type !== 'assistant-message-completed') return;
 
       if (ttsEnabledRef.current && event.message.content.trim()) {
-        setVoiceState(voiceModeRef.current ? 'speaking' : 'idle');
+        setVoiceState('speaking');
         void finalizeSpeechSession(event.message.content)
           .catch((error) => {
             if (isSpeechSynthesisAbortError(error)) return;
             setErrorMessage(error instanceof Error ? error.message : String(error));
           })
           .finally(() => {
-            if (voiceModeRef.current) {
-              void captureVoiceAndSend();
-            } else {
-              setVoiceState('idle');
-            }
+            setVoiceState('idle');
           });
         return;
       }
-
-      if (voiceModeRef.current) {
-        stopSpeechPlayback();
-        void captureVoiceAndSend();
-      }
     },
-    [captureVoiceAndSend, ensureSpeechSession, finalizeSpeechSession, setErrorMessage, setStatusMessage, stopSpeechPlayback],
+    [ensureSpeechSession, finalizeSpeechSession, setErrorMessage, setStatusMessage, stopSpeechPlayback],
   );
 
   useEffect(
@@ -221,8 +178,6 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
     setVoiceState,
     voiceTranscript,
     setVoiceTranscript,
-    transcribeVoiceInput,
-    captureVoiceAndSend,
     abortVoiceCapture,
     toggleVoiceMode,
     stopSpeechPlayback,

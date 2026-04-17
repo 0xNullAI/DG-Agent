@@ -13,10 +13,12 @@ export interface BrowserSpeechCapabilities {
 
 export interface SpeechRecognitionRequest {
   onPartialTranscript?: (text: string) => void;
+  manualStop?: boolean;
 }
 
 export interface SpeechRecognitionController {
   transcribeOnce(request?: SpeechRecognitionRequest): Promise<string>;
+  stop(): void;
   abort(): void;
 }
 

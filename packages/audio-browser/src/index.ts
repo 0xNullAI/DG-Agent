@@ -115,7 +115,7 @@ export class BrowserSpeechRecognitionController implements SpeechRecognitionCont
 
       recognition.lang = this.options.lang ?? 'zh-CN';
       recognition.interimResults = true;
-      recognition.continuous = false;
+      recognition.continuous = Boolean(request.manualStop);
 
       recognition.onresult = (event) => {
         let finalTranscript = '';
@@ -156,6 +156,10 @@ export class BrowserSpeechRecognitionController implements SpeechRecognitionCont
     const recognition = this.activeRecognition;
     this.activeRecognition = null;
     recognition?.abort();
+  }
+
+  stop(): void {
+    this.activeRecognition?.stop();
   }
 }
 

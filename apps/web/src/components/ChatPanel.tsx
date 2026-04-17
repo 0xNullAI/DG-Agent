@@ -17,15 +17,13 @@ interface ChatPanelProps {
   text: string;
   statusMessage: string | null;
   onTextChange: (value: string) => void;
-  onVoice: () => void;
-  onAbortVoice: () => void;
   onAbortReply: () => void;
   onToggleVoiceMode: () => void;
   onSend: () => void;
   busy: boolean;
   voiceEnabled: boolean;
   voiceMode: boolean;
-  voiceState: 'idle' | 'listening' | 'sending' | 'speaking';
+  voiceState: 'idle' | 'listening' | 'ready' | 'sending' | 'speaking';
   speechRecognitionSupported: boolean;
   session: SessionSnapshot | null;
   traceFeed: TraceFeedItem[];
@@ -83,8 +81,6 @@ export function ChatPanel({
   text,
   statusMessage,
   onTextChange,
-  onVoice,
-  onAbortVoice,
   onAbortReply,
   onToggleVoiceMode,
   onSend,
@@ -114,18 +110,10 @@ export function ChatPanel({
   const voiceModeAvailable = voiceEnabled && speechRecognitionSupported;
   const connectButtonLabel = deviceState.connected ? '重连设备' : '连接设备';
   const emergencyStopDisabled = !activeSessionId || !deviceState.connected;
-  const primaryActionLabel = busy
-    ? '停止回复'
-    : hasText
-      ? '发送'
-      : voiceMode
-        ? voiceState === 'listening'
-          ? '停止语音'
-          : '语音中'
-        : voiceModeAvailable
-          ? '语音模式'
-          : '发送';
-  const primaryActionDisabled = !activeSessionId || (!busy && !hasText && !voiceMode && !voiceModeAvailable);
+  const primaryActionLabel = busy ? '停止回复' : '发送';
+  const primaryActionDisabled = !activeSessionId || voiceMode || (!busy && !hasText);
+  const voiceModeButtonLabel = !voiceMode ? '语音识别' : '结束识别';
+  const voiceModeButtonDisabled = !voiceEnabled || (!speechRecognitionSupported && !voiceMode) || (busy && !voiceMode);
 
   useEffect(() => {
     const node = composerRef.current;
@@ -149,10 +137,6 @@ export function ChatPanel({
     }
     if (hasText) {
       onSend();
-      return;
-    }
-    if (voiceMode || voiceModeAvailable) {
-      onToggleVoiceMode();
     }
   }
 
@@ -309,7 +293,7 @@ export function ChatPanel({
               <Textarea
                 ref={composerRef}
                 value={text}
-                disabled={busy}
+                disabled={busy || voiceMode}
                 rows={1}
                 onChange={(event) => onTextChange(event.target.value)}
                 onKeyDown={handleComposerKeyDown}
@@ -322,15 +306,15 @@ export function ChatPanel({
               <Button
                 variant="ghost"
                 className="h-9 rounded-full px-3 text-[var(--text-soft)]"
-                disabled={busy || !voiceEnabled || (!speechRecognitionSupported && !listening)}
-                onClick={listening ? onAbortVoice : onVoice}
+                disabled={voiceModeButtonDisabled}
+                onClick={onToggleVoiceMode}
               >
                 <Mic className="h-4 w-4" />
-                <span>{listening ? '停止收音' : '语音'}</span>
+                <span>{voiceModeButtonLabel}</span>
               </Button>
 
               <Button
-                variant={busy ? 'destructive' : !hasText && voiceModeAvailable ? 'secondary' : 'default'}
+                variant={busy ? 'destructive' : 'default'}
                 size="icon"
                 className="h-10 w-10 shrink-0 rounded-full"
                 disabled={primaryActionDisabled}
