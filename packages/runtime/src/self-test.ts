@@ -120,6 +120,37 @@ class TestLlm implements LlmPort {
   }
 }
 
+class InspectingTestLlm implements LlmPort {
+  readonly conversations: Array<ReadonlyArray<NonNullable<Parameters<LlmPort['runTurn']>[0]['conversation']>[number]>> = [];
+
+  async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
+    this.conversations.push([...(input.conversation ?? [])]);
+
+    const hasToolOutput = input.conversation?.some((item) => item.kind === 'function_call_output');
+    if (hasToolOutput) {
+      return {
+        assistantMessage: 'A 通道已经启动完毕。',
+      };
+    }
+
+    return {
+      assistantMessage: '准备启动 A',
+      toolCalls: [
+        {
+          id: 'tool-1',
+          name: 'start',
+          args: {
+            channel: 'A',
+            strength: 50,
+            waveformId: 'pulse_mid',
+            loop: true,
+          },
+        },
+      ],
+    };
+  }
+}
+
 class TestPermission implements PermissionPort {
   async request(_input: Parameters<PermissionPort['request']>[0]) {
     return { type: 'approve-once' } as const;
@@ -226,6 +257,28 @@ async function main(): Promise<void> {
   assert.equal(session.messages.length, 3);
   assert.equal(session.messages[1]?.content, '准备启动 A');
   assert.equal(session.messages.at(-1)?.content, 'A 通道已经启动完毕。');
+
+  const inspectingLlm = new InspectingTestLlm();
+  const inspectRuntime = new AgentRuntime({
+    device: new TestDevice(),
+    llm: inspectingLlm,
+    permission: new TestPermission(),
+    waveformLibrary: createBasicWaveformLibrary(),
+  });
+  await inspectRuntime.sendUserMessage({
+    sessionId: 'inspect',
+    text: '启动A强度50',
+    context: {
+      sessionId: 'inspect',
+      sourceType: 'cli',
+      traceId: 'trace-inspect',
+    },
+  });
+  const duplicatedNarrations =
+    inspectingLlm.conversations[1]?.filter(
+      (item) => item.kind === 'message' && item.role === 'assistant' && item.content === '准备启动 A',
+    ) ?? [];
+  assert.equal(duplicatedNarrations.length, 1);
 
   const quotaEvents: RuntimeEvent[] = [];
   const quotaRuntime = new AgentRuntime({

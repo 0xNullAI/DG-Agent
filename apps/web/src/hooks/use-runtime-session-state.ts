@@ -133,8 +133,8 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
         setStreamingAssistantText('');
       }
 
-      if (event.type === 'device-state-changed') {
-        setDeviceConnected(event.state.connected);
+      if (event.type === 'assistant-message-completed' || event.type === 'assistant-message-aborted') {
+        setStreamingAssistantText('');
       }
 
       if (isActiveSessionEvent) {

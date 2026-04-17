@@ -837,6 +837,7 @@ export function App() {
             <ChatPanel
               activeSessionId={activeSessionId}
               text={text}
+              statusMessage={statusMessage}
               onTextChange={setText}
               onVoice={() => void transcribeVoiceInput()}
               onAbortVoice={abortVoiceCapture}
