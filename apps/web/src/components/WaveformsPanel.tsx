@@ -2,7 +2,6 @@ import type { WaveformDefinition } from '@dg-agent/core';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface WaveformsPanelProps {
   waveforms: WaveformDefinition[];
@@ -39,40 +38,38 @@ export function WaveformsPanel({ waveforms, customWaveforms, onImport, onRemove,
           />
         </label>
 
-        <ScrollArea className="max-h-80 pr-1">
-          <div className="flex flex-col gap-3">
-            {waveforms.length === 0 && <div className="text-sm text-[var(--text-soft)]">还没有可用波形。</div>}
-            {waveforms.map((waveform) => {
-              const isCustom = customWaveforms.some((item) => item.id === waveform.id);
-              return (
-                <div
-                  key={waveform.id}
-                  className="flex items-center justify-between gap-3 rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] p-3"
-                >
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-[var(--text)]">{waveform.name}</div>
-                    <div className="mt-1 text-sm text-[var(--text-soft)]">
-                      {waveform.id} · {waveform.frames.length} 帧
-                    </div>
+        <div className="flex flex-col gap-3">
+          {waveforms.length === 0 && <div className="text-sm text-[var(--text-soft)]">还没有可用波形。</div>}
+          {waveforms.map((waveform) => {
+            const isCustom = customWaveforms.some((item) => item.id === waveform.id);
+            return (
+              <div
+                key={waveform.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] p-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-[var(--text)]">{waveform.name}</div>
+                  <div className="mt-1 text-sm text-[var(--text-soft)]">
+                    {waveform.id} · {waveform.frames.length} 帧
                   </div>
-
-                  {isCustom ? (
-                    <div className="flex flex-wrap gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => onEdit(waveform)}>
-                        编辑
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-[var(--danger)] hover:text-[var(--danger)]" onClick={() => onRemove(waveform.id)}>
-                        删除
-                      </Button>
-                    </div>
-                  ) : (
-                    <Badge variant="default">内置</Badge>
-                  )}
                 </div>
-              );
-            })}
-          </div>
-        </ScrollArea>
+
+                {isCustom ? (
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="ghost" size="sm" onClick={() => onEdit(waveform)}>
+                      编辑
+                    </Button>
+                    <Button variant="ghost" size="sm" className="text-[var(--danger)] hover:text-[var(--danger)]" onClick={() => onRemove(waveform.id)}>
+                      删除
+                    </Button>
+                  </div>
+                ) : (
+                  <Badge variant="default">内置</Badge>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </CardContent>
     </Card>
   );

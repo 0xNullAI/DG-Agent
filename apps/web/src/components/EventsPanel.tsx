@@ -1,6 +1,5 @@
 import type { RuntimeEvent } from '@dg-agent/core';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ScrollArea } from '@/components/ui/scroll-area';
 
 interface EventsPanelProps {
   events: RuntimeEvent[];
@@ -8,26 +7,24 @@ interface EventsPanelProps {
 
 export function EventsPanel({ events }: EventsPanelProps) {
   return (
-    <Card className="flex h-full min-h-0 flex-col">
+    <Card>
       <CardHeader className="pb-3">
         <CardTitle>最近事件</CardTitle>
         <CardDescription>用于排查工具调用、设备状态变化和系统提示。</CardDescription>
       </CardHeader>
 
-      <CardContent className="min-h-0 flex-1 pt-0">
-        <ScrollArea className="h-full min-h-0 pr-1">
-          <div className="flex flex-col gap-3">
-            {events.length === 0 && <div className="text-sm text-[var(--text-soft)]">还没有事件记录。</div>}
-            {events.map((event, index) => (
-              <pre
-                key={`${event.type}-${index}`}
-                className="m-0 whitespace-pre-wrap break-all rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] p-4 text-sm leading-6 text-[var(--text-soft)]"
-              >
-                {JSON.stringify(event, null, 2)}
-              </pre>
-            ))}
-          </div>
-        </ScrollArea>
+      <CardContent className="pt-0">
+        <div className="flex flex-col gap-3">
+          {events.length === 0 && <div className="text-sm text-[var(--text-soft)]">还没有事件记录。</div>}
+          {events.map((event, index) => (
+            <pre
+              key={`${event.type}-${index}`}
+              className="m-0 whitespace-pre-wrap break-all rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] p-4 text-sm leading-6 text-[var(--text-soft)]"
+            >
+              {JSON.stringify(event, null, 2)}
+            </pre>
+          ))}
+        </div>
       </CardContent>
     </Card>
   );

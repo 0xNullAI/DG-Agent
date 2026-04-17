@@ -19,6 +19,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Sheet,
   SheetClose,
@@ -800,8 +801,10 @@ export function App() {
                 <TabsTrigger value="events">事件</TabsTrigger>
               </TabsList>
 
-              <TabsContent value={inspectorTab} className="mt-5 min-h-0 flex-1 overflow-hidden pr-1">
-                {renderInspectorPanel()}
+              <TabsContent value={inspectorTab} className="mt-5 min-h-0 flex-1 overflow-hidden">
+                <ScrollArea className="h-full min-h-0 pr-1">
+                  {renderInspectorPanel()}
+                </ScrollArea>
               </TabsContent>
             </Tabs>
           </SheetContent>
