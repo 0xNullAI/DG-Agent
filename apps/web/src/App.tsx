@@ -505,8 +505,7 @@ export function App() {
         event.type === 'assistant-message-aborted' ||
         event.type === 'tool-call-denied' ||
         event.type === 'timer-scheduled' ||
-        event.type === 'timer-fired' ||
-        event.type === 'runtime-warning',
+        event.type === 'timer-fired',
     )
     .slice(0, 4)
     .map((event) => {
@@ -534,12 +533,6 @@ export function App() {
             key: `event:timer-fired:${event.sessionId}:${event.label}:${event.firedAt}`,
             text: `定时已触发：${event.label}`,
             variant: 'info' as const,
-          };
-        case 'runtime-warning':
-          return {
-            key: `event:runtime-warning:${event.sessionId ?? 'global'}:${event.message}`,
-            text: event.message,
-            variant: 'warning' as const,
           };
       }
     });
