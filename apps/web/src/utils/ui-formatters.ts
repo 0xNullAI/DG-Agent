@@ -31,8 +31,8 @@ export function formatUiErrorMessage(error: unknown): string {
     return '发生未知错误。';
   }
 
-  if (normalizedMessage.includes('User cancelled the requestDevice() chooser')) {
-    return '你已取消设备选择，设备保持未连接。';
+  if (isBluetoothChooserCancelledError(error)) {
+    return '你已取消设备选择。';
   }
 
   if (normalizedMessage.includes("Failed to execute 'requestDevice' on 'Bluetooth': Must be handling a user gesture")) {
@@ -40,6 +40,13 @@ export function formatUiErrorMessage(error: unknown): string {
   }
 
   return normalizedMessage;
+}
+
+export function isBluetoothChooserCancelledError(error: unknown): boolean {
+  const rawMessage =
+    typeof error === 'string' ? error : error instanceof Error ? error.message : String(error ?? '');
+  const normalizedMessage = rawMessage.trim().replace(/^(DOMException|TypeError|Error|AbortError):\s*/i, '');
+  return normalizedMessage.includes('User cancelled the requestDevice() chooser');
 }
 
 export function getRecentToolActivities(events: RuntimeEvent[]): Array<{ kind: 'proposed' | 'executed' | 'denied'; text: string }> {

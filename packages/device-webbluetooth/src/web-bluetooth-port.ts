@@ -1,7 +1,7 @@
 import type { DevicePort } from '@dg-agent/contracts';
 import type { DeviceCommand, DeviceCommandResult, DeviceState } from '@dg-agent/core';
 import { COYOTE_REQUEST_DEVICE_OPTIONS } from './constants.js';
-import type { NavigatorBluetoothLike, RequestDeviceOptionsLike } from './types.js';
+import type { BluetoothDeviceLike, NavigatorBluetoothLike, RequestDeviceOptionsLike } from './types.js';
 import type { WebBluetoothAvailability, WebBluetoothProtocolAdapter } from './coyote-protocol.js';
 
 export function getWebBluetoothAvailability(
@@ -55,17 +55,39 @@ export class WebBluetoothDevicePort implements DevicePort {
       throw new Error('Web Bluetooth is unavailable.');
     }
 
-    const device = await bluetooth.requestDevice(this.options.requestDeviceOptions ?? COYOTE_REQUEST_DEVICE_OPTIONS);
-    const gatt = device.gatt;
+    const nextDevice = await bluetooth.requestDevice(this.options.requestDeviceOptions ?? COYOTE_REQUEST_DEVICE_OPTIONS);
+    const gatt = nextDevice.gatt;
 
     if (!gatt) {
       throw new Error('Selected Bluetooth device does not expose GATT.');
     }
 
-    this.device = device;
-    device.addEventListener('gattserverdisconnected', this.onDisconnected);
     const server = await gatt.connect();
-    await this.options.protocol.onConnected({ device, server });
+    const previousDevice = this.device as BluetoothDeviceLike | null;
+    const shouldReplacePrevious = !!previousDevice && previousDevice !== nextDevice;
+
+    if (shouldReplacePrevious) {
+      previousDevice.removeEventListener('gattserverdisconnected', this.onDisconnected);
+    }
+
+    try {
+      await this.options.protocol.onConnected({ device: nextDevice, server });
+    } catch (error) {
+      if (shouldReplacePrevious && isGattConnected(previousDevice)) {
+        previousDevice.addEventListener('gattserverdisconnected', this.onDisconnected);
+      }
+      if (gatt.connected) {
+        gatt.disconnect();
+      }
+      throw error;
+    }
+
+    this.device = nextDevice;
+    nextDevice.addEventListener('gattserverdisconnected', this.onDisconnected);
+
+    if (shouldReplacePrevious) {
+      disconnectDevice(previousDevice);
+    }
   }
 
   async disconnect(): Promise<void> {
@@ -119,5 +141,16 @@ export class WebBluetoothDevicePort implements DevicePort {
       listener(state);
     }
   }
+}
+
+function isGattConnected(device: BluetoothDeviceLike | null): boolean {
+  return !!device?.gatt?.connected;
+}
+
+function disconnectDevice(device: BluetoothDeviceLike | null): void {
+  if (!device) return;
+  const gatt = device.gatt;
+  if (!gatt?.connected) return;
+  gatt.disconnect();
 }
 

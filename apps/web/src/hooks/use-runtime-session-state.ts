@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AgentClient } from '@dg-agent/client';
-import type { RuntimeEvent, RuntimeTraceEntry, SessionSnapshot } from '@dg-agent/core';
+import { createEmptyDeviceState, type DeviceState, type RuntimeEvent, type RuntimeTraceEntry, type SessionSnapshot } from '@dg-agent/core';
 import { createSessionId } from '../utils/app-runtime-helpers.js';
 
 export interface UseRuntimeSessionStateOptions {
@@ -26,8 +26,7 @@ export function shouldRefreshSessionForEvent(event: RuntimeEvent): boolean {
     event.type === 'user-message-accepted' ||
     event.type === 'session-updated' ||
     event.type === 'assistant-message-completed' ||
-    event.type === 'assistant-message-aborted' ||
-    event.type === 'device-state-changed'
+    event.type === 'assistant-message-aborted'
   );
 }
 
@@ -38,7 +37,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
   const [session, setSession] = useState<SessionSnapshot | null>(null);
   const [sessionTrace, setSessionTrace] = useState<RuntimeTraceEntry[]>([]);
   const [savedSessions, setSavedSessions] = useState<SessionSnapshot[]>([]);
-  const [deviceConnected, setDeviceConnected] = useState(false);
+  const [liveDeviceState, setLiveDeviceState] = useState<DeviceState>(createEmptyDeviceState());
   const [streamingAssistantText, setStreamingAssistantText] = useState('');
   const onRuntimeEventRef = useRef(onRuntimeEvent);
   const syncRequestIdRef = useRef(0);
@@ -67,7 +66,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
       setSession(currentSession);
       setSessionTrace(currentTrace);
       setSavedSessions(sessions);
-      setDeviceConnected(currentSession.deviceState.connected);
+      setLiveDeviceState(currentSession.deviceState);
     },
     [activeSessionId, client],
   );
@@ -111,7 +110,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
       setSession(currentSession);
       setSessionTrace(currentTrace);
       setSavedSessions(sessions);
-      setDeviceConnected(currentSession.deviceState.connected);
+      setLiveDeviceState(currentSession.deviceState);
     }
 
     void syncCurrentSession();
@@ -127,6 +126,14 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
           onRuntimeEventRef.current?.(event);
         }
         return;
+      }
+
+      if (event.type === 'device-state-changed') {
+        setLiveDeviceState(event.state);
+      }
+
+      if (event.type === 'device-command-executed') {
+        setLiveDeviceState(event.result.state);
       }
 
       if (isActiveSessionEvent && shouldClearStreamingForEvent(event)) {
@@ -162,8 +169,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
     setSession,
     savedSessions,
     setSavedSessions,
-    deviceConnected,
-    setDeviceConnected,
+    liveDeviceState,
     streamingAssistantText,
     clearStreamingAssistantText,
     setStreamingAssistantText,

@@ -36,7 +36,7 @@ import { useVoiceController } from './hooks/use-voice-controller.js';
 import { useWaveformManager } from './hooks/use-waveform-manager.js';
 import { createSessionId, isReplyAbortError } from './utils/app-runtime-helpers.js';
 import { buildWarnings } from './utils/runtime-warnings.js';
-import { formatUiErrorMessage, getRecentToolActivities } from './utils/ui-formatters.js';
+import { formatUiErrorMessage, getRecentToolActivities, isBluetoothChooserCancelledError } from './utils/ui-formatters.js';
 import { buildTraceFeed } from './utils/trace-feed.js';
 
 type InspectorTab = 'runtime' | 'settings' | 'waveforms' | 'bridge' | 'events';
@@ -146,8 +146,7 @@ export function App() {
     setSession,
     savedSessions,
     setSavedSessions,
-    deviceConnected,
-    setDeviceConnected,
+    liveDeviceState,
     streamingAssistantText,
     clearStreamingAssistantText,
     refreshCurrentSession,
@@ -259,21 +258,24 @@ export function App() {
     try {
       setErrorMessage(null);
       await client.connectDevice(activeSessionId);
-      setDeviceConnected(true);
       setStatusMessage('设备已连接。');
       await refreshCurrentSession(activeSessionId);
       return true;
     } catch (error) {
+      if (isBluetoothChooserCancelledError(error)) {
+        setErrorMessage(null);
+        setStatusMessage(liveDeviceState.connected ? '已取消重连，当前设备连接保持不变。' : '已取消设备选择，当前仍未连接设备。');
+        return false;
+      }
       setErrorMessage(formatUiErrorMessage(error));
       return false;
     }
-  }, [activeSessionId, client, refreshCurrentSession, setDeviceConnected]);
+  }, [activeSessionId, client, liveDeviceState.connected, refreshCurrentSession]);
 
   const disconnect = useCallback(async (): Promise<void> => {
     try {
       setErrorMessage(null);
       await client.disconnectDevice();
-      setDeviceConnected(false);
       setStatusMessage('设备已断开。');
       if (activeSessionId) {
         await refreshCurrentSession(activeSessionId);
@@ -281,7 +283,7 @@ export function App() {
     } catch (error) {
       setErrorMessage(formatUiErrorMessage(error));
     }
-  }, [activeSessionId, client, refreshCurrentSession, setDeviceConnected]);
+  }, [activeSessionId, client, refreshCurrentSession]);
 
   const sendTextMessage = useCallback(async (message: string): Promise<'sent' | 'aborted' | 'failed'> => {
     if (!message.trim() || !activeSessionId) return 'failed';
@@ -492,7 +494,7 @@ export function App() {
     setControlOpen(true);
   }
 
-  const deviceState = session?.deviceState ?? createEmptyDeviceState();
+  const deviceState = liveDeviceState ?? createEmptyDeviceState();
   const warnings = buildWarnings(settings, modes, speechCapabilities);
   const toolActivities = getRecentToolActivities(events);
   const traceFeed = buildTraceFeed(sessionTrace);
