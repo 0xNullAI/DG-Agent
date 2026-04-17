@@ -565,6 +565,10 @@ export function App() {
       setSettingsDraft(next);
     }
 
+    if (!nextOpen) {
+      setEditingWaveform(null);
+    }
+
     setControlOpen(nextOpen);
   }
 
@@ -761,12 +765,24 @@ export function App() {
           </DialogContent>
         </Dialog>
 
-        {editingWaveform && (
-          <section className="permission-modal-backdrop">
-            <div className="permission-modal waveform-modal">
+        <Dialog
+          open={Boolean(editingWaveform)}
+          onOpenChange={(open) => {
+            if (!open) {
+              setEditingWaveform(null);
+            }
+          }}
+        >
+          {editingWaveform && (
+            <DialogContent
+              overlayClassName="bg-black/18 backdrop-blur-[2px]"
+              className="max-w-[680px] overflow-hidden p-0"
+            >
               <div className="panel-header">
-                <h2>编辑波形</h2>
-                <span className="panel-meta">{editingWaveform.id}</span>
+                <div className="min-w-0 flex-1">
+                  <DialogTitle className="text-[1.1rem] tracking-[-0.03em]">编辑波形</DialogTitle>
+                  <DialogDescription className="mt-1">修改自定义波形的名称和说明。</DialogDescription>
+                </div>
               </div>
               <label className="settings">
                 <span>名称</span>
@@ -801,15 +817,15 @@ export function App() {
                   }
                 />
               </label>
-              <div className="settings-actions">
+              <div className="settings-actions waveform-modal-actions mt-2 mb-5">
                 <Button variant="secondary" onClick={() => setEditingWaveform(null)}>
                   取消
                 </Button>
                 <Button onClick={() => void saveWaveformEdits()}>保存</Button>
               </div>
-            </div>
-          </section>
-        )}
+            </DialogContent>
+          )}
+        </Dialog>
 
         <Sheet open={controlOpen} onOpenChange={handleControlOpenChange}>
           <SheetContent side="right" className="flex h-full max-w-[520px] flex-col overflow-hidden bg-[var(--bg-elevated)] p-4 [&>button]:hidden">

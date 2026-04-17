@@ -1152,6 +1152,10 @@ textarea:focus {
   width: min(680px, 100%);
 }
 
+.waveform-modal-actions {
+  padding: 0.5rem 1.25rem 0;
+}
+
 .safety-notice-backdrop {
   z-index: 60;
 }
