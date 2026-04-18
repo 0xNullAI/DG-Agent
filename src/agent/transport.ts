@@ -41,7 +41,7 @@ export function resolveProviderConfig(): TransportConfig {
   if (providerId === 'free') {
     baseUrl = FREE_PROXY_URL;
     apiKey = 'free';
-    model = 'qwen3.5-plus';
+    model = 'Qwen3.5-Plus';
   } else if (providerId === 'qwen') {
     baseUrl = baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
     model = model || 'qwen3.5-plus';
@@ -61,7 +61,9 @@ export function resolveProviderConfig(): TransportConfig {
   // that reject `strict`, `additionalProperties:false`, or nullable unions.
   const useStrict = providerId === 'custom' ? raw.useStrict !== 'false' : true;
   const endpoint =
-    providerId === 'deepseek' || (providerId === 'custom' && raw.endpoint === 'chat/completions')
+    providerId === 'free' ||
+    providerId === 'deepseek' ||
+    (providerId === 'custom' && raw.endpoint === 'chat/completions')
       ? 'chat/completions'
       : 'responses';
 

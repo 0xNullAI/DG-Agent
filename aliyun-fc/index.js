@@ -8,7 +8,8 @@
  *   2. Region: cn-hangzhou (same as DashScope for lowest latency)
  *   3. Upload this folder as zip, or paste inline
  *   4. Environment variables:
- *        BAILIAN_API_KEY = sk-xxx   (your Qwen Bailian API key)
+ *        PROXY_API_KEY   = sk-xxx   (ai.071129.xyz API key, for chat completions)
+ *        BAILIAN_API_KEY = sk-xxx   (Qwen Bailian API key, for ASR / TTS WebSocket)
  *   5. HTTP Trigger: authentication = anonymous
  *   6. Listen port: 9000 (FC web function default)
  */
@@ -16,7 +17,7 @@
 const http = require('http');
 const WS = require('ws');
 
-const BAILIAN_API = 'https://dashscope.aliyuncs.com/compatible-mode/v1/responses';
+const PROXY_API = 'https://ai.071129.xyz/v1/chat/completions';
 const BAILIAN_ASR_API = 'https://dashscope.aliyuncs.com/compatible-mode/v1/audio/transcriptions';
 const DASHSCOPE_ASR_WS = 'wss://dashscope.aliyuncs.com/api-ws/v1/inference';
 const DASHSCOPE_TTS_WS = 'wss://dashscope.aliyuncs.com/api-ws/v1/inference';
@@ -244,19 +245,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  body.model = body.model || 'qwen3.6-plus';
-  body.max_output_tokens = Math.min(body.max_output_tokens || 2048, 2048);
+  body.model = body.model || 'Qwen3.5-Plus';
+  body.max_tokens = Math.min(body.max_tokens || 2048, 2048);
+  delete body.max_output_tokens;
   delete body.api_key;
   delete body.apiKey;
 
-  const apiKey = process.env.BAILIAN_API_KEY;
+  const apiKey = process.env.PROXY_API_KEY;
   if (!apiKey) {
-    sendJson(res, 500, { error: '服务端未配置 BAILIAN_API_KEY' });
+    sendJson(res, 500, { error: '服务端未配置 PROXY_API_KEY' });
     return;
   }
 
   try {
-    const upstream = await fetch(BAILIAN_API, {
+    const upstream = await fetch(PROXY_API, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
