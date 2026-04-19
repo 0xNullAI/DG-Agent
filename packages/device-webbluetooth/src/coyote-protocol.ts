@@ -73,6 +73,8 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
   private tickWorker: Worker | null = null;
   private tickInterval: ReturnType<typeof setInterval> | null = null;
   private tickInFlight = false;
+  private tickPaused = false;
+  private suppressStaleStopStrengthNotifications = false;
 
   private seq = 0;
   private pendingMode = 0;
@@ -148,6 +150,8 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
   }
 
   async onDisconnected(): Promise<void> {
+    this.tickPaused = false;
+    this.suppressStaleStopStrengthNotifications = false;
     this.stopTickLoop();
     this.cancelBurstRestore('A');
     this.cancelBurstRestore('B');
@@ -200,6 +204,10 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
       throw new Error('设备未连接');
     }
 
+    if (command.type !== 'emergencyStop') {
+      this.suppressStaleStopStrengthNotifications = false;
+    }
+
     switch (command.type) {
       case 'start':
         this.setAbsoluteStrength(command.channel, command.strength);
@@ -235,6 +243,11 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
   }
 
   async emergencyStop(): Promise<void> {
+    this.tickPaused = true;
+    this.suppressStaleStopStrengthNotifications = true;
+    this.stopTickLoop();
+    await this.waitForTickIdle();
+
     this.cancelBurstRestore('A');
     this.cancelBurstRestore('B');
     this.clearWave('A');
@@ -262,6 +275,11 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     }
 
     this.emit();
+
+    this.tickPaused = false;
+    if (this.state.connected) {
+      this.startTickLoop();
+    }
   }
 
   private resetProtocolState(): void {
@@ -362,12 +380,16 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
   }
 
   private async onTick(): Promise<void> {
-    if (this.tickInFlight || !this.state.connected) {
+    if (this.tickPaused || this.tickInFlight || !this.state.connected) {
       return;
     }
 
     this.tickInFlight = true;
     try {
+      if (this.tickPaused || !this.state.connected) {
+        return;
+      }
+
       if (this.deviceVersion === 3) {
         if (this.writeChar) {
           await this.writeChar.writeValueWithoutResponse(this.buildB0());
@@ -375,9 +397,17 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
       } else {
         await this.v2Tick();
       }
-      this.emit();
+      if (!this.tickPaused) {
+        this.emit();
+      }
     } finally {
       this.tickInFlight = false;
+    }
+  }
+
+  private async waitForTickIdle(): Promise<void> {
+    while (this.tickInFlight) {
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
   }
 
@@ -604,8 +634,15 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     if (value.getUint8(0) !== 0xb1) return;
 
     const ackSeq = value.getUint8(1);
-    this.state.strengthA = value.getUint8(2);
-    this.state.strengthB = value.getUint8(3);
+    const nextStrengthA = value.getUint8(2);
+    const nextStrengthB = value.getUint8(3);
+
+    if (this.shouldIgnoreStaleStopStrengthNotification(nextStrengthA, nextStrengthB)) {
+      return;
+    }
+
+    this.state.strengthA = nextStrengthA;
+    this.state.strengthB = nextStrengthB;
 
     if (this.awaitingAck && ackSeq === this.seq) {
       this.awaitingAck = false;
@@ -623,10 +660,21 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     const raw = (value.getUint8(0) << 16) | (value.getUint8(1) << 8) | value.getUint8(2);
     const rawA = (raw >> 11) & 0x7ff;
     const rawB = raw & 0x7ff;
-    this.state.strengthA = Math.round((rawA * 200) / 2047);
-    this.state.strengthB = Math.round((rawB * 200) / 2047);
+    const nextStrengthA = Math.round((rawA * 200) / 2047);
+    const nextStrengthB = Math.round((rawB * 200) / 2047);
+
+    if (this.shouldIgnoreStaleStopStrengthNotification(nextStrengthA, nextStrengthB)) {
+      return;
+    }
+
+    this.state.strengthA = nextStrengthA;
+    this.state.strengthB = nextStrengthB;
     this.emit();
   };
+
+  private shouldIgnoreStaleStopStrengthNotification(strengthA: number, strengthB: number): boolean {
+    return this.suppressStaleStopStrengthNotifications && (strengthA !== 0 || strengthB !== 0);
+  }
 
   private emit(): void {
     const snapshot = this.getState();

@@ -433,6 +433,13 @@ export function App() {
         denyPendingPermissionRequest('已因新建会话终止当前回复');
         stopAllVoiceActivity({ disableMode: true });
         await client.abortCurrentReply(activeSessionId);
+      } catch (error) {
+        if (!isReplyAbortError(error)) {
+          setErrorMessage(formatUiErrorMessage(error));
+        }
+      }
+
+      try {
         await client.emergencyStop(activeSessionId);
       } catch (error) {
         setErrorMessage(formatUiErrorMessage(error));
@@ -448,9 +455,7 @@ export function App() {
     setStatusMessage('已创建新会话');
     setSidebarOpen(false);
 
-    const nextSession = await client.getSessionSnapshot(nextSessionId);
-    setSession(nextSession);
-    setSavedSessions(await client.listSessions());
+    await refreshCurrentSession(nextSessionId);
   }
 
   async function deleteSession(sessionId: string): Promise<void> {

@@ -25,7 +25,7 @@ export class BrowserSafetyGuard {
     const leaveHandler = () => invokeStop('leave-page');
     const visibilityHandler = () => {
       if (document.visibilityState === 'hidden' && this.options.backgroundBehavior === 'stop') {
-        invokeStop('background-hidden');
+        // invokeStop('background-hidden'); 
       }
     };
 
