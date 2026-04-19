@@ -14,7 +14,7 @@ export const PROVIDERS: ProviderDef[] = [
   {
     id: 'free',
     name: '免费体验',
-    hint: '无需 API Key，每分钟限 10 条。使用阿里云线路。',
+    hint: '无需配置 API Key，由公共额度统一提供，服务可用性可能受共享使用情况影响。',
     fields: [],
   },
   {
