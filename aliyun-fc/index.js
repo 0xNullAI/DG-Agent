@@ -1,15 +1,14 @@
 /**
  * Aliyun Function Compute (FC 3.0) — DG-Agent Free Tier Proxy
  *
- * Rate-limited proxy to Qwen Bailian Responses API.
+ * Rate-limited proxy to Qwen Bailian Responses API (chat completions only).
  *
  * Deploy (FC 3.0 Console):
  *   1. Create function -> Web Function -> Runtime: Node.js 20
  *   2. Region: cn-hangzhou (same as DashScope for lowest latency)
  *   3. Upload this folder as zip, or paste inline
  *   4. Environment variables:
- *        PROXY_API_KEY   = sk-xxx   (ai.071129.xyz API key, for chat completions)
- *        BAILIAN_API_KEY = sk-xxx   (Qwen Bailian API key, for ASR / TTS WebSocket)
+ *        PROXY_API_KEY = sk-xxx   (ai.071129.xyz API key, for chat completions)
  *   5. HTTP Trigger: authentication = anonymous
  *   6. Listen port: 9000 (FC web function default)
  */
@@ -18,9 +17,7 @@ const http = require('http');
 
 const PROXY_API = 'https://ai.071129.xyz/v1/chat/completions';
 const MAX_REQUESTS_PER_MINUTE = 10;
-const ALLOWED_ORIGINS = [
-  'https://0xnullai.github.io',
-];
+const ALLOWED_ORIGINS = ['https://0xnullai.github.io'];
 const PORT = parseInt(process.env.FC_SERVER_PORT || '9000', 10);
 
 // In-memory rate limit map: ip -> { minute, count }
@@ -35,13 +32,23 @@ function cleanupRateLimitMap() {
   }
 }
 
+function checkRateLimit(ip) {
+  const now = Math.floor(Date.now() / 60000);
+  cleanupRateLimitMap();
+  const entry = rateLimitMap.get(ip);
+  const count = entry && entry.minute === now ? entry.count : 0;
+  if (count >= MAX_REQUESTS_PER_MINUTE) return false;
+  rateLimitMap.set(ip, { minute: now, count: count + 1 });
+  return true;
+}
+
 function pickAllowedOrigin(reqOrigin) {
   return ALLOWED_ORIGINS.find((o) => reqOrigin.startsWith(o)) || ALLOWED_ORIGINS[0];
 }
 
 function setCors(res, reqOrigin) {
   res.setHeader('Access-Control-Allow-Origin', pickAllowedOrigin(reqOrigin));
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400');
 }
@@ -63,6 +70,10 @@ function getClientIp(req) {
   if (xff) return String(xff).split(',')[0].trim();
   return req.socket.remoteAddress || 'unknown';
 }
+
+// ---------------------------------------------------------------------------
+// HTTP server
+// ---------------------------------------------------------------------------
 
 const server = http.createServer(async (req, res) => {
   const origin = req.headers['origin'] || '';
@@ -87,17 +98,12 @@ const server = http.createServer(async (req, res) => {
   }
 
   const ip = getClientIp(req);
-  const now = Math.floor(Date.now() / 60000);
-  cleanupRateLimitMap();
-  const entry = rateLimitMap.get(ip);
-  const count = entry && entry.minute === now ? entry.count : 0;
-  if (count >= MAX_REQUESTS_PER_MINUTE) {
+  if (!checkRateLimit(ip)) {
     sendJson(res, 429, {
       error: `请求过于频繁，每分钟最多 ${MAX_REQUESTS_PER_MINUTE} 条，请稍后再试。`,
     });
     return;
   }
-  rateLimitMap.set(ip, { minute: now, count: count + 1 });
 
   let body;
   try {

@@ -9,7 +9,8 @@ import { $ } from './index';
 export function toggle(): void {
   const sidebar = $('sidebar')!;
   const isOpen = !sidebar.classList.contains('sidebar-closed');
-  if (isOpen) close(); else open();
+  if (isOpen) close();
+  else open();
 }
 
 export function open(): void {
@@ -65,13 +66,14 @@ export function renderList(): void {
 
     const delBtn = document.createElement('button');
     delBtn.className = 'history-item-del';
-    delBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
+    delBtn.innerHTML =
+      '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>';
     delBtn.title = '删除';
     delBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       history.deleteConversation(conv.id);
       if (current?.id === conv.id) {
-        conversation.startNewConversation();
+        conversation.createConversation();
         const messagesEl = $('messages');
         if (messagesEl) messagesEl.innerHTML = '';
       }

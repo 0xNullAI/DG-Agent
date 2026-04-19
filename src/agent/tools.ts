@@ -17,7 +17,12 @@ const CH = { type: 'string', enum: ['A', 'B'], description: '通道 A 或 B' } a
 
 function snap() {
   const s = bt.getStatus();
-  return { strengthA: s.strengthA, strengthB: s.strengthB, waveActiveA: s.waveActiveA, waveActiveB: s.waveActiveB };
+  return {
+    strengthA: s.strengthA,
+    strengthB: s.strengthB,
+    waveActiveA: s.waveActiveA,
+    waveActiveB: s.waveActiveB,
+  };
 }
 
 function clamp(value: number, channel: string): { value: number; limited: boolean } {
@@ -44,7 +49,7 @@ function num(v: unknown, fallback = 0): number {
 // MUST NOT persist past duration_ms, regardless of what happens in between.
 // The timer is only cancelled when the channel has already been zeroed —
 // i.e. by `stop` or by emergency stop via fullStop(). All other mutating
-// tools (adjust_strength, change_wave, start) let the timer fire; the
+// tools (adjust_strength, change_wave, start) let the timer elapse; the
 // handler's min(current, prev) floor keeps the outcome safe.
 const burstRestores = new Map<'A' | 'B', ReturnType<typeof setTimeout>>();
 
@@ -67,12 +72,10 @@ function cancelBurstRestore(channel: 'A' | 'B' | 'all'): void {
 }
 
 /**
- * Cancel every pending burst-restore timer. Exposed for the emergency-stop
- * paths that bypass the tool layer (visibilitychange, beforeunload) so a
- * pending restore cannot revive the device after the user or lifecycle
- * handler has already zeroed it.
+ * Cancel every pending burst-restore timer so a pending restore cannot
+ * revive the device after the runtime has already zeroed it.
  */
-export function cancelAllBurstRestores(): void {
+function cancelAllBurstRestores(): void {
   cancelBurstRestore('all');
 }
 
@@ -83,7 +86,10 @@ export function cancelAllBurstRestores(): void {
 function resolveWaveform(id: string): UserWaveform {
   const w = waveforms.getById(id);
   if (w) return w;
-  const available = waveforms.getAll().map((x) => x.id).join(', ');
+  const available = waveforms
+    .getAll()
+    .map((x) => x.id)
+    .join(', ');
   throw new Error(`未知波形 id "${id}"。可用波形: ${available || '(空)'}`);
 }
 
@@ -97,9 +103,10 @@ function resolveWaveform(id: string): UserWaveform {
 function buildToolDefs(): ToolDef[] {
   const list = waveforms.getAll();
   const waveEnum = list.map((w) => w.id);
-  const waveDesc = list.length === 0
-    ? '（波形库为空）'
-    : list.map((w) => `  • ${w.id} — ${w.description || w.name}`).join('\n');
+  const waveDesc =
+    list.length === 0
+      ? '（波形库为空）'
+      : list.map((w) => `  • ${w.id} — ${w.description || w.name}`).join('\n');
 
   return [
     {
@@ -220,6 +227,34 @@ function buildToolDefs(): ToolDef[] {
         required: ['channel', 'strength', 'duration_ms'],
       },
     },
+    {
+      name: 'timer',
+      description:
+        '【定时器工具】设定一个倒计时，在指定时间后由系统触发提醒。用于规划未来的动作、控制刺激节奏或设定限时任务。\n\n' +
+        '工作机制：调用后，Agent 会在指定时间（s）后收到一条隐藏的系统消息提醒“定时器已到期”。\n\n' +
+        '使用场景：\n' +
+        '• 延时动作：例如“30秒后加大强度” → timer(seconds=30, label="increase_strength")\n' +
+        '• 节奏控制：例如“让用户保持这个强度5分钟” → timer(seconds=300, label="end_plateau")\n' +
+        '• 限时惩罚：例如“惩罚持续1分钟” → timer(seconds=60, label="stop_punishment")\n\n' +
+        '注意：定时器是异步的，调用后 Agent 应继续当前的对话，直到收到到期提醒后再执行后续逻辑。',
+      parameters: {
+        type: 'object',
+        properties: {
+          seconds: {
+            type: 'integer',
+            minimum: 1,
+            maximum: 3600,
+            description: '定时器时长（秒）。例如：1分钟为 60。',
+          },
+          label: {
+            type: 'string',
+            description:
+              '定时器的标签或备注。到期提醒时会带上此内容，帮助你回忆该定时器的用途（例如 "stop_punishment"）。',
+          },
+        },
+        required: ['seconds', 'label'],
+      },
+    },
   ];
 }
 
@@ -269,7 +304,13 @@ const HANDLERS: Record<string, Handler> = {
     const safe = clamp(current + deltaN, channel);
     const actualDelta = safe.value - current;
     if (actualDelta !== 0) bt.addStrength(channel, actualDelta);
-    return { channel, requestedDelta: deltaN, actualDelta, result: safe.value, limited: safe.limited };
+    return {
+      channel,
+      requestedDelta: deltaN,
+      actualDelta,
+      result: safe.value,
+      limited: safe.limited,
+    };
   },
 
   change_wave({ channel, waveform, loop }) {
@@ -338,21 +379,35 @@ const HANDLERS: Record<string, Handler> = {
 };
 
 // ---------------------------------------------------------------------------
-// Exports
+// Timer runtime
 // ---------------------------------------------------------------------------
 
-export function getTools(): ToolDef[] {
-  return buildToolDefs();
+export interface ScheduledTimer {
+  id: string;
+  label: string;
+  seconds: number;
+  scheduledAt: number;
+  dueAt: number;
 }
 
-export async function executeTool(name: string, args: Record<string, any>): Promise<string> {
-  const handler = HANDLERS[name];
+export interface ToolRuntime {
+  getTools(): ToolDef[];
+  executeTool(name: string, args: Record<string, any>): Promise<string>;
+  fullStop(): void;
+}
+
+function nextTimerId(): string {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+}
+
+async function runHandler(
+  handlers: Record<string, Handler>,
+  name: string,
+  args: Record<string, any>,
+): Promise<string> {
+  const handler = handlers[name];
   if (!handler) return JSON.stringify({ error: `Unknown tool: ${name}` });
 
-  // Centralised disconnect guard: every tool in the registry is now
-  // mutating, so we can fail fast unconditionally if the device isn't
-  // connected. The friendly error tells the model to ask the user to
-  // reconnect rather than retrying with the same args.
   if (!bt.getStatus().connected) {
     return JSON.stringify({
       error: '设备未连接，无法执行该操作。请告知用户先在 App 内连接郊狼设备，再继续。',
@@ -372,4 +427,75 @@ export async function executeTool(name: string, args: Record<string, any>): Prom
     console.error(`[tools] ${name}:`, err);
     return JSON.stringify({ error: err instanceof Error ? err.message : String(err) });
   }
+}
+
+export function createToolsRuntime(opts?: {
+  onTimerDue?: (timer: ScheduledTimer) => void;
+}): ToolRuntime {
+  const scheduledTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  const onTimerDue = opts?.onTimerDue;
+  const handlers: Record<string, Handler> = { ...HANDLERS };
+
+  /**
+   * Cancel any pending timers that haven't yet triggered.
+   */
+  function cancelAllScheduledTimers(): void {
+    for (const [, timer] of scheduledTimers) clearTimeout(timer);
+    scheduledTimers.clear();
+  }
+
+  if (onTimerDue) {
+    handlers.timer = ({ seconds, label }) => {
+      const requestedSeconds = num(seconds, 1);
+      const actualSeconds = Math.min(Math.max(1, requestedSeconds), 3600);
+      const safeLabel = String(label ?? '').trim() || 'timer';
+      const scheduledAt = Date.now();
+      const dueAt = scheduledAt + actualSeconds * 1000;
+      const timerInfo: ScheduledTimer = {
+        id: nextTimerId(),
+        label: safeLabel,
+        seconds: actualSeconds,
+        scheduledAt,
+        dueAt,
+      };
+
+      const timer = setTimeout(() => {
+        scheduledTimers.delete(timerInfo.id);
+        try {
+          onTimerDue(timerInfo);
+        } catch (err) {
+          console.error('[tools] timer listener:', err);
+        }
+      }, actualSeconds * 1000);
+
+      scheduledTimers.set(timerInfo.id, timer);
+
+      return {
+        timer: {
+          id: timerInfo.id,
+          label: timerInfo.label,
+          seconds: {
+            requested: requestedSeconds,
+            actual: timerInfo.seconds,
+            limited: requestedSeconds !== timerInfo.seconds,
+          },
+          dueAt: timerInfo.dueAt,
+        },
+      };
+    };
+  }
+
+  const enabledToolNames = new Set(Object.keys(handlers));
+
+  return {
+    getTools: () => buildToolDefs().filter((tool) => enabledToolNames.has(tool.name)),
+    executeTool: (name, args) => runHandler(handlers, name, args),
+    fullStop(): void {
+      cancelAllScheduledTimers();
+      cancelAllBurstRestores();
+      if (bt.state.connected) {
+        bt.emergencyStop();
+      }
+    },
+  };
 }

@@ -20,7 +20,7 @@ import {
   MAX_TOOL_ITERATIONS,
   MAX_TOOL_CALLS_PER_TURN,
   MAX_ADJUST_STRENGTH_PER_TURN,
-  MAX_BURST_PER_TURN,
+  MAX_BURST_PER_CHANNEL_PER_TURN,
 } from './policies';
 import type { TurnToolCall } from './prompts';
 import { callResponses, type TransportConfig } from './transport';
@@ -85,8 +85,8 @@ interface RunnerState {
   totalToolCalls: number;
   /** adjust_strength calls so far this turn. */
   adjustStrengthCalls: number;
-  /** burst calls so far this turn. */
-  burstCalls: number;
+  /** burst calls so far this turn, counted per channel. */
+  burstCallsByChannel: { A: number; B: number };
 }
 
 function newState(): RunnerState {
@@ -94,8 +94,14 @@ function newState(): RunnerState {
     workingItems: [],
     totalToolCalls: 0,
     adjustStrengthCalls: 0,
-    burstCalls: 0,
+    burstCallsByChannel: { A: 0, B: 0 },
   };
+}
+
+function normalizeChannel(raw: unknown): 'A' | 'B' | null {
+  if (typeof raw !== 'string') return null;
+  const up = raw.toUpperCase();
+  return up === 'A' || up === 'B' ? up : null;
 }
 
 /**
@@ -123,8 +129,8 @@ function collectTurnToolCalls(state: RunnerState): TurnToolCall[] {
  * those don't belong in the persisted chat history.
  */
 function collectNarrations(state: RunnerState): ConversationItem[] {
-  return state.workingItems.filter((it): it is ConversationItem =>
-    (it as any).role === 'assistant',
+  return state.workingItems.filter(
+    (it): it is ConversationItem => (it as any).role === 'assistant',
   );
 }
 
@@ -148,10 +154,7 @@ export async function runTurn(input: RunTurnInput): Promise<ConversationItem[]> 
     const deviceStatus = input.getDeviceStatus();
     const turnToolCalls = collectTurnToolCalls(state);
     const instructions = input.buildInstructions(deviceStatus, iter === 0, turnToolCalls);
-    const llmInput: ConversationItem[] = [
-      ...input.conversationItems,
-      ...state.workingItems,
-    ];
+    const llmInput: ConversationItem[] = [...input.conversationItems, ...state.workingItems];
 
     const { outputItems, streamedText } = await callResponses(
       llmInput,
@@ -173,10 +176,7 @@ export async function runTurn(input: RunTurnInput): Promise<ConversationItem[]> 
     // assistant message produced this turn — the "narrate then act" lines
     // plus the final text.
     input.sink.onTextComplete();
-    return [
-      ...collectNarrations(state),
-      { role: 'assistant', content: streamedText },
-    ];
+    return [...collectNarrations(state), { role: 'assistant', content: streamedText }];
   }
 
   // Iteration ceiling reached. The model spent all iterations on tool calls
@@ -186,10 +186,7 @@ export async function runTurn(input: RunTurnInput): Promise<ConversationItem[]> 
   const sentinel = '嗯…我这边有点绕进去了，可以换个说法再问一次吗？';
   input.sink.onTextDiscard();
   input.sink.onTextInline(sentinel);
-  return [
-    ...collectNarrations(state),
-    { role: 'assistant', content: sentinel },
-  ];
+  return [...collectNarrations(state), { role: 'assistant', content: sentinel }];
 }
 
 // ---------------------------------------------------------------------------
@@ -254,10 +251,15 @@ async function executeOneCall(
     });
   }
 
-  // Hard cap: burst per turn
-  if (name === 'burst' && state.burstCalls >= MAX_BURST_PER_TURN) {
+  // Hard cap: burst per channel per turn
+  const burstChannel = name === 'burst' ? normalizeChannel(args.channel) : null;
+  if (
+    name === 'burst' &&
+    burstChannel &&
+    state.burstCallsByChannel[burstChannel] >= MAX_BURST_PER_CHANNEL_PER_TURN
+  ) {
     return JSON.stringify({
-      error: `burst 本回合调用已达上限 (${MAX_BURST_PER_TURN} 次)，本次调用被拒绝。短时突增刺激每回合只允许一次，请直接回复用户，不要重复触发。`,
+      error: `burst 通道 ${burstChannel} 本回合调用已达上限 (${MAX_BURST_PER_CHANNEL_PER_TURN} 次)，本次调用被拒绝。同一通道的短时突增每回合只允许一次，请直接回复用户，不要重复触发。`,
     });
   }
 
@@ -273,7 +275,7 @@ async function executeOneCall(
   // MAX_TOOL_CALLS_PER_TURN.
   state.totalToolCalls++;
   if (name === 'adjust_strength') state.adjustStrengthCalls++;
-  if (name === 'burst') state.burstCalls++;
+  if (name === 'burst' && burstChannel) state.burstCallsByChannel[burstChannel]++;
 
   if (permissionDenied) {
     return JSON.stringify({
@@ -345,9 +347,18 @@ function repairJson(raw: string): string {
         continue;
       }
       // Raw control chars inside strings are illegal in JSON; escape them.
-      if (c === '\n') { out += '\\n'; continue; }
-      if (c === '\r') { out += '\\r'; continue; }
-      if (c === '\t') { out += '\\t'; continue; }
+      if (c === '\n') {
+        out += '\\n';
+        continue;
+      }
+      if (c === '\r') {
+        out += '\\r';
+        continue;
+      }
+      if (c === '\t') {
+        out += '\\t';
+        continue;
+      }
       out += c;
       continue;
     }

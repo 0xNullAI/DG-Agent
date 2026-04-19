@@ -69,14 +69,12 @@ export interface FunctionCallOutputItem {
 }
 
 /** Any item in a conversation — can be passed directly as Responses API input */
-export type ConversationItem =
-  | UserItem
-  | AssistantItem
-  | FunctionCallItem
-  | FunctionCallOutputItem;
+export type ConversationItem = UserItem | AssistantItem | FunctionCallItem | FunctionCallOutputItem;
 
 /** Extract displayable text from a conversation item */
-export function getItemText(item: ConversationItem): { role: 'user' | 'assistant'; text: string } | null {
+export function getItemText(
+  item: ConversationItem,
+): { role: 'user' | 'assistant'; text: string } | null {
   if (!item) return null;
   const it = item as any;
   if (it.type === 'function_call' || it.type === 'function_call_output') return null;
@@ -162,6 +160,24 @@ export interface AppSettings {
   permissionMode?: PermissionMode;
   /** Epoch-ms expiry for the 'timed' permission mode. Only read when permissionMode === 'timed'. */
   permissionModeExpiresAt?: number;
+  /** Social platform bridge settings. */
+  bridge?: {
+    enabled: boolean;
+    qq: {
+      enabled: boolean;
+      wsUrl: string;
+      allowUsers: string[];
+      allowGroups: string[];
+      permissionMode: 'ask' | 'always';
+    };
+    telegram: {
+      enabled: boolean;
+      botToken: string;
+      proxyUrl: string;
+      allowUsers: number[];
+      permissionMode: 'ask' | 'always';
+    };
+  };
 }
 
 /** Provider field definition */

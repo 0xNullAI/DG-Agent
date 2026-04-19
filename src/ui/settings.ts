@@ -19,7 +19,14 @@ import * as bluetooth from '../agent/bluetooth';
 import * as waveforms from '../agent/waveforms';
 import * as theme from './theme';
 import { updateStrengthCapMarker } from './device';
-import { $ } from './index';
+import { $, updateBridgeOverlay } from './index';
+import {
+  DEFAULT_BRIDGE_SETTINGS,
+  type BridgeSettings,
+  initBridge,
+  stopBridge,
+  getAdapterStatus,
+} from '../bridge';
 
 let activePresetIdRef: () => string;
 let customPromptRef: () => string;
@@ -33,7 +40,7 @@ export function init(getPresetId: () => string, getCustomPrompt: () => string): 
 // settings modal is open; cleaned up on close.
 let permissionCountdownTimer: number | null = null;
 
-type TopTab = 'basic' | 'security' | 'waveforms';
+type TopTab = 'basic' | 'security' | 'waveforms' | 'bridge';
 let activeTopTab: TopTab = 'basic';
 
 export function open(): void {
@@ -47,6 +54,7 @@ export function open(): void {
   renderConfig(saved.provider);
   renderBehaviorSettings(saved);
   renderWaveformsPanel();
+  renderBridgePanel();
   updateTopPanelVisibility();
   startPermissionCountdown();
 }
@@ -56,9 +64,10 @@ function renderTopTabs(): void {
   container.innerHTML = '';
 
   const tabs: Array<{ id: TopTab; label: string }> = [
-    { id: 'basic', label: '基础设置' },
+    { id: 'basic', label: '基础' },
     { id: 'security', label: '安全' },
     { id: 'waveforms', label: '波形' },
+    { id: 'bridge', label: 'Bot' },
   ];
 
   tabs.forEach((t) => {
@@ -82,6 +91,8 @@ function updateTopPanelVisibility(): void {
   $('settings-panel-basic')!.classList.toggle('hidden', activeTopTab !== 'basic');
   $('settings-panel-security')!.classList.toggle('hidden', activeTopTab !== 'security');
   $('settings-panel-waveforms')!.classList.toggle('hidden', activeTopTab !== 'waveforms');
+  const bridgePanel = $('settings-panel-bridge');
+  if (bridgePanel) bridgePanel.classList.toggle('hidden', activeTopTab !== 'bridge');
 }
 
 function renderPageConfig(): void {
@@ -102,9 +113,9 @@ function renderPageConfig(): void {
   seg.setAttribute('aria-label', '主题模式');
 
   const options: Array<{ mode: theme.ThemeMode; label: string }> = [
-    { mode: 'auto',  label: '跟随系统' },
+    { mode: 'auto', label: '跟随系统' },
     { mode: 'light', label: '浅色' },
-    { mode: 'dark',  label: '深色' },
+    { mode: 'dark', label: '深色' },
   ];
 
   const current = theme.getMode();
@@ -205,10 +216,14 @@ export function updateCurrentAiLabel(): void {
 export function saveCurrentSettings(): void {
   const saved = loadSettings();
 
-  const inputs = document.querySelectorAll<HTMLInputElement | HTMLSelectElement>('.provider-cfg-input');
+  const inputs = document.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+    '.provider-cfg-input',
+  );
   if (inputs.length > 0) {
     const currentCfg: Record<string, string> = {};
-    inputs.forEach((inp) => { currentCfg[inp.dataset.key!] = inp.value; });
+    inputs.forEach((inp) => {
+      currentCfg[inp.dataset.key!] = inp.value;
+    });
     saved.configs[saved.provider] = currentCfg;
   }
 
@@ -241,9 +256,7 @@ function renderBehaviorSettings(saved: AppSettings): void {
   capsRow.className = 'max-strength-row';
 
   const makeStepper = (channel: 'A' | 'B'): HTMLDivElement => {
-    const initial = normalizeCap(
-      channel === 'A' ? saved.maxStrengthA : saved.maxStrengthB,
-    );
+    const initial = normalizeCap(channel === 'A' ? saved.maxStrengthA : saved.maxStrengthB);
 
     const card = document.createElement('div');
     card.className = 'strength-stepper';
@@ -297,7 +310,9 @@ function renderBehaviorSettings(saved: AppSettings): void {
           const cur = channel === 'A' ? status.strengthA : status.strengthB;
           if (cur > next) bluetooth.setStrength(channel, next);
         }
-      } catch (_) { /* ignore */ }
+      } catch (_) {
+        /* ignore */
+      }
     };
 
     const bump = (delta: number): void => {
@@ -413,17 +428,16 @@ function renderPermissionModeControl(parent: HTMLElement): void {
     sub: string;
     cls: string;
   }> = [
-    { mode: 'ask',    label: '每次询问',      sub: '推荐，最安全',       cls: 'ask'    },
-    { mode: 'timed',  label: '5 分钟内免询问', sub: '到期自动恢复询问',  cls: 'timed'  },
-    { mode: 'always', label: '全部允许',      sub: '高风险，不再弹窗',   cls: 'always' },
+    { mode: 'ask', label: '每次询问', sub: '推荐，最安全', cls: 'ask' },
+    { mode: 'timed', label: '5 分钟内免询问', sub: '到期自动恢复询问', cls: 'timed' },
+    { mode: 'always', label: '全部允许', sub: '高风险，不再弹窗', cls: 'always' },
   ];
 
   options.forEach((opt) => {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className =
-      `perm-mode-btn perm-mode-btn-${opt.cls}` +
-      (opt.mode === currentMode ? ' active' : '');
+      `perm-mode-btn perm-mode-btn-${opt.cls}` + (opt.mode === currentMode ? ' active' : '');
     btn.dataset.mode = opt.mode;
     btn.setAttribute('role', 'radio');
     btn.setAttribute('aria-checked', String(opt.mode === currentMode));
@@ -526,7 +540,8 @@ function renderWaveformsPanel(): void {
     : `当前 ${list.length} 个波形，建议不超过 10 个——波形数量会影响 AI 性能。`;
   hint.textContent =
     '支持导入单个 .pulse 文件或包含多个 .pulse 的 .zip 压缩包。导入后可手动编辑名称和说明，这些信息会被 AI 用来选择合适的波形。' +
-    '\n\n' + countLine;
+    '\n\n' +
+    countLine;
   hint.style.whiteSpace = 'pre-line';
   if (over) hint.style.color = 'var(--color-danger, #d33)';
   container.appendChild(hint);
@@ -587,6 +602,340 @@ function renderWaveformsPanel(): void {
   }
 
   container.appendChild(listEl);
+}
+
+// ---------------------------------------------------------------------------
+// Social platform bridge panel
+// ---------------------------------------------------------------------------
+
+function loadBridgeSettings(): BridgeSettings {
+  const saved = loadSettings();
+  return saved.bridge || DEFAULT_BRIDGE_SETTINGS;
+}
+
+function saveBridgeSettings(bs: BridgeSettings): void {
+  const saved = loadSettings();
+  saved.bridge = bs;
+  persistSettings(saved);
+}
+
+type BridgeTab = 'qq' | 'telegram';
+let activeBridgeTab: BridgeTab = 'qq';
+
+function renderBridgePanel(): void {
+  const container = $('settings-panel-bridge');
+  if (!container) return;
+  container.innerHTML = '';
+
+  const bs = loadBridgeSettings();
+
+  // ---- Top row: status + save button ----
+  const topRow = document.createElement('div');
+  topRow.className = 'bridge-top-row';
+
+  const statusRow = document.createElement('div');
+  statusRow.className = 'bridge-status-row';
+  const statuses = getAdapterStatus();
+  if (statuses.length > 0) {
+    for (const s of statuses) {
+      const dot = document.createElement('span');
+      dot.className = `bridge-status-dot ${s.connected ? 'connected' : 'disconnected'}`;
+      dot.textContent = `${s.platform.toUpperCase()}: ${s.connected ? '已连接' : '未连接'}`;
+      statusRow.appendChild(dot);
+    }
+  } else {
+    statusRow.textContent = '未启用任何平台';
+  }
+  topRow.appendChild(statusRow);
+
+  const applyBtn = document.createElement('button');
+  applyBtn.className = 'btn-primary';
+  applyBtn.textContent = '保存并重新连接';
+  applyBtn.addEventListener('click', async () => {
+    applyBtn.disabled = true;
+    applyBtn.textContent = '连接中…';
+    try {
+      await stopBridge();
+      const { sendMessage } = await import('../agent/conversation');
+      await initBridge((text) => sendMessage(text));
+      applyBtn.textContent = '已连接 ✓';
+      updateBridgeOverlay();
+      setTimeout(() => renderBridgePanel(), 1500);
+    } catch (err) {
+      applyBtn.textContent = '连接失败';
+      console.error('[Bridge] Reconnect error:', err);
+      setTimeout(() => renderBridgePanel(), 2000);
+    }
+  });
+  topRow.appendChild(applyBtn);
+  container.appendChild(topRow);
+
+  // Master toggle
+  container.appendChild(
+    makeToggleRow('启用社交平台桥接', bs.enabled, (on) => {
+      bs.enabled = on;
+      saveBridgeSettings(bs);
+    }),
+  );
+
+  // ---- Platform tabs ----
+  const tabBar = document.createElement('div');
+  tabBar.className = 'provider-tabs bridge-tabs';
+
+  const tabs: Array<{ id: BridgeTab; label: string; connected: boolean | null }> = [
+    {
+      id: 'qq',
+      label: 'QQ',
+      connected: statuses.find((s) => s.platform === 'qq')?.connected ?? null,
+    },
+    {
+      id: 'telegram',
+      label: 'Telegram',
+      connected: statuses.find((s) => s.platform === 'telegram')?.connected ?? null,
+    },
+  ];
+
+  tabs.forEach((t) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'provider-tab' + (t.id === activeBridgeTab ? ' active' : '');
+    btn.dataset.tab = t.id;
+    if (t.connected === true) btn.classList.add('tab-connected');
+    btn.textContent = t.label;
+    btn.addEventListener('click', () => {
+      activeBridgeTab = t.id;
+      tabBar.querySelectorAll<HTMLButtonElement>('.provider-tab').forEach((b) => {
+        b.classList.toggle('active', b.dataset.tab === t.id);
+      });
+      updateBridgeTabContent(container, bs);
+    });
+    tabBar.appendChild(btn);
+  });
+  container.appendChild(tabBar);
+
+  // ---- Tab content ----
+  const content = document.createElement('div');
+  content.id = 'bridge-tab-content';
+  container.appendChild(content);
+  updateBridgeTabContent(container, bs);
+}
+
+function updateBridgeTabContent(container: HTMLElement, bs: BridgeSettings): void {
+  const content = container.querySelector('#bridge-tab-content');
+  if (!content) return;
+  content.innerHTML = '';
+
+  if (activeBridgeTab === 'qq') {
+    renderQQTab(content as HTMLElement, bs);
+  } else {
+    renderTelegramTab(content as HTMLElement, bs);
+  }
+}
+
+function renderQQTab(content: HTMLElement, bs: BridgeSettings): void {
+  const hint = document.createElement('p');
+  hint.className = 'provider-hint';
+  hint.textContent =
+    '需要在本机运行 NapCat 并用手机 QQ 扫码登录。NapCat 提供 OneBot v11 WebSocket 接口，默认端口 3001。';
+  content.appendChild(hint);
+
+  content.appendChild(
+    makeToggleRow('启用 QQ', bs.qq.enabled, (on) => {
+      bs.qq.enabled = on;
+      saveBridgeSettings(bs);
+    }),
+  );
+
+  content.appendChild(
+    makeInputRow('NapCat WebSocket 地址', bs.qq.wsUrl, 'ws://localhost:3001', (val) => {
+      bs.qq.wsUrl = val;
+      saveBridgeSettings(bs);
+    }),
+  );
+
+  content.appendChild(
+    makeInputRow(
+      '允许的 QQ 用户号（逗号分隔）',
+      bs.qq.allowUsers.join(','),
+      '12345678,87654321',
+      (val) => {
+        bs.qq.allowUsers = val
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        saveBridgeSettings(bs);
+      },
+    ),
+  );
+
+  content.appendChild(
+    makeInputRow('允许的 QQ 群号（逗号分隔）', bs.qq.allowGroups.join(','), '', (val) => {
+      bs.qq.allowGroups = val
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+      saveBridgeSettings(bs);
+    }),
+  );
+
+  content.appendChild(
+    makePermModeRow('权限模式', bs.qq.permissionMode, (mode) => {
+      bs.qq.permissionMode = mode;
+      saveBridgeSettings(bs);
+    }),
+  );
+}
+
+function renderTelegramTab(content: HTMLElement, bs: BridgeSettings): void {
+  const hint = document.createElement('p');
+  hint.className = 'provider-hint';
+  hint.textContent =
+    '在 Telegram 找 @BotFather 发 /newbot 创建机器人获取 Token。如遇 CORS 问题需填写代理 URL。';
+  content.appendChild(hint);
+
+  content.appendChild(
+    makeToggleRow('启用 Telegram', bs.telegram.enabled, (on) => {
+      bs.telegram.enabled = on;
+      saveBridgeSettings(bs);
+    }),
+  );
+
+  content.appendChild(
+    makeInputRow(
+      'Bot Token',
+      bs.telegram.botToken,
+      '123456:ABC-DEF...',
+      (val) => {
+        bs.telegram.botToken = val;
+        saveBridgeSettings(bs);
+      },
+      'password',
+    ),
+  );
+
+  content.appendChild(
+    makeInputRow('CORS 代理 URL（可选）', bs.telegram.proxyUrl, 'https://your-proxy.com', (val) => {
+      bs.telegram.proxyUrl = val;
+      saveBridgeSettings(bs);
+    }),
+  );
+
+  content.appendChild(
+    makeInputRow(
+      '允许的用户 ID（逗号分隔）',
+      bs.telegram.allowUsers.join(','),
+      '987654321',
+      (val) => {
+        bs.telegram.allowUsers = val
+          .split(',')
+          .map((s) => Number(s.trim()))
+          .filter((n) => n > 0);
+        saveBridgeSettings(bs);
+      },
+    ),
+  );
+
+  content.appendChild(
+    makePermModeRow('权限模式', bs.telegram.permissionMode, (mode) => {
+      bs.telegram.permissionMode = mode;
+      saveBridgeSettings(bs);
+    }),
+  );
+}
+
+function makeToggleRow(
+  label: string,
+  value: boolean,
+  onChange: (on: boolean) => void,
+): HTMLDivElement {
+  const row = document.createElement('div');
+  row.className = 'setting-group setting-group-inline';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = label;
+  row.appendChild(lbl);
+
+  const toggle = document.createElement('button');
+  toggle.type = 'button';
+  toggle.className = 'toggle-btn' + (value ? ' active' : '');
+  toggle.setAttribute('role', 'switch');
+  toggle.setAttribute('aria-checked', String(value));
+
+  const knob = document.createElement('span');
+  knob.className = 'toggle-knob';
+  toggle.appendChild(knob);
+
+  toggle.addEventListener('click', () => {
+    const next = !toggle.classList.contains('active');
+    toggle.classList.toggle('active', next);
+    toggle.setAttribute('aria-checked', String(next));
+    onChange(next);
+  });
+
+  row.appendChild(toggle);
+  return row;
+}
+
+function makeInputRow(
+  label: string,
+  value: string,
+  placeholder: string,
+  onChange: (val: string) => void,
+  type?: string,
+): HTMLDivElement {
+  const row = document.createElement('div');
+  row.className = 'setting-group';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = label;
+  row.appendChild(lbl);
+
+  const input = document.createElement('input');
+  input.type = type || 'text';
+  input.value = value;
+  input.placeholder = placeholder;
+  input.addEventListener('change', () => onChange(input.value.trim()));
+  row.appendChild(input);
+
+  return row;
+}
+
+function makePermModeRow(
+  label: string,
+  value: 'ask' | 'always',
+  onChange: (mode: 'ask' | 'always') => void,
+): HTMLDivElement {
+  const row = document.createElement('div');
+  row.className = 'setting-group setting-group-inline';
+
+  const lbl = document.createElement('label');
+  lbl.textContent = label;
+  row.appendChild(lbl);
+
+  const seg = document.createElement('div');
+  seg.className = 'segmented';
+
+  const options: Array<{ mode: 'ask' | 'always'; label: string }> = [
+    { mode: 'ask', label: '每次询问' },
+    { mode: 'always', label: '全部允许' },
+  ];
+
+  options.forEach((opt) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'segmented-btn' + (opt.mode === value ? ' active' : '');
+    btn.textContent = opt.label;
+    btn.addEventListener('click', () => {
+      seg.querySelectorAll<HTMLButtonElement>('.segmented-btn').forEach((b) => {
+        b.classList.toggle('active', b.textContent === opt.label);
+      });
+      onChange(opt.mode);
+    });
+    seg.appendChild(btn);
+  });
+
+  row.appendChild(seg);
+  return row;
 }
 
 function normalizeCap(raw: unknown): number {

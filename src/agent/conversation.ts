@@ -17,7 +17,7 @@
 import type { AgentSink, ConversationItem, ConversationRecord } from '../types';
 import * as history from './history';
 import { buildInstructions } from './prompts';
-import { getTools, executeTool } from './tools';
+import { createToolsRuntime, type ScheduledTimer, type ToolRuntime } from './tools';
 import * as bt from './bluetooth';
 import { runTurn } from './runner';
 import { resolveProviderConfig } from './transport';
@@ -30,6 +30,61 @@ import {
   clearGrants,
   type PermissionChoice,
 } from './permissions';
+import { bridgeSink, isBridgeTurn, requestBridgePermission } from '../bridge';
+
+export function initConversation(callbacks: ConversationCallbacks): void {
+  initCallbacks(callbacks);
+  initToolsRuntime();
+}
+
+export function resetConversation(): void {
+  fullStop();
+  store.items = [];
+  store.current = null;
+}
+
+export function loadConversation(conv: ConversationRecord): void {
+  resetConversation();
+  store.items = sanitize(conv.items);
+  store.current = conv;
+  store.activePresetId = conv.presetId || 'gentle';
+}
+
+export function createConversation(): void {
+  resetConversation();
+  // A fresh conversation should not inherit broad trust granted earlier:
+  //   - the session-wide 'always' mode is revoked
+  //   - every per-tool grant accumulated via the dialog is wiped
+  // The 5-minute 'timed' settings mode keeps its own expiry and is left
+  // untouched here.
+  clearAlwaysMode();
+  clearGrants();
+}
+
+export function fullStop(): void {
+  abortCurrent();
+  toolsRuntime.fullStop();
+  pendingTimers.length = 0;
+}
+
+// ---------------------------------------------------------------------------
+// Abort handling — allow the UI to cancel an in-flight turn, which may be
+// mid-generation or mid-tool-call.
+// ---------------------------------------------------------------------------
+
+/**
+ *  Abort controller for the currently in-flight sendMessage, if any.
+ */
+let currentAbort: AbortController | null = null;
+
+/**
+ * Cancel the in-flight turn. Safe to call even if nothing is running.
+ * The sendMessage promise will resolve (not reject) — the cancellation
+ * is reported as a short assistant note in the conversation.
+ */
+export function abortCurrent(): void {
+  if (currentAbort) currentAbort.abort();
+}
 
 // ---------------------------------------------------------------------------
 // UI callback contract
@@ -41,10 +96,13 @@ export interface ConversationCallbacks {
   onAssistantFinalize: (msgId: string) => void;
   onAssistantDiscard: (msgId: string) => void;
   onToolCall: (name: string, args: Record<string, unknown>, result: string) => void;
+  onSystemMessage: (text: string) => void;
   onTypingStart: () => void;
   onTypingEnd: () => void;
   onError: (message: string) => void;
+  onBusyChange: (isBusy: boolean) => void;
   onHistoryChange: () => void;
+  onQueryCustomPrompt: () => string;
   /**
    * Prompt the user to allow or deny a mutating tool call. The UI should
    * show a modal with the four standard scopes (once / timed / always /
@@ -59,7 +117,7 @@ export interface ConversationCallbacks {
 
 let callbacks: ConversationCallbacks | null = null;
 
-export function registerCallbacks(cb: ConversationCallbacks): void {
+function initCallbacks(cb: ConversationCallbacks): void {
   callbacks = cb;
 }
 
@@ -76,16 +134,45 @@ const store = {
   activePresetId: 'gentle',
 };
 
-/** Abort controller for the currently in-flight sendMessage, if any. */
-let currentAbort: AbortController | null = null;
+// -----------------------------------------------------------
+// Conversation tools — timers for now, but could be more in the future
+// -----------------------------------------------------------
+let toolsRuntime: ToolRuntime = createToolsRuntime();
 
-/**
- * Cancel the in-flight turn. Safe to call even if nothing is running.
- * The sendMessage promise will resolve (not reject) — the cancellation
- * is reported as a short assistant note in the conversation.
- */
-export function abortCurrent(): void {
-  if (currentAbort) currentAbort.abort();
+function initToolsRuntime(): void {
+  toolsRuntime = createToolsRuntime({
+    // When a timer is due, we inject a synthetic user message into the conversation to notify the LLM of the event. This allows the LLM to react to timers in-context and decide what to do next (e.g. call a tool, send a message, or ignore).
+    onTimerDue: (timer) => {
+      if (!store.current || !callbacks) return;
+      callbacks.onSystemMessage(`⏰ 定时器「${timer.label}」已到期。`);
+      pendingTimers.push(timer);
+      void drainPendingTimers();
+    },
+  });
+}
+
+const pendingTimers: ScheduledTimer[] = [];
+
+async function drainPendingTimers(): Promise<void> {
+  if (store.isProcessing || !store.current || !callbacks) return;
+  // We drain timers one at a time, giving the LLM a chance to respond to each
+  const timer = pendingTimers.shift();
+  if (!timer) return;
+  // Inject a synthetic user message to inform the LLM of the timer event and
+  const trigger: ConversationItem = {
+    role: 'user',
+    content:
+      `[系统事件：定时器到期]\n` +
+      `label: ${timer.label}\n` +
+      `seconds: ${timer.seconds}\n` +
+      '这是你之前设置的内部提醒。请根据当前设备状态和对话上下文继续后续流程；若需要操作设备，先调用工具，再正常回复用户。',
+  };
+  // We don't want these system-triggered messages to persist in the conversation
+  await runConversationTurn(
+    tailWithPrevExchange([...store.items, trigger]),
+    undefined,
+    false /* don't store the timer-triggered system message in the conversation history */,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -159,24 +246,6 @@ export function setActivePresetId(id: string): void {
   store.activePresetId = id;
 }
 
-export function loadConversation(conv: ConversationRecord): void {
-  store.items = sanitize(conv.items);
-  store.current = conv;
-  store.activePresetId = conv.presetId || 'gentle';
-}
-
-export function startNewConversation(): void {
-  store.items = [];
-  store.current = null;
-  // A fresh conversation should not inherit broad trust granted earlier:
-  //   - the session-wide 'always' mode is revoked
-  //   - every per-tool grant accumulated via the dialog is wiped
-  // The 5-minute 'timed' settings mode keeps its own expiry and is left
-  // untouched here.
-  clearAlwaysMode();
-  clearGrants();
-}
-
 // ---------------------------------------------------------------------------
 // ChatSink — per-sendMessage UI adapter
 // ---------------------------------------------------------------------------
@@ -202,6 +271,7 @@ class ChatSink implements AgentSink {
   onTextDelta(accumulated: string): void {
     this.cb.onTypingEnd();
     this.msgId = this.cb.onAssistantStream(accumulated, this.msgId || undefined);
+    if (isBridgeTurn()) bridgeSink.onTextDelta(accumulated);
   }
 
   onTextComplete(): void {
@@ -209,11 +279,13 @@ class ChatSink implements AgentSink {
       this.cb.onAssistantFinalize(this.msgId);
       this.msgId = null;
     }
+    if (isBridgeTurn()) bridgeSink.onTextComplete();
   }
 
   onTextDiscard(): void {
     this.discardPendingBubble();
     this.cb.onTypingStart();
+    if (isBridgeTurn()) bridgeSink.onTextDiscard();
   }
 
   onTextInline(text: string): void {
@@ -221,6 +293,7 @@ class ChatSink implements AgentSink {
     this.discardPendingBubble();
     const id = this.cb.onAssistantStream(text, undefined);
     this.cb.onAssistantFinalize(id);
+    if (isBridgeTurn()) bridgeSink.onTextInline(text);
   }
 
   onToolCall(name: string, args: Record<string, unknown>, result: string): void {
@@ -229,30 +302,27 @@ class ChatSink implements AgentSink {
     this.onTextComplete();
     this.cb.onToolCall(name, args, result);
     this.cb.onTypingStart();
+    if (isBridgeTurn()) bridgeSink.onToolCall(name, args, result);
   }
 }
 
-// ---------------------------------------------------------------------------
-// sendMessage — the only mutation entry point
-// ---------------------------------------------------------------------------
-
-export async function sendMessage(text: string, customPrompt: string): Promise<void> {
+async function runConversationTurn(
+  conversationItems: readonly ConversationItem[],
+  customPrompt?: string,
+  persistTurn: boolean = true,
+): Promise<void> {
   if (store.isProcessing || !callbacks) return;
   store.isProcessing = true;
 
   const cb = callbacks;
-  cb.onUserMessage(text);
-  store.items.push({ role: 'user', content: text });
-
-  if (!store.current) {
-    store.current = history.createConversation(store.activePresetId);
-  }
-
   const sink = new ChatSink(cb);
-  cb.onTypingStart();
-
   const abort = new AbortController();
+
+  customPrompt ??= cb.onQueryCustomPrompt();
   currentAbort = abort;
+
+  cb.onBusyChange(true);
+  cb.onTypingStart();
 
   // Permission gate:
   //   1. Only mutating tools are gated at all
@@ -260,17 +330,27 @@ export async function sendMessage(text: string, customPrompt: string): Promise<v
   //      — 'timed' and 'always' skip the dialog entirely
   //   3. In 'ask' mode we consult the per-tool grant cache first, only hit the
   //      UI on a miss, then record the user's choice
+  //   4. For bridge-originated turns, permission is requested via the social
+  //      platform messaging (text-based numeric reply).
   const requestPermission = async (
     name: string,
     args: Record<string, unknown>,
   ): Promise<'allow' | 'deny'> => {
     if (!requiresPermission(name)) return 'allow';
 
+    // Bridge-originated turn: use the per-platform permission setting,
+    // independent of the browser-side global permission mode.
+    if (isBridgeTurn()) {
+      const choice = await requestBridgePermission(name, args);
+      return recordChoice(name, choice);
+    }
+
     const mode = getEffectiveMode();
     if (mode === 'always' || mode === 'timed') return 'allow';
 
     // mode === 'ask'
     if (hasGrant(name)) return 'allow';
+
     if (!cb.onRequestPermission) return 'allow';
     const choice = await cb.onRequestPermission(name, args);
     return recordChoice(name, choice);
@@ -278,10 +358,7 @@ export async function sendMessage(text: string, customPrompt: string): Promise<v
 
   try {
     const finalItems = await runTurn({
-      // Keep only the previous exchange (prior user + its reply) plus the
-      // current user message. store.items still holds the full history for
-      // UI / localStorage; we only trim what goes up to the LLM.
-      conversationItems: tailWithPrevExchange(store.items),
+      conversationItems,
       buildInstructions: (deviceStatus, isFirstIteration, turnToolCalls) =>
         buildInstructions({
           presetId: store.activePresetId,
@@ -291,38 +368,42 @@ export async function sendMessage(text: string, customPrompt: string): Promise<v
           turnToolCalls,
         }),
       getDeviceStatus: bt.getStatus,
-      tools: getTools(),
-      executor: executeTool,
+      tools: toolsRuntime.getTools(),
+      executor: toolsRuntime.executeTool,
       transportConfig: resolveProviderConfig(),
       sink,
       signal: abort.signal,
       requestPermission,
     });
-
-    store.items.push(...finalItems);
+    if (persistTurn) {
+      store.items.push(...finalItems);
+    }
   } catch (err: any) {
     // Drop any in-flight streamed bubble regardless of the failure mode.
     sink.discardPendingBubble();
-
     if (isAbortError(err) || abort.signal.aborted) {
       // User pressed stop. Render a short note, persist it so reloads show
       // a complete pair, but do NOT emit cb.onError (not a real error).
       const note = '⏹ 已手动中止';
       sink.onTextInline(note);
-      store.items.push({ role: 'assistant', content: note });
+      if (persistTurn) {
+        store.items.push({ role: 'assistant', content: note });
+      }
     } else {
       console.error('[conversation] runTurn failed:', err);
       const friendly = classifyError(err);
       cb.onError(friendly);
       // Persist as assistant item so reloads show a complete user/assistant
       // pair instead of an orphan user message at the tail.
-      store.items.push({ role: 'assistant', content: friendly });
+      if (persistTurn) {
+        store.items.push({ role: 'assistant', content: friendly });
+      }
     }
   } finally {
     currentAbort = null;
     cb.onTypingEnd();
 
-    if (store.current) {
+    if (persistTurn && store.current) {
       store.current.items = [...store.items];
       store.current.title = history.generateTitle(store.items);
       store.current.updatedAt = Date.now();
@@ -332,5 +413,32 @@ export async function sendMessage(text: string, customPrompt: string): Promise<v
 
     pruneItems();
     store.isProcessing = false;
+
+    if (pendingTimers.length > 0 && store.current) {
+      queueMicrotask(() => {
+        void drainPendingTimers();
+      });
+    } else {
+      cb.onBusyChange(false);
+    }
   }
+}
+
+// ---------------------------------------------------------------------------
+// sendMessage — the only mutation entry point
+// ---------------------------------------------------------------------------
+
+export async function sendMessage(text: string): Promise<void> {
+  if (store.isProcessing || !callbacks) return;
+  callbacks.onUserMessage(text);
+  store.items.push({ role: 'user', content: text });
+
+  if (!store.current) {
+    store.current = history.createConversation(store.activePresetId);
+  }
+
+  // Keep only the previous exchange (prior user + its reply) plus the
+  // current user message. store.items still holds the full history for
+  // UI / localStorage; we only trim what goes up to the LLM.
+  await runConversationTurn(tailWithPrevExchange(store.items), callbacks.onQueryCustomPrompt());
 }

@@ -1,6 +1,10 @@
 /**
  * chat.ts -- Chat UI manager for DG-Agent
  * Manages message rendering, auto-scroll, and input handling.
+ *
+ * The send button is context-sensitive:
+ *   - Input has text → send icon (click to send)
+ *   - Agent busy → stop icon (click to abort)
  */
 
 // -- DOM refs (set in initChat) --
@@ -35,10 +39,11 @@ export function initChat(opts: {
 
   onAbortCb = opts.onAbort || null;
 
-  // Auto-resize textarea
+  // Auto-resize textarea & update button icon on input change
   inputEl.addEventListener('input', () => {
     inputEl.style.height = 'auto';
     inputEl.style.height = Math.min(inputEl.scrollHeight, 140) + 'px';
+    updateSendButton();
   });
 
   // Send on Enter (Shift+Enter = newline). Disabled while busy.
@@ -49,11 +54,13 @@ export function initChat(opts: {
     }
   });
 
-  // Send button doubles as stop button while a turn is in flight.
+  // Send button: click sends when has text; acts as stop when busy.
   sendBtn.addEventListener('click', () => {
     if (isBusy) {
       if (onAbortCb) onAbortCb();
-    } else {
+      return;
+    }
+    if (inputEl.value.trim()) {
       dispatchSend(opts.onSendMessage);
     }
   });
@@ -63,6 +70,9 @@ export function initChat(opts: {
     const { scrollTop, scrollHeight, clientHeight } = chatContainer;
     userScrolledUp = scrollHeight - scrollTop - clientHeight > 60;
   });
+
+  // Set initial button state
+  updateSendButton();
 }
 
 function dispatchSend(onSendMessage: (text: string) => void): void {
@@ -70,7 +80,18 @@ function dispatchSend(onSendMessage: (text: string) => void): void {
   if (!text) return;
   inputEl.value = '';
   inputEl.style.height = 'auto';
+  updateSendButton();
   onSendMessage(text);
+}
+
+/** Update the send button icon/style based on current state. */
+function updateSendButton(): void {
+  if (isBusy) return; // busy state is managed by setChatBusy
+  sendBtn.classList.remove('busy');
+  sendBtn.innerHTML = SEND_ICON_SVG;
+  sendBtn.title = '发送';
+  sendBtn.setAttribute('aria-label', '发送');
+  sendBtn.disabled = false;
 }
 
 // -- Public helpers --
@@ -84,10 +105,16 @@ export function setChatBusy(busy: boolean): void {
   isBusy = busy;
   inputEl.disabled = busy;
   sendBtn.disabled = false; // always clickable — either sends or aborts
-  sendBtn.innerHTML = busy ? STOP_ICON_SVG : SEND_ICON_SVG;
-  sendBtn.title = busy ? '停止本次回复' : '发送';
-  sendBtn.setAttribute('aria-label', busy ? '停止本次回复' : '发送');
-  sendBtn.classList.toggle('busy', busy);
+
+  if (busy) {
+    sendBtn.innerHTML = STOP_ICON_SVG;
+    sendBtn.title = '停止本次回复';
+    sendBtn.setAttribute('aria-label', '停止本次回复');
+    sendBtn.classList.add('busy');
+  } else {
+    sendBtn.classList.remove('busy');
+    updateSendButton();
+  }
 }
 
 // -- Message rendering --
@@ -133,7 +160,11 @@ export function removeAssistantMessage(id: string): void {
 }
 
 /** Add a compact, collapsible tool-call notification. */
-export function addToolNotification(toolName: string, args: Record<string, unknown>, result: string): void {
+export function addToolNotification(
+  toolName: string,
+  args: Record<string, unknown>,
+  result: string,
+): void {
   const el = document.createElement('div');
   el.className = 'tool-notification';
 
@@ -159,7 +190,8 @@ export function showTyping(): void {
   typingEl = document.createElement('div');
   typingEl.className = 'typing-indicator';
   typingEl.id = 'typing-indicator';
-  typingEl.innerHTML = '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
+  typingEl.innerHTML =
+    '<span class="dot"></span><span class="dot"></span><span class="dot"></span>';
   messagesEl.appendChild(typingEl);
   scrollToBottom();
 }
