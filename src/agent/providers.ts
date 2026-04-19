@@ -14,7 +14,7 @@ export const PROVIDERS: ProviderDef[] = [
   {
     id: 'free',
     name: '免费体验',
-    hint: '无需配置 API Key，由公共额度统一提供，服务可用性可能受共享使用情况影响。',
+    hint: '无需配置 API-Key，当前由 <a href="https://ai.071129.xyz" target="_blank" rel="noopener noreferrer">MapLeaf API</a> 提供支持。',
     fields: [],
   },
   {
