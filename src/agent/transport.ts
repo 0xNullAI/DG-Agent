@@ -41,7 +41,8 @@ export function resolveProviderConfig(): TransportConfig {
   if (providerId === 'free') {
     baseUrl = FREE_PROXY_URL;
     apiKey = 'free';
-    model = 'GLM-4.7-Flash';
+    // Placeholder only — the FC proxy overrides `model` server-side.
+    model = 'free';
   } else if (providerId === 'qwen') {
     baseUrl = baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
     model = model || 'qwen3.5-plus';
