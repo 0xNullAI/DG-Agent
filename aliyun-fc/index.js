@@ -1,21 +1,21 @@
 /**
  * Aliyun Function Compute (FC 3.0) — DG-Agent Free Tier Proxy
  *
- * Rate-limited proxy to Zhipu BigModel chat completions API.
+ * Rate-limited proxy to ai.071129.xyz (OpenAI-compatible gateway).
  *
  * Deploy (FC 3.0 Console):
  *   1. Create function -> Web Function -> Runtime: Node.js 20
  *   2. Region: cn-hangzhou
  *   3. Upload this folder as zip, or paste inline
  *   4. Environment variables:
- *        PROXY_API_KEY = xxx   (open.bigmodel.cn API key, for chat completions)
+ *        PROXY_API_KEY = xxx   (ai.071129.xyz API key)
  *   5. HTTP Trigger: authentication = anonymous
  *   6. Listen port: 9000 (FC web function default)
  */
 
 const http = require('http');
 
-const PROXY_API = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+const PROXY_API = 'https://ai.071129.xyz/v1/chat/completions';
 const MAX_REQUESTS_PER_MINUTE = 10;
 const ALLOWED_ORIGINS = ['https://0xnullai.github.io'];
 const PORT = parseInt(process.env.FC_SERVER_PORT || '9000', 10);
@@ -113,7 +113,9 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  body.model = body.model || 'GLM-4.7-Flash';
+  // Always force the upstream model server-side so the frontend stays agnostic.
+  // Override via FC env var PROXY_MODEL without redeploying the web app.
+  body.model = process.env.PROXY_MODEL || 'deepseek-chat';
   body.max_tokens = Math.min(body.max_tokens || 2048, 2048);
   delete body.max_output_tokens;
   delete body.api_key;
