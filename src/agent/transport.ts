@@ -41,7 +41,7 @@ export function resolveProviderConfig(): TransportConfig {
   if (providerId === 'free') {
     baseUrl = FREE_PROXY_URL;
     apiKey = 'free';
-    model = 'Qwen3.5-Plus';
+    model = 'LongCat-Flash-Chat';
   } else if (providerId === 'qwen') {
     baseUrl = baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
     model = model || 'qwen3.5-plus';

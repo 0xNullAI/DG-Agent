@@ -107,7 +107,7 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  body.model = body.model || 'Qwen3.5-Plus';
+  body.model = body.model || 'LongCat-Flash-Chat';
   body.max_tokens = Math.min(body.max_tokens || 2048, 2048);
   delete body.max_output_tokens;
   delete body.api_key;
