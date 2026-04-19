@@ -24,7 +24,7 @@
 
 | 服务商                 | 国内直连  | 说明                                                                              |
 | ---------------------- | --------- | --------------------------------------------------------------------------------- |
-| 🆓 **免费体验** (推荐) | ✅        | 无需 API Key，使用阿里云线路，每分钟限 10 条                                      |
+| 🆓 **免费体验** (推荐) | ✅        | 无需 API Key，使用阿里云线路，每分钟限 10 条（模型由 [MapleLeaf API](https://ai.071129.xyz) 提供） |
 | 🟣 **通义千问**        | ✅        | [bailian.console.aliyun.com](https://bailian.console.aliyun.com)                  |
 | 🐳 **DeepSeek**        | ✅        | [platform.deepseek.com](https://platform.deepseek.com)                            |
 | 🔥 **豆包**            | ✅        | 火山方舟 [www.volcengine.com/product/ark](https://www.volcengine.com/product/ark) |
@@ -87,6 +87,7 @@ AI：已经开始了哦，是很轻柔的呼吸波形，感觉怎么样？
 - [DG-LAB-OPENSOURCE](https://github.com/DG-LAB-OPENSOURCE/DG-LAB-OPENSOURCE) — 官方开源 BLE 协议
 - [openclaw-plugin-dg-lab](https://github.com/FengYing1314/openclaw-plugin-dg-lab) — 波形解析器参考实现
 - [sse-dg-lab](https://github.com/admilkjs/sse-dg-lab) — Dungeonlab+pulse 波形解析引擎
+- [MapleLeaf API](https://ai.071129.xyz) — 为"免费体验"模式提供模型调用
 
 ## 🚨 免责声明
 

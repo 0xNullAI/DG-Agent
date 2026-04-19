@@ -971,7 +971,7 @@ function renderConfig(providerId: string): void {
   if (provider.hint) {
     const hint = document.createElement('p');
     hint.className = 'provider-hint';
-    hint.textContent = provider.hint;
+    hint.innerHTML = provider.hint;
     container.appendChild(hint);
   }
 
