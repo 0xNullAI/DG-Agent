@@ -898,102 +898,6 @@ body {
   filter: brightness(1.12);
 }
 
-/* Send button — voice mode (waveform icon when input is empty) */
-#btn-send.voice-mode {
-  background: var(--input-bg);
-  color: var(--text-2);
-  border: 1px solid var(--border);
-}
-#btn-send.voice-mode:hover {
-  color: var(--accent);
-  border-color: var(--accent);
-  filter: none;
-}
-#btn-send.recording {
-  background: #d94a4a;
-  color: #fff;
-  border-color: #d94a4a;
-  animation: voice-pulse 1.2s ease-in-out infinite;
-}
-#btn-send.connecting {
-  opacity: 0.6;
-  cursor: wait;
-  animation: voice-pulse 1.2s ease-in-out infinite;
-}
-#btn-send.transcribing {
-  opacity: 0.6;
-  cursor: wait;
-}
-@keyframes voice-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.08);
-  }
-}
-
-/* Voice overlay (continuous conversation mode) */
-.voice-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--bg);
-}
-.voice-overlay.hidden {
-  display: none;
-}
-.voice-overlay-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 24px;
-  max-width: 360px;
-  width: 100%;
-  padding: 32px 24px;
-}
-.voice-overlay-status {
-  font-size: 1.3rem;
-  font-weight: 600;
-  color: var(--text-1);
-  text-align: center;
-}
-.voice-overlay-transcript {
-  font-size: 0.95rem;
-  color: var(--text-2);
-  text-align: center;
-  min-height: 1.4em;
-  max-height: 120px;
-  overflow-y: auto;
-  word-break: break-word;
-}
-.voice-overlay-stop {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  border: none;
-  background: #d94a4a;
-  color: #fff;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition:
-    background-color 0.15s,
-    transform 0.1s;
-  animation: voice-pulse 1.8s ease-in-out infinite;
-}
-.voice-overlay-stop:hover {
-  background: #c53030;
-}
-.voice-overlay-stop:active {
-  transform: scale(0.92);
-}
-
 /* ============================================================
    DROPDOWNS (scene / provider)
    ============================================================ */
@@ -1469,6 +1373,14 @@ body {
   border-radius: var(--radius-xs);
   border-left: 3px solid var(--accent);
   line-height: 1.5;
+}
+
+
+.btn-primary-sm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: none;
+  transform: none;
 }
 
 /* ---------- Behavior settings ---------- */

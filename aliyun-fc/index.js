@@ -1,28 +1,22 @@
 /**
  * Aliyun Function Compute (FC 3.0) — DG-Agent Free Tier Proxy
  *
- * Rate-limited proxy to Qwen Bailian Responses API + DashScope Voice WebSocket.
+ * Rate-limited proxy to Qwen Bailian Responses API (chat completions only).
  *
  * Deploy (FC 3.0 Console):
  *   1. Create function -> Web Function -> Runtime: Node.js 20
  *   2. Region: cn-hangzhou (same as DashScope for lowest latency)
  *   3. Upload this folder as zip, or paste inline
  *   4. Environment variables:
- *        PROXY_API_KEY   = sk-xxx   (ai.071129.xyz API key, for chat completions)
- *        BAILIAN_API_KEY = sk-xxx   (Qwen Bailian API key, for ASR / TTS WebSocket)
+ *        PROXY_API_KEY = sk-xxx   (ai.071129.xyz API key, for chat completions)
  *   5. HTTP Trigger: authentication = anonymous
  *   6. Listen port: 9000 (FC web function default)
  */
 
 const http = require('http');
-const WS = require('ws');
 
 const PROXY_API = 'https://ai.071129.xyz/v1/chat/completions';
-const BAILIAN_ASR_API = 'https://dashscope.aliyuncs.com/compatible-mode/v1/audio/transcriptions';
-const DASHSCOPE_ASR_WS = 'wss://dashscope.aliyuncs.com/api-ws/v1/inference';
-const DASHSCOPE_TTS_WS = 'wss://dashscope.aliyuncs.com/api-ws/v1/inference';
 const MAX_REQUESTS_PER_MINUTE = 10;
-const MAX_ASR_BODY_BYTES = 10 * 1024 * 1024; // 10 MB
 const ALLOWED_ORIGINS = ['https://0xnullai.github.io'];
 const PORT = parseInt(process.env.FC_SERVER_PORT || '9000', 10);
 
@@ -54,7 +48,7 @@ function pickAllowedOrigin(reqOrigin) {
 
 function setCors(res, reqOrigin) {
   res.setHeader('Access-Control-Allow-Origin', pickAllowedOrigin(reqOrigin));
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Max-Age', '86400');
 }
@@ -71,97 +65,10 @@ async function readBody(req) {
   return Buffer.concat(chunks).toString('utf8');
 }
 
-async function readBodyRaw(req, maxBytes) {
-  const chunks = [];
-  let total = 0;
-  for await (const c of req) {
-    total += c.length;
-    if (total > maxBytes) throw new Error('请求体过大');
-    chunks.push(c);
-  }
-  return Buffer.concat(chunks);
-}
-
 function getClientIp(req) {
   const xff = req.headers['x-forwarded-for'];
   if (xff) return String(xff).split(',')[0].trim();
   return req.socket.remoteAddress || 'unknown';
-}
-
-// ---------------------------------------------------------------------------
-// WebSocket proxy — bidirectional relay to DashScope voice WebSocket
-// ---------------------------------------------------------------------------
-
-const wss = new WS.Server({ noServer: true });
-
-function handleWsUpgrade(req, socket, head) {
-  const origin = req.headers['origin'] || '';
-  if (!ALLOWED_ORIGINS.some((o) => origin.startsWith(o))) {
-    socket.write('HTTP/1.1 403 Forbidden\r\n\r\n');
-    socket.destroy();
-    return;
-  }
-
-  const ip = getClientIp(req);
-  if (!checkRateLimit(ip)) {
-    socket.write('HTTP/1.1 429 Too Many Requests\r\n\r\n');
-    socket.destroy();
-    return;
-  }
-
-  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  let upstreamUrl;
-  if (url.pathname === '/ws/asr') {
-    upstreamUrl = DASHSCOPE_ASR_WS;
-  } else if (url.pathname === '/ws/tts') {
-    upstreamUrl = DASHSCOPE_TTS_WS;
-  } else {
-    socket.write('HTTP/1.1 404 Not Found\r\n\r\n');
-    socket.destroy();
-    return;
-  }
-
-  const userKey = url.searchParams.get('api_key');
-  const apiKey = userKey || process.env.BAILIAN_API_KEY;
-  if (!apiKey) {
-    socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
-    socket.destroy();
-    return;
-  }
-
-  wss.handleUpgrade(req, socket, head, (clientWs) => {
-    const upstream = new WS(upstreamUrl, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
-
-    upstream.on('open', () => {
-      clientWs.on('message', (data, isBinary) => {
-        if (upstream.readyState === WS.OPEN) {
-          upstream.send(data, { binary: isBinary });
-        }
-      });
-      upstream.on('message', (data, isBinary) => {
-        if (clientWs.readyState === WS.OPEN) {
-          clientWs.send(data, { binary: isBinary });
-        }
-      });
-    });
-
-    upstream.on('error', (err) => {
-      console.error('[ws-proxy] upstream error:', err.message);
-      if (clientWs.readyState === WS.OPEN) clientWs.close(1011, 'upstream error');
-    });
-    clientWs.on('error', (err) => {
-      console.error('[ws-proxy] client error:', err.message);
-      if (upstream.readyState === WS.OPEN) upstream.close();
-    });
-    clientWs.on('close', () => {
-      if (upstream.readyState === WS.OPEN) upstream.close();
-    });
-    upstream.on('close', () => {
-      if (clientWs.readyState === WS.OPEN) clientWs.close();
-    });
-  });
 }
 
 // ---------------------------------------------------------------------------
@@ -195,45 +102,6 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 429, {
       error: `请求过于频繁，每分钟最多 ${MAX_REQUESTS_PER_MINUTE} 条，请稍后再试。`,
     });
-    return;
-  }
-
-  // --- ASR proxy route ---
-  const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-  if (url.pathname === '/audio/transcriptions') {
-    const apiKey = process.env.BAILIAN_API_KEY;
-    if (!apiKey) {
-      sendJson(res, 500, { error: '服务端未配置 BAILIAN_API_KEY' });
-      return;
-    }
-
-    let rawBody;
-    try {
-      rawBody = await readBodyRaw(req, MAX_ASR_BODY_BYTES);
-    } catch (e) {
-      sendJson(res, 413, { error: e.message || '请求体过大' });
-      return;
-    }
-
-    try {
-      const upstream = await fetch(BAILIAN_ASR_API, {
-        method: 'POST',
-        headers: {
-          'Content-Type': req.headers['content-type'] || 'multipart/form-data',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: rawBody,
-      });
-
-      const text = await upstream.text();
-      res.statusCode = upstream.status;
-      res.setHeader('Content-Type', 'application/json');
-      res.end(text);
-    } catch (e) {
-      sendJson(res, 502, {
-        error: '语音识别代理请求失败: ' + (e && e.message ? e.message : String(e)),
-      });
-    }
     return;
   }
 
@@ -296,9 +164,6 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 502, { error: '代理请求失败: ' + (e && e.message ? e.message : String(e)) });
   }
 });
-
-// Handle WebSocket upgrade requests
-server.on('upgrade', handleWsUpgrade);
 
 server.listen(PORT, () => {
   console.log(`[dg-agent-fc] listening on ${PORT}`);

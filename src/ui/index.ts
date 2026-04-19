@@ -485,7 +485,6 @@ export function boot(): void {
   // visibility change.
   function fullStop(): void {
     try {
-      chat.exitVoiceMode();
       conversation.fullStop();
     } catch (_) {
       /* */

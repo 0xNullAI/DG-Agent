@@ -178,16 +178,6 @@ export interface AppSettings {
       permissionMode: 'ask' | 'always';
     };
   };
-  /** Voice I/O settings (real-time ASR + TTS via DashScope). */
-  voice?: {
-    speaker: string;
-    /** Optional DashScope API Key for voice services. If empty, uses free proxy. */
-    dashscopeApiKey: string;
-    /** Optional custom WebSocket proxy URL. If empty, uses free proxy. */
-    proxyUrl: string;
-    /** Whether VAD auto-stop is enabled (default true). */
-    autoStopEnabled: boolean;
-  };
 }
 
 /** Provider field definition */

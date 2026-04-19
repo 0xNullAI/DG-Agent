@@ -40,7 +40,7 @@ export function init(getPresetId: () => string, getCustomPrompt: () => string): 
 // settings modal is open; cleaned up on close.
 let permissionCountdownTimer: number | null = null;
 
-type TopTab = 'basic' | 'security' | 'waveforms' | 'bridge' | 'voice';
+type TopTab = 'basic' | 'security' | 'waveforms' | 'bridge';
 let activeTopTab: TopTab = 'basic';
 
 export function open(): void {
@@ -55,7 +55,6 @@ export function open(): void {
   renderBehaviorSettings(saved);
   renderWaveformsPanel();
   renderBridgePanel();
-  renderVoicePanel();
   updateTopPanelVisibility();
   startPermissionCountdown();
 }
@@ -68,7 +67,6 @@ function renderTopTabs(): void {
     { id: 'basic', label: '基础' },
     { id: 'security', label: '安全' },
     { id: 'waveforms', label: '波形' },
-    { id: 'voice', label: '语音' },
     { id: 'bridge', label: 'Bot' },
   ];
 
@@ -95,8 +93,6 @@ function updateTopPanelVisibility(): void {
   $('settings-panel-waveforms')!.classList.toggle('hidden', activeTopTab !== 'waveforms');
   const bridgePanel = $('settings-panel-bridge');
   if (bridgePanel) bridgePanel.classList.toggle('hidden', activeTopTab !== 'bridge');
-  const voicePanel = $('settings-panel-voice');
-  if (voicePanel) voicePanel.classList.toggle('hidden', activeTopTab !== 'voice');
 }
 
 function renderPageConfig(): void {
@@ -940,114 +936,6 @@ function makePermModeRow(
 
   row.appendChild(seg);
   return row;
-}
-
-// ---------------------------------------------------------------------------
-// Voice settings panel
-// ---------------------------------------------------------------------------
-
-export interface VoiceSettings {
-  speaker: string;
-  dashscopeApiKey: string;
-  proxyUrl: string;
-  autoStopEnabled: boolean;
-}
-
-export const DEFAULT_VOICE_SETTINGS: VoiceSettings = {
-  speaker: 'longxiaochun_v2',
-  dashscopeApiKey: '',
-  proxyUrl: '',
-  autoStopEnabled: true,
-};
-
-const VOICE_SPEAKERS: Array<{ id: string; label: string }> = [
-  { id: 'longxiaochun_v2', label: 'longxiaochun_v2' },
-];
-
-export function loadVoiceSettings(): VoiceSettings {
-  const saved = loadSettings();
-  const merged = { ...DEFAULT_VOICE_SETTINGS, ...(saved.voice || {}) };
-  // Migrate: a speaker cached from a prior session (e.g. 'Chelsie' from a
-  // different CosyVoice model generation) is incompatible with the current
-  // model and would cause task-failed 418. Fall back to the default when
-  // the saved value isn't in the allowed list.
-  if (!VOICE_SPEAKERS.some((s) => s.id === merged.speaker)) {
-    merged.speaker = DEFAULT_VOICE_SETTINGS.speaker;
-  }
-  return merged;
-}
-
-function saveVoiceSettings(vs: VoiceSettings): void {
-  const saved = loadSettings();
-  saved.voice = vs;
-  persistSettings(saved);
-}
-
-function renderVoicePanel(): void {
-  const container = $('settings-panel-voice');
-  if (!container) return;
-  container.innerHTML = '';
-
-  const vs = loadVoiceSettings();
-
-  const hint = document.createElement('p');
-  hint.className = 'provider-hint';
-  hint.textContent =
-    '输入框为空时点击波形按钮即可进入语音对话模式。' +
-    '免费语音模式与免费 AI 对话共享额度（每分钟 10 次），建议填写自己的百炼 API Key 以获得更好的体验。';
-  container.appendChild(hint);
-
-  // Speaker selection
-  const speakerGroup = document.createElement('div');
-  speakerGroup.className = 'setting-group';
-  const speakerLabel = document.createElement('label');
-  speakerLabel.textContent = '音色';
-  speakerGroup.appendChild(speakerLabel);
-
-  const speakerSelect = document.createElement('select');
-  VOICE_SPEAKERS.forEach((s) => {
-    const opt = document.createElement('option');
-    opt.value = s.id;
-    opt.textContent = s.label;
-    if (s.id === vs.speaker) opt.selected = true;
-    speakerSelect.appendChild(opt);
-  });
-  speakerSelect.addEventListener('change', () => {
-    vs.speaker = speakerSelect.value;
-    saveVoiceSettings(vs);
-  });
-  speakerGroup.appendChild(speakerSelect);
-  container.appendChild(speakerGroup);
-
-  // Auto-stop (VAD)
-  container.appendChild(
-    makeToggleRow('自动结束录音（静音检测）', vs.autoStopEnabled, (on) => {
-      vs.autoStopEnabled = on;
-      saveVoiceSettings(vs);
-    }),
-  );
-
-  // API Key
-  container.appendChild(
-    makeInputRow(
-      '百炼 API Key',
-      vs.dashscopeApiKey,
-      'sk-…（留空使用免费共享额度）',
-      (val) => {
-        vs.dashscopeApiKey = val;
-        saveVoiceSettings(vs);
-      },
-      'password',
-    ),
-  );
-
-  // Custom proxy URL
-  container.appendChild(
-    makeInputRow('WebSocket 代理地址（可选）', vs.proxyUrl, '留空使用默认免费代理', (val) => {
-      vs.proxyUrl = val;
-      saveVoiceSettings(vs);
-    }),
-  );
 }
 
 function normalizeCap(raw: unknown): number {
