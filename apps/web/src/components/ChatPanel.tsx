@@ -62,6 +62,12 @@ function BatteryIcon({ level }: { level: number | null | undefined }) {
 const MESSAGE_BATCH_SIZE = 120;
 const DEVICE_STRENGTH_CAP = 200;
 
+const BUBBLE_BASE = 'max-w-[min(92%,560px)] overflow-hidden break-words whitespace-pre-wrap px-4 py-3 text-[14.5px] leading-[1.6]';
+const BUBBLE_ASSISTANT = `${BUBBLE_BASE} rounded-[14px] rounded-bl-[4px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] text-[var(--text)]`;
+const BUBBLE_USER = `${BUBBLE_BASE} rounded-[14px] rounded-br-[4px] bg-[var(--accent)] text-[var(--button-text)]`;
+const ICON_BTN = 'h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]';
+const SYSTEM_MSG = 'max-w-[min(85%,480px)] rounded-[8px] border-l-[3px] border-l-[var(--accent)] bg-[var(--accent-soft)] px-3.5 py-1.5 text-[13px] leading-[1.35] text-[var(--text-soft)]';
+
 function summarizeAssistantContent(content: string): string {
   const prefix = 'Fake LLM 已完成工具执行：';
   if (!content.startsWith(prefix)) {
@@ -170,7 +176,7 @@ export function ChatPanel({
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+            className={ICON_BTN}
             onClick={onOpenSidebar}
             aria-label="历史记录"
           >
@@ -180,7 +186,7 @@ export function ChatPanel({
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+            className={ICON_BTN}
             onClick={onOpenSettings}
             aria-label="设置"
           >
@@ -242,7 +248,7 @@ export function ChatPanel({
         <div className="mx-auto flex min-h-full w-full max-w-[800px] flex-col justify-end gap-4 pb-4">
           {!busy && !streamingAssistantText && messages.length === 0 && (
             <div className="flex justify-start">
-              <div className="max-w-[min(92%,560px)] overflow-hidden break-words whitespace-pre-wrap rounded-[14px] rounded-bl-[4px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-3 text-[14.5px] leading-[1.6] text-[var(--text)]">
+              <div className={BUBBLE_ASSISTANT}>
                 欢迎使用DG-Agent，请使用蓝牙连接郊狼后开始使用哦！
               </div>
             </div>
@@ -264,9 +270,7 @@ export function ChatPanel({
             if (message.kind === 'trace-system') {
               return (
                 <div key={message.id} className="flex justify-center">
-                  <div className="max-w-[min(85%,480px)] rounded-[8px] border-l-[3px] border-l-[var(--accent)] bg-[var(--accent-soft)] px-3.5 py-1 text-[13px] leading-[1.35] text-[var(--text-soft)]">
-                    {message.content}
-                  </div>
+                  <div className={SYSTEM_MSG}>{message.content}</div>
                 </div>
               );
             }
@@ -284,9 +288,7 @@ export function ChatPanel({
             if (message.role === 'system') {
               return (
                 <div key={message.id} className="flex justify-center">
-                  <div className="max-w-[min(85%,480px)] rounded-[8px] border-l-[3px] border-l-[var(--accent)] bg-[var(--accent-soft)] px-3.5 py-1.5 text-[13px] leading-[1.35] text-[var(--text-soft)]">
-                    {message.content}
-                  </div>
+                  <div className={SYSTEM_MSG}>{message.content}</div>
                 </div>
               );
             }
@@ -297,14 +299,7 @@ export function ChatPanel({
                 key={message.id}
                 className={cn('flex', userMessage ? 'justify-end' : 'justify-start')}
               >
-                <div
-                  className={cn(
-                    'max-w-[min(92%,560px)] overflow-hidden break-words whitespace-pre-wrap px-4 py-3 text-[14.5px] leading-[1.6]',
-                    userMessage
-                      ? 'rounded-[14px] rounded-br-[4px] bg-[var(--accent)] text-[var(--button-text)]'
-                      : 'rounded-[14px] rounded-bl-[4px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] text-[var(--text)]',
-                  )}
-                >
+                <div className={userMessage ? BUBBLE_USER : BUBBLE_ASSISTANT}>
                   {userMessage ? message.content : <MarkdownText content={message.content} />}
                 </div>
               </div>
@@ -343,7 +338,7 @@ export function ChatPanel({
 
           {streamingAssistantText && (
             <div className="flex justify-start">
-              <div className="max-w-[min(92%,560px)] overflow-hidden break-words whitespace-pre-wrap rounded-[14px] rounded-bl-[4px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-3 text-[14.5px] leading-[1.6] text-[var(--text)]">
+              <div className={BUBBLE_ASSISTANT}>
                 <MarkdownText content={streamingAssistantText} />
               </div>
             </div>

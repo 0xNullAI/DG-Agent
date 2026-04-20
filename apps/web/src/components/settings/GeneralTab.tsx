@@ -10,6 +10,7 @@ import {
   type ProviderFieldDefinition,
   type ProviderId,
 } from '@dg-agent/providers-catalog';
+import { SectionDivider } from './SectionDivider.js';
 import { SettingSelect } from './SettingSelect.js';
 import { SettingSegmented } from './SettingSegmented.js';
 import { SettingToggle } from './SettingToggle.js';
@@ -123,10 +124,8 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
 
   return (
     <div className="settings-panel-tab-content">
-      <div className="flex items-center gap-3 pb-3">
-        <div className="h-px flex-1 bg-[var(--surface-border)]" />
-        <span className="shrink-0 text-xs font-bold text-[var(--accent)]">基本设置</span>
-        <div className="h-px flex-1 bg-[var(--surface-border)]" />
+      <div className="pb-3">
+        <SectionDivider label="基本设置" />
       </div>
 
       <div className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 pb-3">
@@ -174,10 +173,8 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
         />
       </div>
 
-      <div className="flex items-center gap-3 py-2">
-        <div className="h-px flex-1 bg-[var(--surface-border)]" />
-        <span className="shrink-0 text-xs font-bold text-[var(--accent)]">模型选择</span>
-        <div className="h-px flex-1 bg-[var(--surface-border)]" />
+      <div className="py-2">
+        <SectionDivider label="模型选择" />
       </div>
 
       {/* Current model display */}

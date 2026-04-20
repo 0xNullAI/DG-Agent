@@ -1,6 +1,7 @@
 import type { WaveformDefinition } from '@dg-agent/core';
 import { Pencil, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { SectionDivider } from './settings/SectionDivider.js';
 
 interface WaveformsPanelProps {
   waveforms: WaveformDefinition[];
@@ -19,11 +20,7 @@ export function WaveformsPanel({
 }: WaveformsPanelProps) {
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-[var(--surface-border)]" />
-        <span className="shrink-0 text-xs font-bold text-[var(--accent)]">波形库</span>
-        <div className="h-px flex-1 bg-[var(--surface-border)]" />
-      </div>
+      <SectionDivider label="波形库" />
 
       {waveforms.length === 0 && (
         <div className="py-4 text-center text-sm text-[var(--text-faint)]">

@@ -3,6 +3,7 @@ import { Minus, Plus } from 'lucide-react';
 
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { cn } from '@/lib/utils';
+import { SectionDivider } from './SectionDivider.js';
 import { SettingToggle } from './SettingToggle.js';
 
 interface SafetyTabProps {
@@ -42,16 +43,14 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
 
   return (
     <div className="settings-panel-tab-content space-y-5">
-      {/* 最大强度上限 */}
-      <div className="flex items-center gap-3"><div className="h-px flex-1 bg-[var(--surface-border)]" /><span className="shrink-0 text-xs font-bold text-[var(--accent)]">最大强度上限</span><div className="h-px flex-1 bg-[var(--surface-border)]" /></div>
+      <SectionDivider label="最大强度上限" />
 
       <div className="grid grid-cols-2 gap-3">
         <StrengthControl channel="A" value={settingsDraft.maxStrengthA} onChange={setStrengthA} />
         <StrengthControl channel="B" value={settingsDraft.maxStrengthB} onChange={setStrengthB} />
       </div>
 
-      {/* 工具调用确认模式 */}
-      <div className="flex items-center gap-3"><div className="h-px flex-1 bg-[var(--surface-border)]" /><span className="shrink-0 text-xs font-bold text-[var(--accent)]">工具调用确认模式</span><div className="h-px flex-1 bg-[var(--surface-border)]" /></div>
+      <SectionDivider label="工具调用确认模式" />
 
       <div className="grid grid-cols-3 gap-2">
         {permissionOptions.map((opt) => {
@@ -81,8 +80,7 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
         })}
       </div>
 
-      {/* 后台行为 */}
-      <div className="flex items-center gap-3"><div className="h-px flex-1 bg-[var(--surface-border)]" /><span className="shrink-0 text-xs font-bold text-[var(--accent)]">后台行为</span><div className="h-px flex-1 bg-[var(--surface-border)]" /></div>
+      <SectionDivider label="后台行为" />
 
       <div className="space-y-3">
         <SettingToggle

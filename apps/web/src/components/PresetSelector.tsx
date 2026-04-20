@@ -1,7 +1,6 @@
 import { useState, type Dispatch, type SetStateAction } from 'react';
 import {
   BUILTIN_PROMPT_PRESETS,
-  type PromptPreset,
   type SavedPromptPreset,
 } from '@dg-agent/prompts-basic';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
@@ -10,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { SectionDivider } from './settings/SectionDivider.js';
 
 interface PresetSelectorProps {
   settingsDraft: BrowserAppSettings;
@@ -78,12 +78,7 @@ export function PresetSelector({
 
   return (
     <div className="space-y-4">
-      {/* Built-in presets */}
-      <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-[var(--surface-border)]" />
-        <span className="shrink-0 text-xs font-bold text-[var(--accent)]">内置场景</span>
-        <div className="h-px flex-1 bg-[var(--surface-border)]" />
-      </div>
+      <SectionDivider label="内置场景" />
 
       <div className="space-y-1.5">
         {BUILTIN_PROMPT_PRESETS.map((preset) => (
@@ -98,12 +93,7 @@ export function PresetSelector({
         ))}
       </div>
 
-      {/* User-saved presets */}
-      <div className="flex items-center gap-3">
-        <div className="h-px flex-1 bg-[var(--surface-border)]" />
-        <span className="shrink-0 text-xs font-bold text-[var(--accent)]">自定义场景</span>
-        <div className="h-px flex-1 bg-[var(--surface-border)]" />
-      </div>
+      <SectionDivider label="自定义场景" />
 
       {settingsDraft.savedPromptPresets.length === 0 && !creating && (
         <div className="py-4 text-center text-sm text-[var(--text-faint)]">
