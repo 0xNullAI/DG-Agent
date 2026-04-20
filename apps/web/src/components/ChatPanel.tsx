@@ -6,6 +6,7 @@ import {
   type KeyboardEvent,
   type SetStateAction,
 } from 'react';
+import { PanelLeft } from 'lucide-react';
 import type { DeviceState, SessionSnapshot } from '@dg-agent/core';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import {
@@ -201,21 +202,7 @@ export function ChatPanel({
             onClick={onOpenSidebar}
             aria-label="历史记录"
           >
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <rect x="3" y="3" width="18" height="18" rx="2" />
-              <path d="M9 3v18" />
-              <path d="M14 10h3" />
-              <path d="M14 14h3" />
-            </svg>
+            <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out -ml-0.5" />
           </Button>
           <h1 className="text-[17px] font-bold tracking-[-0.3px] text-[var(--text)]">DG-Agent</h1>
           <span

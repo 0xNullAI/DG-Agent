@@ -873,6 +873,7 @@ export function App() {
                 onSelectSession={selectSession}
                 onDeleteSession={(sessionId) => void deleteSession(sessionId)}
                 onCreateSession={() => void createNewSession()}
+                detached={true}
               />
             </div>
           </SheetContent>
@@ -893,6 +894,7 @@ export function App() {
               onCreateSession={() => void createNewSession()}
               collapsed={sidebarCollapsed}
               onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
+              detached={false}
             />
           </aside>
 

@@ -15,6 +15,7 @@ interface SessionPanelProps {
   onCreateSession?: () => void;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
+  detached?: boolean;
 }
 
 const SESSION_BATCH_SIZE = 80;
@@ -27,6 +28,7 @@ export function SessionPanel({
   onCreateSession,
   collapsed = false,
   onToggleCollapsed,
+  detached = false,
 }: SessionPanelProps) {
   const visibleSessions = savedSessions.filter((session) =>
     session.messages.some((message) => message.role === 'user'),
@@ -69,26 +71,28 @@ export function SessionPanel({
 
   return (
     <Card className="flex h-full flex-1 flex-col overflow-hidden rounded-none border-0 bg-transparent shadow-none transition-all duration-300 ease-out">
-      <CardHeader className="shrink-0 px-2.5 pb-1 pt-0">
-        <div className="transition-all duration-300 ease-out">
-          <div className="relative flex items-center py-2">
-            <div className="w-full pl-1.5">
-              <Button
-                variant="ghost"
-                className="flex justify-start h-10 w-full gap-3 rounded-[12px] pl-4 pr-2 tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-                onClick={onToggleCollapsed}
-                aria-label="收起侧边栏"
-              >
-                <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out -ml-0.5" />
-                <span className="transition-opacity duration-200 ease-out -mt-[0.15em] text-sm font-semibold">
-                  收起
-                </span>
-              </Button>
+      {!detached && (
+        <CardHeader className="shrink-0 px-2.5 pb-1 pt-0">
+          <div className="transition-all duration-300 ease-out">
+            <div className="relative flex items-center py-2">
+              <div className="w-full pl-1.5">
+                <Button
+                  variant="ghost"
+                  className="flex justify-start h-10 w-full gap-3 rounded-[12px] pl-4 pr-2 tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+                  onClick={onToggleCollapsed}
+                  aria-label="收起侧边栏"
+                >
+                  <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out -ml-0.5" />
+                  <span className="transition-opacity duration-200 ease-out -mt-[0.15em] text-sm font-semibold">
+                    收起
+                  </span>
+                </Button>
+              </div>
+              <div className="absolute inset-x-1 bottom-[1.5px] border-t border-[var(--surface-border)] opacity-100" />
             </div>
-            <div className="absolute inset-x-1 bottom-[1.5px] border-t border-[var(--surface-border)] opacity-100" />
           </div>
-        </div>
-      </CardHeader>
+        </CardHeader>
+      )}
 
       <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 pr-1">
         <div className="mt-1 mb-2 flex-none pl-1.25">
