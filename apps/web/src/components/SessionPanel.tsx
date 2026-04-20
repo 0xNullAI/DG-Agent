@@ -90,8 +90,8 @@ export function SessionPanel({
         </div>
       </CardHeader>
 
-      <CardContent className="min-h-0 flex-1 overflow-hidden px-2.5">
-        <div className="mt-1 mb-2 pl-1.25">
+      <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 pr-1">
+        <div className="mt-1 mb-2 flex-none pl-1.25">
           {onCreateSession && (
             <Button
               variant="ghost"
@@ -104,79 +104,85 @@ export function SessionPanel({
             </Button>
           )}
         </div>
-        <div className="flex items-center justify-between gap-3 px-2 mb-1">
-          <div className="pl-1 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-faint)] font-semibold">
-            历史记录
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden pl-2">
+          <div className="flex-none mb-1.5 pl-1">
+            <div className="uppercase tracking-[0.14em] text-[var(--text-faint)] text-xs font-semibold">
+              历史记录
+            </div>
+          </div>
+          <div className="flex-1 min-h-0">
+            <ScrollArea className="h-full min-h-0 max-h-full pr-4">
+              <div className="space-y-0.5">
+                {visibleSessions.length === 0 && (
+                  <div className="px-2 py-4 text-sm text-[var(--text-soft)]">
+                    <div className="pl-3">还没有保存的会话</div>
+                  </div>
+                )}
+                {renderedSessions.map((item) => {
+                  const active = item.id === activeSessionId;
+                  return (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        'group grid grid-cols-[minmax(0,1fr)_28px] items-start gap-1 rounded-[12px] px-2 py-1 transition-colors',
+                        active ? 'bg-[var(--bg-soft)]' : 'hover:bg-[var(--bg-soft)]',
+                      )}
+                    >
+                      <button
+                        type="button"
+                        className="min-w-0 bg-transparent px-0 py-0 text-left text-inherit"
+                        onClick={() => onSelectSession(item.id)}
+                      >
+                        <div className="min-w-0 pl-3 pr-2">
+                          <div
+                            className={cn(
+                              'truncate text-xs leading-5',
+                              active
+                                ? 'font-medium text-[var(--text)]'
+                                : 'font-normal text-[var(--text)]',
+                            )}
+                          >
+                            {getSessionTitle(item)}
+                          </div>
+                          <div className=" text-[10px] text-[var(--text-faint)]">
+                            {formatTimestamp(item.updatedAt)}
+                          </div>
+                        </div>
+                      </button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className={cn(
+                          'h-7 w-7 self-center rounded-full text-[var(--text-faint)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]',
+                          active
+                            ? 'opacity-100'
+                            : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100',
+                        )}
+                        onClick={() => onDeleteSession(item.id)}
+                        aria-label="删除会话"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  );
+                })}
+                {visibleSessions.length > renderedSessions.length && (
+                  <div className="px-2 py-2">
+                    <Button
+                      variant="ghost"
+                      className="h-auto w-full justify-start rounded-[12px] px-3 py-2 text-sm text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+                      onClick={() =>
+                        setVisibleSessionCount((current) => current + SESSION_BATCH_SIZE)
+                      }
+                    >
+                      显示更多历史（剩余 {visibleSessions.length - renderedSessions.length} 条）
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
           </div>
         </div>
-        <ScrollArea className="h-full min-h-0 max-h-full pr-1">
-          <div className="space-y-0.5">
-            {visibleSessions.length === 0 && (
-              <div className="px-2 py-4 text-sm text-[var(--text-soft)]">
-                <div className="pl-3">还没有保存的会话</div>
-              </div>
-            )}
-            {renderedSessions.map((item) => {
-              const active = item.id === activeSessionId;
-              return (
-                <div
-                  key={item.id}
-                  className={cn(
-                    'group grid grid-cols-[minmax(0,1fr)_28px] items-start gap-1 rounded-[12px] px-2 py-1 transition-colors',
-                    active ? 'bg-[var(--bg-soft)]' : 'hover:bg-[var(--bg-soft)]',
-                  )}
-                >
-                  <button
-                    type="button"
-                    className="min-w-0 bg-transparent px-0 py-0 text-left text-inherit"
-                    onClick={() => onSelectSession(item.id)}
-                  >
-                    <div className="min-w-0 pl-3 pr-2">
-                      <div
-                        className={cn(
-                          'truncate text-xs leading-5',
-                          active
-                            ? 'font-medium text-[var(--text)]'
-                            : 'font-normal text-[var(--text)]',
-                        )}
-                      >
-                        {getSessionTitle(item)}
-                      </div>
-                      <div className=" text-[10px] text-[var(--text-faint)]">
-                        {formatTimestamp(item.updatedAt)}
-                      </div>
-                    </div>
-                  </button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={cn(
-                      'h-7 w-7 self-center rounded-full text-[var(--text-faint)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]',
-                      active
-                        ? 'opacity-100'
-                        : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100',
-                    )}
-                    onClick={() => onDeleteSession(item.id)}
-                    aria-label="删除会话"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              );
-            })}
-            {visibleSessions.length > renderedSessions.length && (
-              <div className="px-2 py-2">
-                <Button
-                  variant="ghost"
-                  className="h-auto w-full justify-start rounded-[12px] px-3 py-2 text-sm text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-                  onClick={() => setVisibleSessionCount((current) => current + SESSION_BATCH_SIZE)}
-                >
-                  显示更多历史（剩余 {visibleSessions.length - renderedSessions.length} 条）
-                </Button>
-              </div>
-            )}
-          </div>
-        </ScrollArea>
       </CardContent>
     </Card>
   );
