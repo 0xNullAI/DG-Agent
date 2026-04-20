@@ -15,7 +15,9 @@ export function EventsPanel({ events }: EventsPanelProps) {
 
       <CardContent className="px-4 pt-0">
         <div className="flex flex-col gap-3">
-          {events.length === 0 && <div className="text-sm text-[var(--text-soft)]">还没有事件记录</div>}
+          {events.length === 0 && (
+            <div className="text-sm text-[var(--text-soft)]">还没有事件记录</div>
+          )}
           {events.map((event, index) => (
             <pre
               key={`${event.type}-${index}`}

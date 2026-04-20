@@ -8,7 +8,9 @@ export const settingsSchema = z.object({
   showSafetyNoticeOnStartup: z.boolean().optional(),
   deviceMode: z.enum(['fake', 'web-bluetooth']).optional(),
   llmMode: z.enum(['fake', 'provider-http']).optional(),
-  modelContextStrategy: z.enum(['last-user-turn', 'last-five-user-turns', 'full-history']).optional(),
+  modelContextStrategy: z
+    .enum(['last-user-turn', 'last-five-user-turns', 'full-history'])
+    .optional(),
   permissionMode: z.enum(['confirm', 'timed', 'allow-all']).optional(),
   permissionModeExpiresAt: z.number().int().positive().optional(),
   backgroundBehavior: z.enum(['stop', 'keep']).optional(),

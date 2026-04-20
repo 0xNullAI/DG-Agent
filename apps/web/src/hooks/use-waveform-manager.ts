@@ -22,7 +22,10 @@ export function useWaveformManager(options: UseWaveformManagerOptions) {
   const [editingWaveform, setEditingWaveform] = useState<EditingWaveformState | null>(null);
 
   const refreshWaveforms = useCallback(async (): Promise<void> => {
-    const [allWaveforms, customOnly] = await Promise.all([waveformLibrary.list(), waveformLibrary.listCustom()]);
+    const [allWaveforms, customOnly] = await Promise.all([
+      waveformLibrary.list(),
+      waveformLibrary.listCustom(),
+    ]);
     setWaveforms(allWaveforms);
     setCustomWaveforms(customOnly);
   }, [waveformLibrary]);

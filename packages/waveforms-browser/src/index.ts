@@ -80,7 +80,10 @@ export class BrowserWaveformLibrary implements WaveformLibraryPort {
     }
 
     const custom = await this.getCustomWaveforms();
-    const merged = [...imported, ...custom.filter((existing) => !imported.some((item) => item.id === existing.id))];
+    const merged = [
+      ...imported,
+      ...custom.filter((existing) => !imported.some((item) => item.id === existing.id)),
+    ];
     await set(CUSTOM_WAVEFORMS_KEY, merged, this.store);
     return imported;
   }
@@ -94,7 +97,12 @@ export class BrowserWaveformLibrary implements WaveformLibraryPort {
 
 function createImportedWaveform(fileName: string, frames: WaveFrame[]): WaveformDefinition {
   const baseName = fileName.replace(/\.(pulse|zip)$/i, '');
-  const safeId = `custom-${baseName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'wave'}-${Date.now().toString(36)}`;
+  const safeId = `custom-${
+    baseName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'wave'
+  }-${Date.now().toString(36)}`;
   return {
     id: safeId,
     name: baseName,
@@ -110,7 +118,9 @@ function cloneWaveform(waveform: WaveformDefinition): WaveformDefinition {
   };
 }
 
-const FREQ_DATASET = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000];
+const FREQ_DATASET = [
+  10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+];
 const DURATION_DATASET = [1, 2, 3, 4, 5, 8, 10, 15, 20, 30, 40, 50, 60];
 
 function freqFromIndex(index: number): number {

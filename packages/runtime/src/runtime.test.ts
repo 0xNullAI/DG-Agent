@@ -177,7 +177,9 @@ class TwoStepLlm implements LlmPort {
 }
 
 class InspectingTwoStepLlm implements LlmPort {
-  readonly conversations: Array<ReadonlyArray<NonNullable<Parameters<LlmPort['runTurn']>[0]['conversation']>[number]>> = [];
+  readonly conversations: Array<
+    ReadonlyArray<NonNullable<Parameters<LlmPort['runTurn']>[0]['conversation']>[number]>
+  > = [];
 
   async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
     this.conversations.push([...(input.conversation ?? [])]);
@@ -212,7 +214,9 @@ class ContextProbeLlm implements LlmPort {
 
   async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
     this.conversations.push(
-      (input.conversation ?? []).flatMap((item) => (item.kind === 'message' ? [`${item.role}:${item.content}`] : [])),
+      (input.conversation ?? []).flatMap((item) =>
+        item.kind === 'message' ? [`${item.role}:${item.content}`] : [],
+      ),
     );
 
     return {
@@ -420,7 +424,11 @@ class TestSessionStore implements SessionStorePort {
     return session ? this.cloneSession(session) : null;
   }
 
-  async save(session: Awaited<ReturnType<TestSessionStore['get']>> extends infer T ? Exclude<T, null> : never) {
+  async save(
+    session: Awaited<ReturnType<TestSessionStore['get']>> extends infer T
+      ? Exclude<T, null>
+      : never,
+  ) {
     this.sessions.set(session.id, this.cloneSession(session));
   }
 
@@ -446,12 +454,20 @@ interface TestSessionStoreEntry {
   id: string;
   createdAt: number;
   updatedAt: number;
-  messages: Array<{ id: string; role: 'system' | 'user' | 'assistant'; content: string; createdAt: number }>;
+  messages: Array<{
+    id: string;
+    role: 'system' | 'user' | 'assistant';
+    content: string;
+    createdAt: number;
+  }>;
   deviceState: DeviceState;
   metadata?: Record<string, unknown>;
 }
 
-function createScriptedMessages(entries: Array<['user' | 'assistant', string]>, startedAt = Date.now()) {
+function createScriptedMessages(
+  entries: Array<['user' | 'assistant', string]>,
+  startedAt = Date.now(),
+) {
   return entries.map(([role, content], index) => createMessage(role, content, startedAt + index));
 }
 
@@ -501,7 +517,8 @@ describe('AgentRuntime', () => {
 
     const nextIterationConversation = llm.conversations[1] ?? [];
     const narrations = nextIterationConversation.filter(
-      (item) => item.kind === 'message' && item.role === 'assistant' && item.content === '准备启动 A',
+      (item) =>
+        item.kind === 'message' && item.role === 'assistant' && item.content === '准备启动 A',
     );
 
     expect(narrations).toHaveLength(1);
@@ -530,7 +547,17 @@ describe('AgentRuntime', () => {
       },
       {
         strategy: 'last-five-user-turns',
-        expected: ['user:u3', 'assistant:a3', 'user:u4', 'assistant:a4', 'user:u5', 'assistant:a5', 'user:u6', 'assistant:a6', 'user:u7'],
+        expected: [
+          'user:u3',
+          'assistant:a3',
+          'user:u4',
+          'assistant:a4',
+          'user:u5',
+          'assistant:a5',
+          'user:u6',
+          'assistant:a6',
+          'user:u7',
+        ],
       },
       {
         strategy: 'full-history',
@@ -841,7 +868,11 @@ describe('AgentRuntime', () => {
       },
     });
 
-    expect(events.some((event) => event.type === 'device-command-executed' && event.command.type === 'burst')).toBe(false);
+    expect(
+      events.some(
+        (event) => event.type === 'device-command-executed' && event.command.type === 'burst',
+      ),
+    ).toBe(false);
     const denied = events.find((event) => event.type === 'tool-call-denied');
     expect(denied && 'reason' in denied ? denied.reason : '').toContain('already active channel');
   });
@@ -904,12 +935,20 @@ describe('AgentRuntime', () => {
 
     const session = await runtime.getSessionSnapshot('timer-test');
     const traceEntries = await runtime.getSessionTrace('timer-test');
-    expect(session.messages.map((message) => message.content)).toEqual(['等我反馈', '我先等你反馈。', '我还在等你的反馈。']);
+    expect(session.messages.map((message) => message.content)).toEqual([
+      '等我反馈',
+      '我先等你反馈。',
+      '我还在等你的反馈。',
+    ]);
     expect(session.messages.some((message) => message.content.includes('[Timer due]'))).toBe(false);
     expect(session.messages.some((message) => message.content.includes('[内部提醒]'))).toBe(false);
     expect(traceEntries.some((entry) => entry.kind === 'timer-scheduled')).toBe(true);
     expect(traceEntries.some((entry) => entry.kind === 'timer-fired')).toBe(true);
-    expect(llm.toolCountsBySource.some((entry) => entry.sourceType === 'system' && entry.toolCount === 0)).toBe(true);
+    expect(
+      llm.toolCountsBySource.some(
+        (entry) => entry.sourceType === 'system' && entry.toolCount === 0,
+      ),
+    ).toBe(true);
   });
 
   it('does not persist the same assistant narration twice across a tool iteration and final reply', async () => {
@@ -931,7 +970,11 @@ describe('AgentRuntime', () => {
     });
 
     const session = await runtime.getSessionSnapshot('duplicate-assistant');
-    expect(session.messages.filter((message) => message.role === 'assistant' && message.content === '先从很轻的强度开始。')).toHaveLength(1);
+    expect(
+      session.messages.filter(
+        (message) => message.role === 'assistant' && message.content === '先从很轻的强度开始。',
+      ),
+    ).toHaveLength(1);
   });
 
   it('uses an ephemeral deny trigger to get a final assistant reply without persisting the trigger text', async () => {
@@ -1012,7 +1055,12 @@ describe('AgentRuntime', () => {
             messages: [
               { id: 'u1', role: 'user', content: '继续', createdAt: now },
               { id: 'a1', role: 'assistant', content: '我先等你反馈。', createdAt: now + 1 },
-              { id: 't1', role: 'user', content: '[Timer due]\nlabel: 等待反馈\nseconds: 5', createdAt: now + 2 },
+              {
+                id: 't1',
+                role: 'user',
+                content: '[Timer due]\nlabel: 等待反馈\nseconds: 5',
+                createdAt: now + 2,
+              },
               { id: 'a2', role: 'assistant', content: '我先等你反馈。', createdAt: now + 3 },
             ],
             deviceState: createEmptyDeviceState(),
@@ -1030,8 +1078,14 @@ describe('AgentRuntime', () => {
     });
 
     const session = await runtime.getSessionSnapshot('legacy-session');
-    expect(session.messages.filter((message) => message.role === 'assistant' && message.content === '我先等你反馈。')).toHaveLength(1);
-    expect(session.messages.some((message) => message.content.includes('定时提醒：等待反馈'))).toBe(false);
+    expect(
+      session.messages.filter(
+        (message) => message.role === 'assistant' && message.content === '我先等你反馈。',
+      ),
+    ).toHaveLength(1);
+    expect(session.messages.some((message) => message.content.includes('定时提醒：等待反馈'))).toBe(
+      false,
+    );
     expect(session.messages.some((message) => message.content.includes('[Timer due]'))).toBe(false);
   });
 });

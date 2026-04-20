@@ -1,12 +1,17 @@
 import type { DevicePort } from '@dg-agent/contracts';
 import type { DeviceCommand, DeviceCommandResult, DeviceState } from '@dg-agent/core';
 import { COYOTE_REQUEST_DEVICE_OPTIONS } from './constants.js';
-import type { BluetoothDeviceLike, NavigatorBluetoothLike, RequestDeviceOptionsLike } from './types.js';
+import type {
+  BluetoothDeviceLike,
+  NavigatorBluetoothLike,
+  RequestDeviceOptionsLike,
+} from './types.js';
 import type { WebBluetoothAvailability, WebBluetoothProtocolAdapter } from './coyote-protocol.js';
 
 export function getWebBluetoothAvailability(
-  nav: NavigatorBluetoothLike | undefined =
-    typeof navigator === 'undefined' ? undefined : (navigator as unknown as NavigatorBluetoothLike),
+  nav: NavigatorBluetoothLike | undefined = typeof navigator === 'undefined'
+    ? undefined
+    : (navigator as unknown as NavigatorBluetoothLike),
 ): WebBluetoothAvailability {
   if (!nav) {
     return { supported: false, reason: '当前环境中无法访问浏览器导航对象' };
@@ -37,7 +42,9 @@ export class WebBluetoothDevicePort implements DevicePort {
   constructor(private readonly options: WebBluetoothDevicePortOptions) {
     this.nav =
       options.navigatorRef ??
-      (typeof navigator === 'undefined' ? undefined : (navigator as unknown as NavigatorBluetoothLike));
+      (typeof navigator === 'undefined'
+        ? undefined
+        : (navigator as unknown as NavigatorBluetoothLike));
 
     this.options.protocol.subscribe((state) => {
       this.emit(state);
@@ -55,7 +62,9 @@ export class WebBluetoothDevicePort implements DevicePort {
       throw new Error('当前环境不支持 Web Bluetooth');
     }
 
-    const nextDevice = await bluetooth.requestDevice(this.options.requestDeviceOptions ?? COYOTE_REQUEST_DEVICE_OPTIONS);
+    const nextDevice = await bluetooth.requestDevice(
+      this.options.requestDeviceOptions ?? COYOTE_REQUEST_DEVICE_OPTIONS,
+    );
     const gatt = nextDevice.gatt;
 
     if (!gatt) {
@@ -153,4 +162,3 @@ function disconnectDevice(device: BluetoothDeviceLike | null): void {
   if (!gatt?.connected) return;
   gatt.disconnect();
 }
-

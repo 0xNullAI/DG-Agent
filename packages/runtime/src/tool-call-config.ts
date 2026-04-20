@@ -34,7 +34,8 @@ export function resolveToolCallConfig(input: ToolCallConfigInput = {}): ToolCall
       defaults.maxAdjustStrengthCallsPerTurn,
     ),
     maxBurstCallsPerTurn: normalizeCount(input.maxBurstCallsPerTurn, defaults.maxBurstCallsPerTurn),
-    burstRequiresActiveChannel: input.burstRequiresActiveChannel ?? defaults.burstRequiresActiveChannel,
+    burstRequiresActiveChannel:
+      input.burstRequiresActiveChannel ?? defaults.burstRequiresActiveChannel,
   };
 }
 

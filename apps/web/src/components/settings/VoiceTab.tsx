@@ -56,7 +56,9 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
         <SettingSegmented
           label="语音后端"
           value={settingsDraft.voice.mode}
-          onValueChange={(value) => updateVoiceSettings('mode', value as BrowserAppSettings['voice']['mode'])}
+          onValueChange={(value) =>
+            updateVoiceSettings('mode', value as BrowserAppSettings['voice']['mode'])
+          }
           options={[
             { value: 'browser', label: '浏览器原生' },
             { value: 'dashscope-proxy', label: 'DashScope 代理' },
@@ -65,7 +67,8 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
 
         {settingsDraft.voice.mode === 'dashscope-proxy' && (
           <div className="provider-hint">
-            兼容旧版语音链路：浏览器采集麦克风，经过 WebSocket 代理进行 ASR/TTS，留空代理地址时使用内置免费代理
+            兼容旧版语音链路：浏览器采集麦克风，经过 WebSocket 代理进行
+            ASR/TTS，留空代理地址时使用内置免费代理
           </div>
         )}
 

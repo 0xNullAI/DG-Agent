@@ -14,7 +14,11 @@ export function buildWarnings(
     warnings.push(modes.bluetoothAvailability.reason ?? '当前浏览器不支持 Web Bluetooth');
   }
 
-  if (settings.llmMode === 'provider-http' && providerRequiresUserApiKey(settings.provider) && !settings.provider.apiKey.trim()) {
+  if (
+    settings.llmMode === 'provider-http' &&
+    providerRequiresUserApiKey(settings.provider) &&
+    !settings.provider.apiKey.trim()
+  ) {
     warnings.push('当前已启用模型服务，但还没有配置 API Key');
   }
 
@@ -49,7 +53,11 @@ export function buildWarnings(
     warnings.push('已启用 QQ 桥接，但还没有配置允许的用户或群组');
   }
 
-  if (settings.bridge.enabled && settings.bridge.telegram.enabled && !settings.bridge.telegram.botToken.trim()) {
+  if (
+    settings.bridge.enabled &&
+    settings.bridge.telegram.enabled &&
+    !settings.bridge.telegram.botToken.trim()
+  ) {
     warnings.push('已启用 Telegram 桥接，但 Bot Token 为空');
   }
 
@@ -77,8 +85,14 @@ export function buildWarnings(
     );
   }
 
-  if (settings.voice.mode === 'dashscope-proxy' && settings.voice.proxyUrl.trim() && !settings.voice.apiKey.trim()) {
-    warnings.push('已设置自定义语音代理地址，但没有填写 DashScope API Key；请确认代理会自行注入鉴权');
+  if (
+    settings.voice.mode === 'dashscope-proxy' &&
+    settings.voice.proxyUrl.trim() &&
+    !settings.voice.apiKey.trim()
+  ) {
+    warnings.push(
+      '已设置自定义语音代理地址，但没有填写 DashScope API Key；请确认代理会自行注入鉴权',
+    );
   }
 
   return warnings;

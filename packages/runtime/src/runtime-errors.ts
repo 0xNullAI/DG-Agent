@@ -29,7 +29,9 @@ export function normalizeAssistantErrorMessage(error: unknown): string {
     return '还没有配置 API Key，请先在设置里填写';
   }
 
-  const statusMatch = raw.match(/\b(?:API error|HTTP error|Provider HTTP error)\s+(\d{3})\b|(?:HTTP 错误|模型服务 HTTP 错误)\s+(\d{3})/i);
+  const statusMatch = raw.match(
+    /\b(?:API error|HTTP error|Provider HTTP error)\s+(\d{3})\b|(?:HTTP 错误|模型服务 HTTP 错误)\s+(\d{3})/i,
+  );
   if (statusMatch) {
     const status = Number(statusMatch[1] ?? statusMatch[2]);
     if (status === 400) return '请求被服务端拒绝，请检查模型、参数或接口兼容性';

@@ -4,10 +4,7 @@ import {
   isDashscopeProxyRecognitionSupported,
   isDashscopeProxySynthesisSupported,
 } from './dashscope-proxy.js';
-import {
-  SPEECH_ABORTED_ERROR_MESSAGE,
-  SPEECH_SYNTHESIS_ABORTED_ERROR_MESSAGE,
-} from './types.js';
+import { SPEECH_ABORTED_ERROR_MESSAGE, SPEECH_SYNTHESIS_ABORTED_ERROR_MESSAGE } from './types.js';
 import type {
   BrowserSpeechCapabilities,
   BrowserSpeechRecognitionOptions,
@@ -75,7 +72,9 @@ function getNativeRecognitionCtor(): (new () => SpeechRecognitionLike) | undefin
   return browserWindow?.SpeechRecognition ?? browserWindow?.webkitSpeechRecognition;
 }
 
-export function getBrowserSpeechCapabilities(options: SpeechCapabilityOptions = {}): BrowserSpeechCapabilities {
+export function getBrowserSpeechCapabilities(
+  options: SpeechCapabilityOptions = {},
+): BrowserSpeechCapabilities {
   const recognitionMode = options.recognitionMode ?? 'browser';
   const synthesisMode = options.synthesisMode ?? 'browser';
   const nativeRecognitionSupported = Boolean(getNativeRecognitionCtor());
@@ -91,8 +90,12 @@ export function getBrowserSpeechCapabilities(options: SpeechCapabilityOptions = 
     nativeSynthesisSupported,
     proxyRecognitionSupported,
     proxySynthesisSupported,
-    recognitionSupported: recognitionMode === 'dashscope-proxy' ? proxyRecognitionSupported : nativeRecognitionSupported,
-    synthesisSupported: synthesisMode === 'dashscope-proxy' ? proxySynthesisSupported : nativeSynthesisSupported,
+    recognitionSupported:
+      recognitionMode === 'dashscope-proxy'
+        ? proxyRecognitionSupported
+        : nativeRecognitionSupported,
+    synthesisSupported:
+      synthesisMode === 'dashscope-proxy' ? proxySynthesisSupported : nativeSynthesisSupported,
   };
 }
 
@@ -138,7 +141,13 @@ export class BrowserSpeechRecognitionController implements SpeechRecognitionCont
         if (settled) return;
         settled = true;
         this.activeRecognition = null;
-        reject(new Error(event.error === 'aborted' ? SPEECH_ABORTED_ERROR_MESSAGE : event.error ?? '语音识别失败'));
+        reject(
+          new Error(
+            event.error === 'aborted'
+              ? SPEECH_ABORTED_ERROR_MESSAGE
+              : (event.error ?? '语音识别失败'),
+          ),
+        );
       };
 
       recognition.onend = () => {
@@ -242,7 +251,9 @@ export function createSpeechRecognitionController(
   return new BrowserSpeechRecognitionController(options);
 }
 
-export function createSpeechSynthesizer(options: BrowserSpeechSynthesisOptions = {}): SpeechSynthesizer {
+export function createSpeechSynthesizer(
+  options: BrowserSpeechSynthesisOptions = {},
+): SpeechSynthesizer {
   if (options.mode === 'dashscope-proxy') {
     return new DashscopeProxySpeechSynthesizer(options);
   }

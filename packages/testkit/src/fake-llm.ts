@@ -11,7 +11,9 @@ function nextToolCall(name: string, args: Record<string, unknown>): ToolCall {
 
 export class FakeLlmPort implements LlmPort {
   async runTurn(input: LlmTurnInput): Promise<LlmTurnResult> {
-    const latestToolOutput = [...(input.conversation ?? [])].reverse().find((item) => item.kind === 'function_call_output');
+    const latestToolOutput = [...(input.conversation ?? [])]
+      .reverse()
+      .find((item) => item.kind === 'function_call_output');
     if (latestToolOutput?.kind === 'function_call_output') {
       return {
         assistantMessage: `Fake LLM 已完成工具执行：${latestToolOutput.output}`,

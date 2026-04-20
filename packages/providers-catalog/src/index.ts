@@ -32,7 +32,14 @@ export interface ProviderRuntimeSettings extends ProviderSettings {
   browserSupported: boolean;
 }
 
-const PROVIDER_IDS = ['free', 'qwen', 'deepseek', 'doubao', 'openai', 'custom'] as const satisfies ProviderId[];
+const PROVIDER_IDS = [
+  'free',
+  'qwen',
+  'deepseek',
+  'doubao',
+  'openai',
+  'custom',
+] as const satisfies ProviderId[];
 const BASE_PROVIDER_SETTINGS = {
   apiKey: '',
   model: '',
@@ -86,7 +93,12 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     browserSupported: true,
     fields: [
       { key: 'apiKey', label: 'API 密钥', type: 'password', placeholder: 'ARK API 密钥' },
-      { key: 'model', label: '模型 / Endpoint ID', type: 'text', placeholder: 'doubao-seed-2-0-mini-250415' },
+      {
+        key: 'model',
+        label: '模型 / Endpoint ID',
+        type: 'text',
+        placeholder: 'doubao-seed-2-0-mini-250415',
+      },
     ],
   },
   {
@@ -150,7 +162,8 @@ export function normalizeProviderSettings(input: ProviderSettings): ProviderSett
 
   switch (normalized.providerId) {
     case 'qwen':
-      normalized.baseUrl = normalized.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
+      normalized.baseUrl =
+        normalized.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
       normalized.model = normalized.model || 'qwen3.5-plus';
       normalized.endpoint = 'chat/completions';
       normalized.useStrict = true;

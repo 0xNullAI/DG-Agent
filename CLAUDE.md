@@ -81,31 +81,37 @@ The runtime's `runTurn()` loops: build instructions → call LLM → if tool cal
 These behaviors have been confirmed by the user — do not change without explicit request.
 
 ### Layout
+
 - Sidebar spacing (expand/collapse button, new session, session entries, settings) — do not tweak
 - Send button must stay below the input box, not inline right
 - Input area is a floating layer at the bottom, not a normal block
 - Empty session shows only "欢迎使用 DG-Agent ！" — no example prompts
 
 ### ChatPanel
+
 - Title bar must always be visible (not scrollable)
 - Device status bar sits below the title bar, fully hidden when disconnected
 - Input area is floating; must not drift upward when few messages
 
 ### Settings
+
 - Settings save on drawer close, not on input blur or debounce
 - Model context strategy, bridge config, voice config all follow the same rule
 
 ### Device & Bluetooth
+
 - Bluetooth chooser only appears on explicit user click — never auto-triggered by messages or AI tool calls
 - Session switch does not disconnect the device
 - New/switch session clears permission grant cache
 
 ### Toasts
+
 - Don't duplicate errors already shown in chat bubbles
 - Timer-related system messages go in chat area, not toast
 - No small colored pills above the input box
 
 ### Bridge
+
 - Bridge messages route to the active session, auto-creating one if needed
 - Bridge source persisted in session metadata for reply routing
 - QQ/NapCat token passed via WebSocket URL query param `access_token`

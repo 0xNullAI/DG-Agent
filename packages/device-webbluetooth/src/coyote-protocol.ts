@@ -1,4 +1,11 @@
-import { createEmptyDeviceState, type Channel, type DeviceCommand, type DeviceCommandResult, type DeviceState, type WaveFrame } from '@dg-agent/core';
+import {
+  createEmptyDeviceState,
+  type Channel,
+  type DeviceCommand,
+  type DeviceCommandResult,
+  type DeviceState,
+  type WaveFrame,
+} from '@dg-agent/core';
 import {
   V2_BATTERY_CHAR,
   V2_BATTERY_SERVICE,
@@ -123,7 +130,10 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
       this.v2WaveAChar = await primaryService.getCharacteristic(V2_WAVE_A_CHAR);
       this.v2WaveBChar = await primaryService.getCharacteristic(V2_WAVE_B_CHAR);
       await this.v2StrengthChar.startNotifications();
-      this.v2StrengthChar.addEventListener('characteristicvaluechanged', this.handleV2StrengthNotification);
+      this.v2StrengthChar.addEventListener(
+        'characteristicvaluechanged',
+        this.handleV2StrengthNotification,
+      );
 
       try {
         const batteryService = await context.server.getPrimaryService(V2_BATTERY_SERVICE);
@@ -166,7 +176,10 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     }
 
     if (this.v2StrengthChar) {
-      this.v2StrengthChar.removeEventListener('characteristicvaluechanged', this.handleV2StrengthNotification);
+      this.v2StrengthChar.removeEventListener(
+        'characteristicvaluechanged',
+        this.handleV2StrengthNotification,
+      );
       try {
         await this.v2StrengthChar.stopNotifications();
       } catch {
@@ -262,7 +275,9 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
 
     if (this.deviceVersion === 3 && this.writeChar) {
       try {
-        await this.writeChar.writeValueWithoutResponse(this.buildImmediateAbsoluteStrengthPacket(0, 0));
+        await this.writeChar.writeValueWithoutResponse(
+          this.buildImmediateAbsoluteStrengthPacket(0, 0),
+        );
       } catch {
         // ignore best effort
       }
@@ -360,13 +375,16 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     const previous = channel === 'A' ? this.state.strengthA : this.state.strengthB;
     this.setAbsoluteStrength(channel, strength);
 
-    const timer = setTimeout(() => {
-      const current = channel === 'A' ? this.state.strengthA : this.state.strengthB;
-      const target = Math.min(current, previous);
-      this.setAbsoluteStrength(channel, target);
-      this.burstRestores.delete(channel);
-      this.emit();
-    }, Math.max(100, durationMs));
+    const timer = setTimeout(
+      () => {
+        const current = channel === 'A' ? this.state.strengthA : this.state.strengthB;
+        const target = Math.min(current, previous);
+        this.setAbsoluteStrength(channel, target);
+        this.burstRestores.delete(channel);
+        this.emit();
+      },
+      Math.max(100, durationMs),
+    );
 
     this.burstRestores.set(channel, timer);
   }
@@ -417,7 +435,9 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     const strengthA = Math.min(this.pendingStrA, this.state.limitA);
     const strengthB = Math.min(this.pendingStrB, this.state.limitB);
 
-    await this.v2StrengthChar.writeValueWithoutResponse(this.encodeV2Strength(strengthA, strengthB));
+    await this.v2StrengthChar.writeValueWithoutResponse(
+      this.encodeV2Strength(strengthA, strengthB),
+    );
     this.state.strengthA = strengthA;
     this.state.strengthB = strengthB;
 
@@ -427,7 +447,9 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
         await this.v2WaveAChar.writeValueWithoutResponse(this.encodeV2Wave(0, 0, 0));
       } else {
         const params = this.waveFrameToV2(next.freq[0] ?? 0, next.int[0] ?? 0);
-        await this.v2WaveAChar.writeValueWithoutResponse(this.encodeV2Wave(params.x, params.y, params.z));
+        await this.v2WaveAChar.writeValueWithoutResponse(
+          this.encodeV2Wave(params.x, params.y, params.z),
+        );
       }
     }
 
@@ -437,7 +459,9 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
         await this.v2WaveBChar.writeValueWithoutResponse(this.encodeV2Wave(0, 0, 0));
       } else {
         const params = this.waveFrameToV2(next.freq[0] ?? 0, next.int[0] ?? 0);
-        await this.v2WaveBChar.writeValueWithoutResponse(this.encodeV2Wave(params.x, params.y, params.z));
+        await this.v2WaveBChar.writeValueWithoutResponse(
+          this.encodeV2Wave(params.x, params.y, params.z),
+        );
       }
     }
   }
@@ -470,7 +494,7 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     }
 
     const [frequency, intensity] = frame;
-      return {
+    return {
       freq: [frequency, frequency, frequency, frequency],
       int: [intensity, intensity, intensity, intensity],
     };

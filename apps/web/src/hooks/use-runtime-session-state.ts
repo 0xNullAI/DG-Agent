@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AgentClient } from '@dg-agent/client';
-import { createEmptyDeviceState, type DeviceState, type RuntimeEvent, type RuntimeTraceEntry, type SessionSnapshot } from '@dg-agent/core';
+import {
+  createEmptyDeviceState,
+  type DeviceState,
+  type RuntimeEvent,
+  type RuntimeTraceEntry,
+  type SessionSnapshot,
+} from '@dg-agent/core';
 
 export interface UseRuntimeSessionStateOptions {
   client: AgentClient;
@@ -153,7 +159,10 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
         setLiveDeviceState(event.result.state);
       }
 
-      if (isActiveSessionEvent && (event.type === 'assistant-message-completed' || event.type === 'assistant-message-aborted')) {
+      if (
+        isActiveSessionEvent &&
+        (event.type === 'assistant-message-completed' || event.type === 'assistant-message-aborted')
+      ) {
         setReplyBusy(false);
       }
 
@@ -161,7 +170,10 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
         setStreamingAssistantText('');
       }
 
-      if (event.type === 'assistant-message-completed' || event.type === 'assistant-message-aborted') {
+      if (
+        event.type === 'assistant-message-completed' ||
+        event.type === 'assistant-message-aborted'
+      ) {
         setStreamingAssistantText('');
       }
 

@@ -1,7 +1,26 @@
-import { useEffect, useRef, useState, type Dispatch, type KeyboardEvent, type SetStateAction } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type KeyboardEvent,
+  type SetStateAction,
+} from 'react';
 import type { DeviceState, SessionSnapshot } from '@dg-agent/core';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
-import { ArrowUp, AudioLines, Battery, BatteryFull, BatteryLow, BatteryMedium, BatteryWarning, Bluetooth, Mic, OctagonX, Settings } from 'lucide-react';
+import {
+  ArrowUp,
+  AudioLines,
+  Battery,
+  BatteryFull,
+  BatteryLow,
+  BatteryMedium,
+  BatteryWarning,
+  Bluetooth,
+  Mic,
+  OctagonX,
+  Settings,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
@@ -182,7 +201,16 @@ export function ChatPanel({
             onClick={onOpenSidebar}
             aria-label="历史记录"
           >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <rect x="3" y="3" width="18" height="18" rx="2" />
               <path d="M9 3v18" />
               <path d="M14 10h3" />
@@ -223,10 +251,12 @@ export function ChatPanel({
           </Button>
 
           {/* Connect — animates away when connected */}
-          <div className={cn(
-            'overflow-hidden transition-all duration-300 ease-out',
-            deviceState.connected ? 'w-0 opacity-0' : 'w-auto opacity-100',
-          )}>
+          <div
+            className={cn(
+              'overflow-hidden transition-all duration-300 ease-out',
+              deviceState.connected ? 'w-0 opacity-0' : 'w-auto opacity-100',
+            )}
+          >
             <Button
               variant="ghost"
               size="icon"
@@ -283,7 +313,8 @@ export function ChatPanel({
           {!busy && !streamingAssistantText && messages.length === 0 && (
             <div className="flex justify-start">
               <div className="max-w-[92%] overflow-hidden break-words whitespace-pre-wrap rounded-[14px] rounded-bl-[4px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-3 text-[14.5px] leading-[1.6] text-[var(--text)]">
-                你好！我是 DG-Agent，可以帮你通过自然语言控制 DG-Lab Coyote 设备。{'\n\n'}请先点击右上角蓝牙按钮连接设备，然后告诉我你想做什么。
+                你好！我是 DG-Agent，可以帮你通过自然语言控制 DG-Lab Coyote 设备。{'\n\n'}
+                请先点击右上角蓝牙按钮连接设备，然后告诉我你想做什么。
               </div>
             </div>
           )}
@@ -333,7 +364,10 @@ export function ChatPanel({
 
             const userMessage = message.role === 'user';
             return (
-              <div key={message.id} className={cn('flex', userMessage ? 'justify-end' : 'justify-start')}>
+              <div
+                key={message.id}
+                className={cn('flex', userMessage ? 'justify-end' : 'justify-start')}
+              >
                 <div
                   className={cn(
                     'max-w-[92%] overflow-hidden break-words whitespace-pre-wrap px-4 py-3 text-[14.5px] leading-[1.6]',
@@ -362,12 +396,16 @@ export function ChatPanel({
                         : 'bg-[var(--bg-soft)] text-[var(--text-soft)]',
                   )}
                 >
-                  <span className={cn(
-                    'inline-block h-1.5 w-1.5 shrink-0 rounded-full',
-                    activity.kind === 'executed' ? 'bg-[var(--success)]'
-                      : activity.kind === 'denied' ? 'bg-[var(--danger)]'
-                        : 'bg-[var(--text-faint)]',
-                  )} />
+                  <span
+                    className={cn(
+                      'inline-block h-1.5 w-1.5 shrink-0 rounded-full',
+                      activity.kind === 'executed'
+                        ? 'bg-[var(--success)]'
+                        : activity.kind === 'denied'
+                          ? 'bg-[var(--danger)]'
+                          : 'bg-[var(--text-faint)]',
+                    )}
+                  />
                   {activity.text}
                 </div>
               ))}
@@ -427,7 +465,11 @@ export function ChatPanel({
               onClick={handlePrimaryAction}
               aria-label={busy ? '停止回复' : hasText ? '发送' : '语音识别'}
             >
-              {showVoiceAsPrimary ? <AudioLines className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+              {showVoiceAsPrimary ? (
+                <AudioLines className="h-4 w-4" />
+              ) : (
+                <ArrowUp className="h-4 w-4" />
+              )}
             </Button>
           )}
         </div>
@@ -478,7 +520,10 @@ type TimelineItem =
   | (SessionSnapshot['messages'][number] & { kind: 'message' })
   | { kind: 'trace-system'; id: string; content: string; createdAt: number };
 
-function buildRenderableTimeline(messages: SessionSnapshot['messages'], traceFeed: TraceFeedItem[]): TimelineItem[] {
+function buildRenderableTimeline(
+  messages: SessionSnapshot['messages'],
+  traceFeed: TraceFeedItem[],
+): TimelineItem[] {
   const items: TimelineItem[] = [
     ...messages.map((message) => ({
       ...message,

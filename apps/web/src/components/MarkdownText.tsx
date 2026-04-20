@@ -36,7 +36,12 @@ function renderMarkdown(text: string): ReactNode[] {
       continue;
     }
 
-    result.push(<Fragment key={result.length}>{i > 0 ? '\n' : null}{renderInline(line)}</Fragment>);
+    result.push(
+      <Fragment key={result.length}>
+        {i > 0 ? '\n' : null}
+        {renderInline(line)}
+      </Fragment>,
+    );
     i += 1;
   }
 
@@ -52,7 +57,11 @@ function renderInline(text: string): ReactNode[] {
     const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
     const codeMatch = remaining.match(/`([^`]+)`/);
 
-    interface MatchCandidate { index: number; length: number; node: ReactNode }
+    interface MatchCandidate {
+      index: number;
+      length: number;
+      node: ReactNode;
+    }
     const candidates: MatchCandidate[] = [];
 
     if (boldMatch && typeof boldMatch.index === 'number') {

@@ -1,7 +1,9 @@
 import type { DeviceCommand, RuntimeEvent, SessionSnapshot } from '@dg-agent/core';
 
 export function getSessionTitle(session: SessionSnapshot): string {
-  const firstUserMessage = session.messages.find((message) => message.role === 'user')?.content?.trim();
+  const firstUserMessage = session.messages
+    .find((message) => message.role === 'user')
+    ?.content?.trim();
   if (!firstUserMessage) return '新对话';
   return firstUserMessage.slice(0, 36);
 }
@@ -23,9 +25,15 @@ export function formatTimestamp(timestamp: number): string {
 
 export function formatUiErrorMessage(error: unknown): string {
   const rawMessage =
-    typeof error === 'string' ? error : error instanceof Error ? error.message : String(error ?? '发生未知错误');
+    typeof error === 'string'
+      ? error
+      : error instanceof Error
+        ? error.message
+        : String(error ?? '发生未知错误');
 
-  const normalizedMessage = rawMessage.trim().replace(/^(DOMException|TypeError|Error|AbortError):\s*/i, '');
+  const normalizedMessage = rawMessage
+    .trim()
+    .replace(/^(DOMException|TypeError|Error|AbortError):\s*/i, '');
 
   if (!normalizedMessage) {
     return '发生未知错误';
@@ -35,7 +43,11 @@ export function formatUiErrorMessage(error: unknown): string {
     return '你已取消设备选择';
   }
 
-  if (normalizedMessage.includes("Failed to execute 'requestDevice' on 'Bluetooth': Must be handling a user gesture")) {
+  if (
+    normalizedMessage.includes(
+      "Failed to execute 'requestDevice' on 'Bluetooth': Must be handling a user gesture",
+    )
+  ) {
     return '请通过页面上的连接按钮手动选择设备';
   }
 
@@ -44,12 +56,20 @@ export function formatUiErrorMessage(error: unknown): string {
 
 export function isBluetoothChooserCancelledError(error: unknown): boolean {
   const rawMessage =
-    typeof error === 'string' ? error : error instanceof Error ? error.message : String(error ?? '');
-  const normalizedMessage = rawMessage.trim().replace(/^(DOMException|TypeError|Error|AbortError):\s*/i, '');
+    typeof error === 'string'
+      ? error
+      : error instanceof Error
+        ? error.message
+        : String(error ?? '');
+  const normalizedMessage = rawMessage
+    .trim()
+    .replace(/^(DOMException|TypeError|Error|AbortError):\s*/i, '');
   return normalizedMessage.includes('User cancelled the requestDevice() chooser');
 }
 
-export function getRecentToolActivities(events: RuntimeEvent[]): Array<{ kind: 'proposed' | 'executed' | 'denied'; text: string }> {
+export function getRecentToolActivities(
+  events: RuntimeEvent[],
+): Array<{ kind: 'proposed' | 'executed' | 'denied'; text: string }> {
   return events
     .filter(
       (event) =>
@@ -97,7 +117,9 @@ export function getRecentToolActivities(events: RuntimeEvent[]): Array<{ kind: '
     });
 }
 
-export function getChatNotices(events: RuntimeEvent[]): Array<{ kind: 'tool' | 'system' | 'warning'; text: string }> {
+export function getChatNotices(
+  events: RuntimeEvent[],
+): Array<{ kind: 'tool' | 'system' | 'warning'; text: string }> {
   return events
     .filter(
       (event) =>

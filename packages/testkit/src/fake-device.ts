@@ -1,5 +1,10 @@
 import type { DevicePort } from '@dg-agent/contracts';
-import { createEmptyDeviceState, type DeviceCommand, type DeviceCommandResult, type DeviceState } from '@dg-agent/core';
+import {
+  createEmptyDeviceState,
+  type DeviceCommand,
+  type DeviceCommandResult,
+  type DeviceState,
+} from '@dg-agent/core';
 
 export class FakeDevicePort implements DevicePort {
   private state: DeviceState = createEmptyDeviceState();

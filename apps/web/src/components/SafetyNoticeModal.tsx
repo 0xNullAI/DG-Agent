@@ -72,7 +72,8 @@ export function SafetyNoticeModal({ onAccept, countdownSeconds = 10 }: SafetyNot
           <div className="eyebrow safety-notice-eyebrow">DGLAB 安全确认</div>
           <h2 id="safety-notice-title">使用前安全确认</h2>
           <p id="safety-notice-summary" className="safety-notice-summary">
-            继续之前，请确认你已经理解设备控制、AI 输出以及浏览器运行环境带来的风险，并能够随时主动停止。
+            继续之前，请确认你已经理解设备控制、AI
+            输出以及浏览器运行环境带来的风险，并能够随时主动停止。
           </p>
         </header>
 
@@ -104,7 +105,10 @@ export function SafetyNoticeModal({ onAccept, countdownSeconds = 10 }: SafetyNot
           <div className="safety-notice-footer-copy">
             <strong>继续即表示你已阅读并愿意自行承担使用风险。</strong>
             <label className="safety-notice-checkbox">
-              <Checkbox checked={dontShowAgain} onCheckedChange={(checked) => setDontShowAgain(Boolean(checked))} />
+              <Checkbox
+                checked={dontShowAgain}
+                onCheckedChange={(checked) => setDontShowAgain(Boolean(checked))}
+              />
               <span>下次启动时不再弹出这条安全确认</span>
             </label>
           </div>

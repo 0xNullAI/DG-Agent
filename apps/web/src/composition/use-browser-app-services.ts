@@ -5,11 +5,20 @@ import {
   getBrowserSpeechCapabilities,
 } from '@dg-agent/audio-browser';
 import { createBrowserBridgeAdapters } from '@dg-agent/bridge-browser';
-import { BridgeAdapterRegistry, BridgeManager, BridgePermissionPort, type MessageOrigin } from '@dg-agent/bridge-core';
+import {
+  BridgeAdapterRegistry,
+  BridgeManager,
+  BridgePermissionPort,
+  type MessageOrigin,
+} from '@dg-agent/bridge-core';
 import { CoyoteProtocolAdapter, WebBluetoothDevicePort } from '@dg-agent/device-webbluetooth';
 import type { PermissionDecision } from '@dg-agent/core';
 import { BrowserPermissionPort } from '@dg-agent/permissions-browser';
-import { BrowserSessionStore, BrowserSessionTraceStore, type BrowserAppSettings } from '@dg-agent/storage-browser';
+import {
+  BrowserSessionStore,
+  BrowserSessionTraceStore,
+  type BrowserAppSettings,
+} from '@dg-agent/storage-browser';
 import { BrowserUpdateChecker } from '@dg-agent/update-browser';
 import { BrowserWaveformLibrary } from '@dg-agent/waveforms-browser';
 import { createBrowserAgentClient, describeBrowserModes } from './create-browser-agent-client.js';
@@ -63,7 +72,13 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
         apiKey: settings.voice.apiKey,
         autoStopEnabled: settings.voice.autoStopEnabled,
       }),
-    [settings.voice.apiKey, settings.voice.autoStopEnabled, settings.voice.mode, settings.voice.proxyUrl, settings.voiceLanguage],
+    [
+      settings.voice.apiKey,
+      settings.voice.autoStopEnabled,
+      settings.voice.mode,
+      settings.voice.proxyUrl,
+      settings.voiceLanguage,
+    ],
   );
   const speechSynthesizer = useMemo(
     () =>
@@ -74,7 +89,13 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
         apiKey: settings.voice.apiKey,
         speaker: settings.voice.speaker,
       }),
-    [settings.voice.apiKey, settings.voice.mode, settings.voice.proxyUrl, settings.voice.speaker, settings.voiceLanguage],
+    [
+      settings.voice.apiKey,
+      settings.voice.mode,
+      settings.voice.proxyUrl,
+      settings.voice.speaker,
+      settings.voiceLanguage,
+    ],
   );
   const speechCapabilities = useMemo(
     () =>

@@ -18,4 +18,3 @@
     "build": "tsc -p tsconfig.json"
   }
 }
-

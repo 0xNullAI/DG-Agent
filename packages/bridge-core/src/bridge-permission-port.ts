@@ -31,7 +31,10 @@ export class BridgePermissionPort {
     const grantUntil = this.grants.get(grantKey);
     if (typeof grantUntil === 'number') {
       if (grantUntil === Number.POSITIVE_INFINITY || now < grantUntil) {
-        return { type: 'approve-scoped', expiresAt: Number.isFinite(grantUntil) ? grantUntil : undefined };
+        return {
+          type: 'approve-scoped',
+          expiresAt: Number.isFinite(grantUntil) ? grantUntil : undefined,
+        };
       }
       this.grants.delete(grantKey);
     }

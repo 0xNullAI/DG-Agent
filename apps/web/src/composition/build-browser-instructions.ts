@@ -20,7 +20,10 @@ export function createBuildBrowserInstructions(settings: BrowserInstructionSetti
     isFirstIteration: boolean;
     turnToolCalls: readonly TurnToolCallSummary[];
   }): string => {
-    const selectedPreset = getAnyPromptPresetById(settings.promptPresetId, settings.savedPromptPresets);
+    const selectedPreset = getAnyPromptPresetById(
+      settings.promptPresetId,
+      settings.savedPromptPresets,
+    );
     const customPrompt = settings.customPrompt.trim();
     const blocks = [
       selectedPreset?.prompt ?? '你是一个友好的助手。',
@@ -93,7 +96,9 @@ function buildDeviceStatusBlock(
   const effectiveCapA = Math.min(device.limitA, settings.maxStrengthA);
   const effectiveCapB = Math.min(device.limitB, settings.maxStrengthB);
   const battery = typeof device.battery === 'number' ? `${device.battery}%` : '未知';
-  const connection = device.connected ? `已连接${device.deviceName ? `（${device.deviceName}）` : ''}` : '未连接';
+  const connection = device.connected
+    ? `已连接${device.deviceName ? `（${device.deviceName}）` : ''}`
+    : '未连接';
 
   return [
     '[当前设备状态]',

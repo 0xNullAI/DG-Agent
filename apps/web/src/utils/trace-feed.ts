@@ -31,7 +31,9 @@ function formatTraceEntry(entry: RuntimeTraceEntry): string | null {
     case 'tool-failed':
       return `执行失败：${entry.toolDisplayName ?? entry.toolName ?? '工具'}。原因：${entry.detail ?? '未知错误。'}`;
     case 'timer-scheduled':
-      return entry.label && typeof entry.seconds === 'number' ? `已设定定时：${entry.label}（${entry.seconds} 秒后）` : null;
+      return entry.label && typeof entry.seconds === 'number'
+        ? `已设定定时：${entry.label}（${entry.seconds} 秒后）`
+        : null;
     default:
       return null;
   }
@@ -42,7 +44,8 @@ function formatExecutedTrace(entry: RuntimeTraceEntry): string | null {
   switch (entry.toolName) {
     case 'start': {
       const channel = typeof entry.args?.channel === 'string' ? entry.args.channel : '通道';
-      const strength = typeof entry.args?.strength === 'number' ? entry.args.strength : entry.args?.strength;
+      const strength =
+        typeof entry.args?.strength === 'number' ? entry.args.strength : entry.args?.strength;
       const waveformId =
         typeof entry.args?.waveformId === 'string'
           ? entry.args.waveformId
@@ -57,7 +60,8 @@ function formatExecutedTrace(entry: RuntimeTraceEntry): string | null {
     }
     case 'adjust_strength': {
       const channel = typeof entry.args?.channel === 'string' ? entry.args.channel : '通道';
-      const delta = typeof entry.args?.delta === 'number' ? entry.args.delta : Number(entry.args?.delta ?? 0);
+      const delta =
+        typeof entry.args?.delta === 'number' ? entry.args.delta : Number(entry.args?.delta ?? 0);
       return `已执行：调整 ${channel} 强度 ${delta > 0 ? '+' : ''}${delta}`;
     }
     case 'change_wave': {
@@ -72,7 +76,10 @@ function formatExecutedTrace(entry: RuntimeTraceEntry): string | null {
     }
     case 'burst': {
       const channel = typeof entry.args?.channel === 'string' ? entry.args.channel : '通道';
-      const strength = typeof entry.args?.strength === 'number' ? entry.args.strength : Number(entry.args?.strength ?? 0);
+      const strength =
+        typeof entry.args?.strength === 'number'
+          ? entry.args.strength
+          : Number(entry.args?.strength ?? 0);
       const durationMs =
         typeof entry.args?.durationMs === 'number'
           ? entry.args.durationMs

@@ -9,7 +9,9 @@ export interface BrowserPermissionPortOptions {
   mode: BrowserPermissionMode;
   timedGrantExpiresAt?: number;
   confirmFn?: (message: string) => boolean;
-  requestFn?: (input: PermissionRequest) => Promise<PermissionDecision | boolean> | PermissionDecision | boolean;
+  requestFn?: (
+    input: PermissionRequest,
+  ) => Promise<PermissionDecision | boolean> | PermissionDecision | boolean;
 }
 
 export class BrowserPermissionPort implements PermissionPort {
@@ -54,7 +56,9 @@ export class BrowserPermissionPort implements PermissionPort {
       return { type: 'approve-scoped', expiresAt: this.timedGrantExpiresAt };
     }
 
-    const result = this.requestFn ? await this.requestFn(input) : this.confirmFn(formatPermissionMessage(input));
+    const result = this.requestFn
+      ? await this.requestFn(input)
+      : this.confirmFn(formatPermissionMessage(input));
     const decision = normalizeDecision(result);
     if (decision.type === 'deny') {
       return { type: 'deny', reason: '用户在浏览器确认框中拒绝了这次工具调用' };

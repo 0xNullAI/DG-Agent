@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
 :root {
   --bg: #ffffff;
@@ -10,7 +10,7 @@
   --text: #1a1a1a;
   --text-soft: #5a6872;
   --text-faint: #94a3b0;
-  --accent: #58C8F2;
+  --accent: #58c8f2;
   --accent-soft: rgba(88, 200, 242, 0.1);
   --accent-strong: #3ab5e6;
   --accent-hover: rgba(88, 200, 242, 0.16);
@@ -549,13 +549,21 @@ textarea:focus {
 .chat-footer-shadcn {
   padding: 1rem 1.25rem 1.25rem;
   border-top: 1px solid var(--surface-border);
-  background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(253, 245, 247, 0.92) 22%, rgba(253, 245, 247, 0.98) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(253, 245, 247, 0.92) 22%,
+    rgba(253, 245, 247, 0.98) 100%
+  );
 }
 
 :root[data-theme='dark'] .chat-footer-shadcn {
-  background:
-    linear-gradient(180deg, rgba(8, 8, 8, 0) 0%, rgba(20, 20, 20, 0.92) 22%, rgba(20, 20, 20, 0.98) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(8, 8, 8, 0) 0%,
+    rgba(20, 20, 20, 0.92) 22%,
+    rgba(20, 20, 20, 0.98) 100%
+  );
 }
 
 .composer-chat {
@@ -1195,8 +1203,7 @@ textarea:focus {
   padding: 1.05rem 1.1rem;
   border-radius: var(--radius-md);
   background:
-    linear-gradient(135deg, rgba(255, 184, 0, 0.16), rgba(255, 184, 0, 0.08)),
-    var(--bg-elevated);
+    linear-gradient(135deg, rgba(255, 184, 0, 0.16), rgba(255, 184, 0, 0.08)), var(--bg-elevated);
   border: 1px solid rgba(217, 119, 6, 0.22);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
 }
@@ -1219,13 +1226,21 @@ textarea:focus {
 }
 
 .safety-notice-section[data-tone='accent'] {
-  background:
-    linear-gradient(180deg, rgba(233, 30, 122, 0.08), rgba(233, 30, 122, 0.03) 38%, var(--bg-elevated) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(233, 30, 122, 0.08),
+    rgba(233, 30, 122, 0.03) 38%,
+    var(--bg-elevated) 100%
+  );
 }
 
 .safety-notice-section[data-tone='warning'] {
-  background:
-    linear-gradient(180deg, rgba(255, 184, 0, 0.12), rgba(255, 184, 0, 0.04) 38%, var(--bg-elevated) 100%);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 184, 0, 0.12),
+    rgba(255, 184, 0, 0.04) 38%,
+    var(--bg-elevated) 100%
+  );
 }
 
 .safety-notice-section-head {

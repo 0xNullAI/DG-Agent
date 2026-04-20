@@ -36,11 +36,11 @@ function getAudioContextCtor(): typeof AudioContext | undefined {
 export function isDashscopeProxyRecognitionSupported(): boolean {
   return Boolean(
     getAudioContextCtor() &&
-      typeof WebSocket !== 'undefined' &&
-      typeof URL !== 'undefined' &&
-      typeof Blob !== 'undefined' &&
-      typeof navigator !== 'undefined' &&
-      navigator.mediaDevices?.getUserMedia,
+    typeof WebSocket !== 'undefined' &&
+    typeof URL !== 'undefined' &&
+    typeof Blob !== 'undefined' &&
+    typeof navigator !== 'undefined' &&
+    navigator.mediaDevices?.getUserMedia,
   );
 }
 
@@ -207,7 +207,9 @@ export class DashscopeProxySpeechRecognitionController implements SpeechRecognit
     }
 
     if (!pcmWorkletModuleUrl) {
-      pcmWorkletModuleUrl = URL.createObjectURL(new Blob([PCM_WORKLET_SOURCE], { type: 'application/javascript' }));
+      pcmWorkletModuleUrl = URL.createObjectURL(
+        new Blob([PCM_WORKLET_SOURCE], { type: 'application/javascript' }),
+      );
     }
 
     await this.audioContext.audioWorklet.addModule(pcmWorkletModuleUrl);
@@ -676,7 +678,8 @@ class DashscopeProxySpeechSynthesisSession implements SpeechSynthesisSession {
         }
 
         if (eventName === 'task-failed') {
-          const errorMessage = message.payload?.message ?? message.header?.error_message ?? '语音播报失败';
+          const errorMessage =
+            message.payload?.message ?? message.header?.error_message ?? '语音播报失败';
           this.rejectAndCleanup(new Error(errorMessage));
         }
       } catch {

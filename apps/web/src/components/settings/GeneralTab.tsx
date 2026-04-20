@@ -19,10 +19,7 @@ interface GeneralTabProps {
   setSettingsDraft: Dispatch<SetStateAction<BrowserAppSettings>>;
 }
 
-export function GeneralTab({
-  settingsDraft,
-  setSettingsDraft,
-}: GeneralTabProps) {
+export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps) {
   const selectedProviderDef = getProviderDefinition(settingsDraft.provider.providerId);
 
   function updateProviderField<K extends keyof BrowserAppSettings['provider']>(
@@ -51,7 +48,9 @@ export function GeneralTab({
         ...current.providerConfigs,
         [current.provider.providerId]: current.provider,
       };
-      const nextProvider = normalizeProviderSettings(providerConfigs[providerId] ?? createProviderSettings(providerId));
+      const nextProvider = normalizeProviderSettings(
+        providerConfigs[providerId] ?? createProviderSettings(providerId),
+      );
 
       return {
         ...current,
@@ -72,7 +71,10 @@ export function GeneralTab({
         return null;
       }
 
-      const value = field.key === 'useStrict' ? String(settingsDraft.provider.useStrict) : settingsDraft.provider[field.key];
+      const value =
+        field.key === 'useStrict'
+          ? String(settingsDraft.provider.useStrict)
+          : settingsDraft.provider[field.key];
 
       return (
         <label key={field.key} htmlFor={fieldId}>
@@ -81,7 +83,10 @@ export function GeneralTab({
             value={value}
             onValueChange={(nextValue) => {
               if (field.key === 'endpoint') {
-                updateProviderField('endpoint', nextValue as BrowserAppSettings['provider']['endpoint']);
+                updateProviderField(
+                  'endpoint',
+                  nextValue as BrowserAppSettings['provider']['endpoint'],
+                );
                 return;
               }
 
@@ -148,12 +153,16 @@ export function GeneralTab({
             onValueChange={(value) => switchProvider(value as ProviderId)}
             options={PROVIDER_DEFINITIONS.map((provider) => ({
               value: provider.id,
-              label: provider.browserSupported ? provider.name : `${provider.name}（当前浏览器不可用）`,
+              label: provider.browserSupported
+                ? provider.name
+                : `${provider.name}（当前浏览器不可用）`,
             }))}
           />
         </label>
 
-        {selectedProviderDef?.hint && <div className="provider-hint">{selectedProviderDef.hint}</div>}
+        {selectedProviderDef?.hint && (
+          <div className="provider-hint">{selectedProviderDef.hint}</div>
+        )}
 
         {selectedProviderDef?.fields.map((field) => renderProviderField(field))}
 

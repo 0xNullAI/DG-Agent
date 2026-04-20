@@ -4,7 +4,11 @@ import {
   normalizeProviderSettings,
   type ProviderId,
 } from '@dg-agent/providers-catalog';
-import type { BrowserAppEnvLike, BrowserAppSettings, BrowserVoiceSettings } from './browser-settings-types.js';
+import type {
+  BrowserAppEnvLike,
+  BrowserAppSettings,
+  BrowserVoiceSettings,
+} from './browser-settings-types.js';
 
 export const DEFAULT_VOICE_SETTINGS: BrowserVoiceSettings = {
   mode: 'browser',
@@ -14,7 +18,9 @@ export const DEFAULT_VOICE_SETTINGS: BrowserVoiceSettings = {
   autoStopEnabled: true,
 };
 
-export function normalizeVoiceSettings(input: Partial<BrowserVoiceSettings> = {}): BrowserVoiceSettings {
+export function normalizeVoiceSettings(
+  input: Partial<BrowserVoiceSettings> = {},
+): BrowserVoiceSettings {
   return {
     mode: input.mode === 'dashscope-proxy' ? 'dashscope-proxy' : 'browser',
     speaker: input.speaker?.trim() || DEFAULT_VOICE_SETTINGS.speaker,

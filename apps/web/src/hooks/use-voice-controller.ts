@@ -1,6 +1,17 @@
-import { useCallback, useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import type { RuntimeEvent } from '@dg-agent/core';
-import type { SpeechRecognitionController, SpeechSynthesisSession, SpeechSynthesizer } from '@dg-agent/audio-browser';
+import type {
+  SpeechRecognitionController,
+  SpeechSynthesisSession,
+  SpeechSynthesizer,
+} from '@dg-agent/audio-browser';
 import { isSpeechAbortError, isSpeechSynthesisAbortError } from '../utils/app-runtime-helpers.js';
 
 export interface UseVoiceControllerOptions {
@@ -13,8 +24,14 @@ export interface UseVoiceControllerOptions {
 }
 
 export function useVoiceController(options: UseVoiceControllerOptions) {
-  const { speechRecognition, speechSynthesizer, ttsEnabled, setText, setErrorMessage, setStatusMessage } =
-    options;
+  const {
+    speechRecognition,
+    speechSynthesizer,
+    ttsEnabled,
+    setText,
+    setErrorMessage,
+    setStatusMessage,
+  } = options;
 
   const [voiceMode, setVoiceMode] = useState(false);
   const [voiceState, setVoiceState] = useState<'idle' | 'listening' | 'speaking'>('idle');
@@ -160,7 +177,13 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
         return;
       }
     },
-    [ensureSpeechSession, finalizeSpeechSession, setErrorMessage, setStatusMessage, stopSpeechPlayback],
+    [
+      ensureSpeechSession,
+      finalizeSpeechSession,
+      setErrorMessage,
+      setStatusMessage,
+      stopSpeechPlayback,
+    ],
   );
 
   useEffect(

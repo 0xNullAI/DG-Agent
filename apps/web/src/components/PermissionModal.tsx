@@ -36,7 +36,12 @@ export function PermissionModal({
   }, [onDeny]);
 
   return (
-    <section className="permission-modal-backdrop" role="dialog" aria-modal="true" aria-label="权限请求">
+    <section
+      className="permission-modal-backdrop"
+      role="dialog"
+      aria-modal="true"
+      aria-label="权限请求"
+    >
       <div ref={panelRef} className="permission-modal" tabIndex={-1}>
         <div className="eyebrow">权限请求</div>
         <h2>确认设备操作</h2>

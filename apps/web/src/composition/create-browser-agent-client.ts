@@ -1,5 +1,14 @@
 import { createEmbeddedAgentClient, type AgentClient } from '@dg-agent/client';
-import type { DevicePort, LlmPort, LlmTurnInput, LlmTurnResult, PermissionPort, SessionStorePort, SessionTraceStorePort, WaveformLibraryPort } from '@dg-agent/contracts';
+import type {
+  DevicePort,
+  LlmPort,
+  LlmTurnInput,
+  LlmTurnResult,
+  PermissionPort,
+  SessionStorePort,
+  SessionTraceStorePort,
+  WaveformLibraryPort,
+} from '@dg-agent/contracts';
 import { getWebBluetoothAvailability } from '@dg-agent/device-webbluetooth';
 import { BrowserPermissionPort } from '@dg-agent/permissions-browser';
 import { resolveProviderRuntimeSettings } from '@dg-agent/providers-catalog';

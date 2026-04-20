@@ -102,7 +102,10 @@ describe('BrowserAppSettingsStore', () => {
       },
     });
 
-    const persistedSettings = JSON.parse(localStorageRef.getItem(SETTINGS_KEY) ?? '{}') as Record<string, unknown>;
+    const persistedSettings = JSON.parse(localStorageRef.getItem(SETTINGS_KEY) ?? '{}') as Record<
+      string,
+      unknown
+    >;
     expect(saved.provider.apiKey).toBe('sk-live');
     expect(saved.voice.apiKey).toBe('voice-secret');
     expect(persistedSettings.provider).not.toHaveProperty('apiKey');

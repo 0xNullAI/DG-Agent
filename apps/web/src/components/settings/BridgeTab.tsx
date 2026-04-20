@@ -17,8 +17,12 @@ interface BridgeTabProps {
 }
 
 export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
-  const [qqAllowUsersInput, setQqAllowUsersInput] = useState(() => formatCommaSeparatedInput(settingsDraft.bridge.qq.allowUsers));
-  const [qqAllowGroupsInput, setQqAllowGroupsInput] = useState(() => formatCommaSeparatedInput(settingsDraft.bridge.qq.allowGroups));
+  const [qqAllowUsersInput, setQqAllowUsersInput] = useState(() =>
+    formatCommaSeparatedInput(settingsDraft.bridge.qq.allowUsers),
+  );
+  const [qqAllowGroupsInput, setQqAllowGroupsInput] = useState(() =>
+    formatCommaSeparatedInput(settingsDraft.bridge.qq.allowGroups),
+  );
   const [telegramAllowUsersInput, setTelegramAllowUsersInput] = useState(() =>
     formatCommaSeparatedInput(settingsDraft.bridge.telegram.allowUsers),
   );
@@ -187,7 +191,8 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
                           ...current.bridge,
                           qq: {
                             ...current.bridge.qq,
-                            permissionMode: value as BrowserAppSettings['bridge']['qq']['permissionMode'],
+                            permissionMode:
+                              value as BrowserAppSettings['bridge']['qq']['permissionMode'],
                           },
                         },
                       }))
@@ -297,7 +302,8 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
                           ...current.bridge,
                           telegram: {
                             ...current.bridge.telegram,
-                            permissionMode: value as BrowserAppSettings['bridge']['telegram']['permissionMode'],
+                            permissionMode:
+                              value as BrowserAppSettings['bridge']['telegram']['permissionMode'],
                           },
                         },
                       }))
@@ -313,7 +319,6 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
           </div>
         )}
       </section>
-
     </div>
   );
 }

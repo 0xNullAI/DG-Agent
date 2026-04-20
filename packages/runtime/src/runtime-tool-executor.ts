@@ -1,5 +1,18 @@
-import type { DevicePort, LoggerPort, PermissionPort, SessionTraceStorePort } from '@dg-agent/contracts';
-import { isDeviceToolName, type ActionContext, type DeviceCommand, type RuntimeEvent, type SessionSnapshot, type ToolCall, type ToolExecutionPlan } from '@dg-agent/core';
+import type {
+  DevicePort,
+  LoggerPort,
+  PermissionPort,
+  SessionTraceStorePort,
+} from '@dg-agent/contracts';
+import {
+  isDeviceToolName,
+  type ActionContext,
+  type DeviceCommand,
+  type RuntimeEvent,
+  type SessionSnapshot,
+  type ToolCall,
+  type ToolExecutionPlan,
+} from '@dg-agent/core';
 import { DeviceCommandQueue } from './device-command-queue.js';
 import { throwIfAborted } from './runtime-errors.js';
 import { consumeTurnQuota, type TurnState } from './runtime-turn-state.js';
@@ -48,7 +61,9 @@ export class RuntimeToolExecutor {
   async execute(input: ExecuteToolCallInput): Promise<string> {
     const { session, toolCall, context, turnState, abortSignal } = input;
     const toolDisplayName = this.options.toolRegistry.getDisplayName(toolCall.name);
-    const displayToolCall = toolDisplayName ? { ...toolCall, displayName: toolDisplayName } : toolCall;
+    const displayToolCall = toolDisplayName
+      ? { ...toolCall, displayName: toolDisplayName }
+      : toolCall;
 
     throwIfAborted(abortSignal);
     this.options.emit({
@@ -66,7 +81,12 @@ export class RuntimeToolExecutor {
       args: toolCall.args,
     });
 
-    const quotaError = consumeTurnQuota(toolCall.name, turnState, this.options.toolCallConfig, toolCall.args);
+    const quotaError = consumeTurnQuota(
+      toolCall.name,
+      turnState,
+      this.options.toolCallConfig,
+      toolCall.args,
+    );
     if (quotaError) {
       return this.denyToolCall(session, displayToolCall, quotaError, context);
     }
@@ -225,7 +245,10 @@ export class RuntimeToolExecutor {
         context,
         toolName: toolCall.name,
         toolDisplayName: toolCall.displayName,
-        summary: this.options.toolRegistry.summarizeCommand(toolCall.name, command) ?? toolCall.displayName ?? toolCall.name,
+        summary:
+          this.options.toolRegistry.summarizeCommand(toolCall.name, command) ??
+          toolCall.displayName ??
+          toolCall.name,
         args: toolCall.args,
       });
 
@@ -309,7 +332,12 @@ export class RuntimeToolExecutor {
     }
   }
 
-  private async denyToolCall(session: SessionSnapshot, toolCall: ToolCall, reason: string, context: ActionContext): Promise<string> {
+  private async denyToolCall(
+    session: SessionSnapshot,
+    toolCall: ToolCall,
+    reason: string,
+    context: ActionContext,
+  ): Promise<string> {
     this.options.emit({
       type: 'tool-call-denied',
       sessionId: session.id,

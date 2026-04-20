@@ -1,7 +1,13 @@
 import { getBridgeOriginMetadata, type RuntimeEvent } from '@dg-agent/core';
 import { createBridgeSessionId } from './bridge-utils.js';
 import { MessageQueue } from './message-queue.js';
-import type { BridgeLogEntry, BridgeManagerOptions, BridgeManagerStatus, MessageOrigin, PlatformAdapter } from './bridge-types.js';
+import type {
+  BridgeLogEntry,
+  BridgeManagerOptions,
+  BridgeManagerStatus,
+  MessageOrigin,
+  PlatformAdapter,
+} from './bridge-types.js';
 
 type AdapterMessageHandler = (message: {
   platform: MessageOrigin['platform'];
@@ -159,7 +165,8 @@ export class BridgeManager {
   }
 
   private async processIncoming(text: string, origin: MessageOrigin): Promise<void> {
-    const sessionId = (await this.options.resolveTargetSessionId?.(origin)) ?? createBridgeSessionId(origin);
+    const sessionId =
+      (await this.options.resolveTargetSessionId?.(origin)) ?? createBridgeSessionId(origin);
     this.originBySession.set(sessionId, origin);
     this.emitLog('info', `正在把 ${origin.platform}/${origin.userName} 路由到会话 ${sessionId}`);
     await this.options.client.sendUserMessage({
@@ -176,10 +183,13 @@ export class BridgeManager {
   }
 
   private async handleClientEvent(event: RuntimeEvent): Promise<void> {
-    if (event.type !== 'assistant-message-completed' && event.type !== 'assistant-message-aborted') return;
+    if (event.type !== 'assistant-message-completed' && event.type !== 'assistant-message-aborted')
+      return;
     if (event.sourceType !== 'qq' && event.sourceType !== 'telegram') return;
 
-    const origin = this.originBySession.get(event.sessionId) ?? (await this.loadOriginFromSession(event.sessionId));
+    const origin =
+      this.originBySession.get(event.sessionId) ??
+      (await this.loadOriginFromSession(event.sessionId));
     if (!origin) {
       if (event.sessionId.startsWith('bridge:')) {
         this.emitLog('warn', `桥接会话 ${event.sessionId} 缺少来源映射，无法回发消息`);
@@ -200,7 +210,10 @@ export class BridgeManager {
       return;
     }
 
-    this.emitLog('info', `准备发送给 ${origin.platform}/${origin.userName}：${event.message.content.slice(0, 80)}`);
+    this.emitLog(
+      'info',
+      `准备发送给 ${origin.platform}/${origin.userName}：${event.message.content.slice(0, 80)}`,
+    );
     try {
       await adapter.sendMessage(origin.userId, event.message.content);
       this.emitLog('info', `已发送给 ${origin.platform}/${origin.userName}`);
@@ -244,7 +257,10 @@ export class BridgeManager {
     }
 
     const handler: AdapterMessageHandler = (message) => {
-      this.emitLog('info', `收到 ${message.platform}/${message.userName} 的消息：${message.text.slice(0, 80)}`);
+      this.emitLog(
+        'info',
+        `收到 ${message.platform}/${message.userName} 的消息：${message.text.slice(0, 80)}`,
+      );
       this.queue.enqueue(message.text, {
         platform: message.platform,
         userId: message.userId,

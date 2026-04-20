@@ -84,7 +84,9 @@ const BUILTIN_WAVEFORMS: WaveformDefinition[] = [
 ];
 
 export class BasicWaveformLibrary implements WaveformLibraryPort {
-  private readonly byId = new Map(BUILTIN_WAVEFORMS.map((waveform) => [waveform.id, cloneWaveform(waveform)]));
+  private readonly byId = new Map(
+    BUILTIN_WAVEFORMS.map((waveform) => [waveform.id, cloneWaveform(waveform)]),
+  );
 
   async getById(id: string): Promise<WaveformDefinition | null> {
     const waveform = this.byId.get(id);

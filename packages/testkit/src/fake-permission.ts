@@ -8,4 +8,3 @@ export class FakePermissionPort implements PermissionPort {
     return this.decision;
   }
 }
-

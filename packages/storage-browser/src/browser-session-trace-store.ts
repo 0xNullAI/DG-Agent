@@ -14,7 +14,10 @@ export class BrowserSessionTraceStore implements SessionTraceStorePort {
   private readonly store: UseStore;
 
   constructor(options: BrowserSessionTraceStoreOptions = {}) {
-    this.store = createStore(options.dbName ?? 'dg-agent-rewrite-traces', options.storeName ?? 'session-traces');
+    this.store = createStore(
+      options.dbName ?? 'dg-agent-rewrite-traces',
+      options.storeName ?? 'session-traces',
+    );
   }
 
   async list(sessionId: string): Promise<RuntimeTraceEntry[]> {

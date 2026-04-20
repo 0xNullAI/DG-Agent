@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
-import { BUILTIN_PROMPT_PRESETS, type PromptPreset, type SavedPromptPreset } from '@dg-agent/prompts-basic';
+import {
+  BUILTIN_PROMPT_PRESETS,
+  type PromptPreset,
+  type SavedPromptPreset,
+} from '@dg-agent/prompts-basic';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { ChevronDown, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -34,7 +38,10 @@ export function PresetSelector({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  const active = resolveActivePreset(settingsDraft.promptPresetId, settingsDraft.savedPromptPresets);
+  const active = resolveActivePreset(
+    settingsDraft.promptPresetId,
+    settingsDraft.savedPromptPresets,
+  );
   const selectedSavedPreset = settingsDraft.savedPromptPresets.find(
     (p) => p.id === settingsDraft.promptPresetId,
   );
@@ -72,7 +79,9 @@ export function PresetSelector({
       >
         <span>{active.icon}</span>
         <span className="max-w-[120px] truncate">{active.name}</span>
-        <ChevronDown className={`h-3.5 w-3.5 text-[var(--text-soft)] transition-transform ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown
+          className={`h-3.5 w-3.5 text-[var(--text-soft)] transition-transform ${open ? 'rotate-180' : ''}`}
+        />
       </button>
 
       {open && (

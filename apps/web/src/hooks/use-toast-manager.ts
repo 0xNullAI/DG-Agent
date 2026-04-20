@@ -20,7 +20,11 @@ interface UseToastManagerResult {
   hasVisibleToasts: boolean;
 }
 
-export function useToastManager({ errorMessage, warnings, events }: UseToastManagerOptions): UseToastManagerResult {
+export function useToastManager({
+  errorMessage,
+  warnings,
+  events,
+}: UseToastManagerOptions): UseToastManagerResult {
   const [toastVisibility, setToastVisibility] = useState<Record<string, boolean>>({});
 
   const errorToastItems: ToastItem[] = errorMessage
@@ -52,7 +56,9 @@ export function useToastManager({ errorMessage, warnings, events }: UseToastMana
 
   useEffect(() => {
     setToastVisibility((current) =>
-      Object.fromEntries(autoDismissToastItems.map((item) => [item.key, current[item.key] ?? true])),
+      Object.fromEntries(
+        autoDismissToastItems.map((item) => [item.key, current[item.key] ?? true]),
+      ),
     );
 
     const timers = autoDismissToastItems.map((item) =>
@@ -76,6 +82,7 @@ export function useToastManager({ errorMessage, warnings, events }: UseToastMana
     visibleErrorItems,
     visibleWarnings,
     visibleEventToasts,
-    hasVisibleToasts: visibleErrorItems.length > 0 || visibleWarnings.length > 0 || visibleEventToasts.length > 0,
+    hasVisibleToasts:
+      visibleErrorItems.length > 0 || visibleWarnings.length > 0 || visibleEventToasts.length > 0,
   };
 }

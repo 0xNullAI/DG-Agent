@@ -7,7 +7,11 @@ import {
   type SessionsResponse,
 } from '@dg-agent/api-contracts';
 import type { RuntimeEvent, RuntimeTraceEntry, SessionSnapshot } from '@dg-agent/core';
-import { AgentRuntime, type AgentRuntimeOptions, type SendUserMessageInput } from '@dg-agent/runtime';
+import {
+  AgentRuntime,
+  type AgentRuntimeOptions,
+  type SendUserMessageInput,
+} from '@dg-agent/runtime';
 
 export interface AgentClient {
   readonly transport: 'embedded' | 'http';

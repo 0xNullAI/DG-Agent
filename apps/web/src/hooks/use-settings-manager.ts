@@ -13,7 +13,10 @@ interface UseSettingsManagerResult {
   setPromptPresetName: React.Dispatch<React.SetStateAction<string>>;
   resetSettings: (onDone: () => void) => void;
   saveCurrentPromptPreset: (onError: (msg: string) => void) => void;
-  confirmSaveCurrentPromptPreset: (onError: (msg: string) => void, onSuccess: (msg: string) => void) => void;
+  confirmSaveCurrentPromptPreset: (
+    onError: (msg: string) => void,
+    onSuccess: (msg: string) => void,
+  ) => void;
   deleteSavedPromptPreset: (presetId: string, onSuccess: (msg: string) => void) => void;
   flushSettingsDraft: () => void;
   clearSessionPermissionOverride: () => void;
@@ -50,7 +53,10 @@ export function useSettingsManager(): UseSettingsManagerResult {
     setSavePromptDialogOpen(true);
   }
 
-  function confirmSaveCurrentPromptPreset(onError: (msg: string) => void, onSuccess: (msg: string) => void): void {
+  function confirmSaveCurrentPromptPreset(
+    onError: (msg: string) => void,
+    onSuccess: (msg: string) => void,
+  ): void {
     const prompt = settingsDraft.customPrompt.trim();
     if (!prompt) {
       setSavePromptDialogOpen(false);

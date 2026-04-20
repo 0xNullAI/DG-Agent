@@ -43,4 +43,3 @@ export interface BluetoothLike {
 export interface NavigatorBluetoothLike {
   bluetooth?: BluetoothLike;
 }
-

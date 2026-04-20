@@ -25,4 +25,3 @@ export class PolicyEngine {
     return { type: 'allow' };
   }
 }
-

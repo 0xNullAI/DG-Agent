@@ -28,7 +28,9 @@ export function SessionPanel({
   collapsed = false,
   onToggleCollapsed,
 }: SessionPanelProps) {
-  const visibleSessions = savedSessions.filter((session) => session.messages.some((message) => message.role === 'user'));
+  const visibleSessions = savedSessions.filter((session) =>
+    session.messages.some((message) => message.role === 'user'),
+  );
   const [visibleSessionCount, setVisibleSessionCount] = useState(SESSION_BATCH_SIZE);
   const renderedSessions = visibleSessions.slice(0, visibleSessionCount);
 
@@ -39,18 +41,17 @@ export function SessionPanel({
   if (collapsed) {
     return (
       <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-transparent shadow-none transition-all duration-300 ease-out">
-        <div className="shrink-0 px-2 py-2"> 
-          {
-            onToggleCollapsed && (
-              <Button
-                variant="ghost"
-                className="h-10 w-full justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-                onClick={onToggleCollapsed}
-                aria-label="展开侧边栏"
-              >
-                <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out" />
-              </Button>)
-          }
+        <div className="shrink-0 px-2 py-2">
+          {onToggleCollapsed && (
+            <Button
+              variant="ghost"
+              className="h-10 w-full justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+              onClick={onToggleCollapsed}
+              aria-label="展开侧边栏"
+            >
+              <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out" />
+            </Button>
+          )}
           {onCreateSession && (
             <Button
               variant="ghost"
@@ -80,7 +81,9 @@ export function SessionPanel({
                   aria-label="收起侧边栏"
                 >
                   <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out -ml-0.5" />
-                  <span className="transition-opacity duration-200 ease-out -mt-[0.15em]">收起</span>
+                  <span className="transition-opacity duration-200 ease-out -mt-[0.15em]">
+                    收起
+                  </span>
                 </Button>
               </div>
               <div className="absolute inset-x-1 bottom-[1.5px] border-t border-[var(--surface-border)] opacity-100" />
@@ -88,7 +91,9 @@ export function SessionPanel({
           )}
 
           <div className="flex items-center justify-between gap-3 px-2 mt-4">
-            <div className="pl-1 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-faint)]">历史记录</div>
+            <div className="pl-1 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-faint)]">
+              历史记录
+            </div>
             {onCreateSession && (
               <Button
                 variant="ghost"
@@ -129,10 +134,19 @@ export function SessionPanel({
                     onClick={() => onSelectSession(item.id)}
                   >
                     <div className="min-w-0 pl-3 pr-2">
-                      <div className={cn('truncate text-[13px] leading-5', active ? 'font-medium text-[var(--text)]' : 'font-normal text-[var(--text)]')}>
+                      <div
+                        className={cn(
+                          'truncate text-[13px] leading-5',
+                          active
+                            ? 'font-medium text-[var(--text)]'
+                            : 'font-normal text-[var(--text)]',
+                        )}
+                      >
                         {getSessionTitle(item)}
                       </div>
-                      <div className="mt-1 text-[11px] text-[var(--text-faint)]">{formatTimestamp(item.updatedAt)}</div>
+                      <div className="mt-1 text-[11px] text-[var(--text-faint)]">
+                        {formatTimestamp(item.updatedAt)}
+                      </div>
                     </div>
                   </button>
                   <Button
@@ -140,7 +154,9 @@ export function SessionPanel({
                     size="icon"
                     className={cn(
                       'h-7 w-7 self-center rounded-full text-[var(--text-faint)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]',
-                      active ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100',
+                      active
+                        ? 'opacity-100'
+                        : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100',
                     )}
                     onClick={() => onDeleteSession(item.id)}
                     aria-label="删除会话"
@@ -165,7 +181,6 @@ export function SessionPanel({
           </div>
         </ScrollArea>
       </CardContent>
-
     </Card>
   );
 }

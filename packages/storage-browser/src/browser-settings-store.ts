@@ -1,5 +1,14 @@
-import { createProviderSettings, normalizeProviderSettings, type ProviderId } from '@dg-agent/providers-catalog';
-import type { BrowserAppSettings, BrowserAppEnvLike, ProviderConfigMap, StorageLike } from './browser-settings-types.js';
+import {
+  createProviderSettings,
+  normalizeProviderSettings,
+  type ProviderId,
+} from '@dg-agent/providers-catalog';
+import type {
+  BrowserAppSettings,
+  BrowserAppEnvLike,
+  ProviderConfigMap,
+  StorageLike,
+} from './browser-settings-types.js';
 import {
   API_KEYS_LOCAL,
   API_KEYS_SESSION,
@@ -29,7 +38,9 @@ export class BrowserAppSettingsStore {
       (typeof localStorage === 'undefined' ? undefined : (localStorage as unknown as StorageLike));
     this.sessionStorageRef =
       options.sessionStorageRef ??
-      (typeof sessionStorage === 'undefined' ? undefined : (sessionStorage as unknown as StorageLike));
+      (typeof sessionStorage === 'undefined'
+        ? undefined
+        : (sessionStorage as unknown as StorageLike));
     this.defaults = defaultBrowserAppSettings(options.env);
   }
 
@@ -74,11 +85,13 @@ export class BrowserAppSettingsStore {
       ...settings.providerConfigs,
       [settings.provider.providerId]: settings.provider,
     };
-    const persistedPermissionMode = settings.permissionMode === 'allow-all' ? 'confirm' : settings.permissionMode;
+    const persistedPermissionMode =
+      settings.permissionMode === 'allow-all' ? 'confirm' : settings.permissionMode;
     const persistedPermissionModeExpiresAt =
       settings.permissionMode === 'timed' ? Date.now() + TIMED_PERMISSION_WINDOW_MS : undefined;
 
-    this.sessionPermissionModeOverride = settings.permissionMode === 'allow-all' ? 'allow-all' : null;
+    this.sessionPermissionModeOverride =
+      settings.permissionMode === 'allow-all' ? 'allow-all' : null;
 
     const sanitized = {
       version: 1 as const,
@@ -160,7 +173,9 @@ export class BrowserAppSettingsStore {
     }
   }
 
-  private normalizePersistedSettings(persisted: PersistedBrowserAppSettings | null): PersistedBrowserAppSettings | null {
+  private normalizePersistedSettings(
+    persisted: PersistedBrowserAppSettings | null,
+  ): PersistedBrowserAppSettings | null {
     if (!persisted) return null;
 
     return {
@@ -208,7 +223,10 @@ export class BrowserAppSettingsStore {
   }
 
   private readApiKeys(activeProviderId: ProviderId): Partial<Record<ProviderId, string>> {
-    const fromSession = this.parseApiKeyMap(this.sessionStorageRef?.getItem(API_KEYS_SESSION), activeProviderId);
+    const fromSession = this.parseApiKeyMap(
+      this.sessionStorageRef?.getItem(API_KEYS_SESSION),
+      activeProviderId,
+    );
     if (Object.keys(fromSession).length > 0) return fromSession;
 
     return this.parseApiKeyMap(this.localStorageRef?.getItem(API_KEYS_LOCAL), activeProviderId);
@@ -261,13 +279,18 @@ export class BrowserAppSettingsStore {
     }
   }
 
-  private parseApiKeyMap(raw: string | null | undefined, fallbackProviderId: ProviderId): Partial<Record<ProviderId, string>> {
+  private parseApiKeyMap(
+    raw: string | null | undefined,
+    fallbackProviderId: ProviderId,
+  ): Partial<Record<ProviderId, string>> {
     if (!raw) return {};
 
     try {
       const parsed = JSON.parse(raw) as Record<string, unknown>;
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        const entries = Object.entries(parsed).filter((entry): entry is [ProviderId, string] => typeof entry[1] === 'string');
+        const entries = Object.entries(parsed).filter(
+          (entry): entry is [ProviderId, string] => typeof entry[1] === 'string',
+        );
         return Object.fromEntries(entries);
       }
     } catch {

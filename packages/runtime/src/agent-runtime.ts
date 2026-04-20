@@ -1,4 +1,13 @@
-import type { DevicePort, LlmConversationItem, LlmPort, LoggerPort, PermissionPort, SessionStorePort, SessionTraceStorePort, WaveformLibraryPort } from '@dg-agent/contracts';
+import type {
+  DevicePort,
+  LlmConversationItem,
+  LlmPort,
+  LoggerPort,
+  PermissionPort,
+  SessionStorePort,
+  SessionTraceStorePort,
+  WaveformLibraryPort,
+} from '@dg-agent/contracts';
 import {
   createEmptyDeviceState,
   createMessage,
@@ -24,7 +33,11 @@ import {
   TOOL_LOOP_EXHAUSTED_MESSAGE,
 } from './runtime-errors.js';
 import { RuntimeToolExecutor, type TimerFiredTrigger } from './runtime-tool-executor.js';
-import { resolveToolCallConfig, type ToolCallConfig, type ToolCallConfigInput } from './tool-call-config.js';
+import {
+  resolveToolCallConfig,
+  type ToolCallConfig,
+  type ToolCallConfigInput,
+} from './tool-call-config.js';
 import {
   buildConversationItems,
   collectTurnToolCalls,
@@ -95,7 +108,8 @@ export class AgentRuntime {
     this.traces = options.sessionTraceStore ?? new InMemorySessionTraceStore();
     this.queue = new DeviceCommandQueue(options.device);
     this.toolRegistry =
-      options.toolRegistry ?? createDefaultToolRegistryWithDeps({ waveformLibrary: options.waveformLibrary });
+      options.toolRegistry ??
+      createDefaultToolRegistryWithDeps({ waveformLibrary: options.waveformLibrary });
     this.toolCallConfig = resolveToolCallConfig(options.toolCallConfig);
 
     const policyEngine = options.policyEngine ?? new PolicyEngine(createDefaultPolicyRules());
@@ -111,7 +125,8 @@ export class AgentRuntime {
       emit: (event) => {
         this.events.emit(event);
       },
-      enqueueTimerTrigger: (trigger) => this.enqueueSystemWork(trigger.sessionId, { kind: 'timer-fired', trigger }),
+      enqueueTimerTrigger: (trigger) =>
+        this.enqueueSystemWork(trigger.sessionId, { kind: 'timer-fired', trigger }),
       traceStore: this.traces,
     });
 
@@ -238,10 +253,20 @@ export class AgentRuntime {
     this.activeTurns.set(session.id, abortController);
 
     try {
-      const turnResult = await this.runToolLoop(session, input, turnStartIndex, ephemeralInput, abortController.signal);
+      const turnResult = await this.runToolLoop(
+        session,
+        input,
+        turnStartIndex,
+        ephemeralInput,
+        abortController.signal,
+      );
       throwIfAborted(abortController.signal);
 
-      const assistantMessage = appendAssistantMessage(session, turnResult.finalAssistantText, turnStartIndex);
+      const assistantMessage = appendAssistantMessage(
+        session,
+        turnResult.finalAssistantText,
+        turnStartIndex,
+      );
       session.updatedAt = Date.now();
       session.deviceState = await this.options.device.getState();
       await this.saveSessionIfAvailable(session);
@@ -269,7 +294,11 @@ export class AgentRuntime {
         throw new Error(REPLY_ABORTED_ERROR_MESSAGE);
       }
 
-      const assistantErrorMessage = appendAssistantMessage(session, normalizeAssistantErrorMessage(error), turnStartIndex);
+      const assistantErrorMessage = appendAssistantMessage(
+        session,
+        normalizeAssistantErrorMessage(error),
+        turnStartIndex,
+      );
       session.updatedAt = Date.now();
       session.deviceState = await this.options.device.getState();
       await this.saveSessionIfAvailable(session);
@@ -318,7 +347,8 @@ export class AgentRuntime {
             isFirstIteration: iteration === 0,
             turnToolCalls: collectTurnToolCalls(turnState),
           }) ?? '',
-        tools: input.context.sourceType === 'system' ? [] : await this.toolRegistry.listDefinitions(),
+        tools:
+          input.context.sourceType === 'system' ? [] : await this.toolRegistry.listDefinitions(),
         conversation: buildConversationItems(
           session,
           turnState,
@@ -379,7 +409,13 @@ export class AgentRuntime {
             output,
           });
           turnState.workingItems.push(...iterationItems);
-          return this.runEphemeralNoToolFollowUp(session, input, turnState, deniedTrigger, abortSignal);
+          return this.runEphemeralNoToolFollowUp(
+            session,
+            input,
+            turnState,
+            deniedTrigger,
+            abortSignal,
+          );
         }
         if (shouldStopTurnForDisconnectedDevice(toolCall.name, output)) {
           return {
@@ -505,7 +541,12 @@ export class AgentRuntime {
   }
 
   private async drainSystemWork(sessionId: string): Promise<void> {
-    if (this.activeTurns.has(sessionId) || this.drainingSessions.has(sessionId) || this.isSessionDeleted(sessionId)) return;
+    if (
+      this.activeTurns.has(sessionId) ||
+      this.drainingSessions.has(sessionId) ||
+      this.isSessionDeleted(sessionId)
+    )
+      return;
 
     const queue = this.pendingSystemWork.get(sessionId);
     if (!queue || queue.length === 0) return;
@@ -587,7 +628,10 @@ function normalizeSessionHistory(session: SessionSnapshot): boolean {
 
     if (message.role === 'assistant') {
       const previousComparable = findPreviousComparableMessage(normalizedMessages);
-      if (previousComparable?.role === 'assistant' && previousComparable.content.trim() === message.content.trim()) {
+      if (
+        previousComparable?.role === 'assistant' &&
+        previousComparable.content.trim() === message.content.trim()
+      ) {
         changed = true;
         continue;
       }
@@ -605,7 +649,9 @@ function normalizeSessionHistory(session: SessionSnapshot): boolean {
   return true;
 }
 
-function findPreviousComparableMessage(messages: ConversationMessage[]): ConversationMessage | undefined {
+function findPreviousComparableMessage(
+  messages: ConversationMessage[],
+): ConversationMessage | undefined {
   for (let index = messages.length - 1; index >= 0; index -= 1) {
     const current = messages[index];
     if (!current) continue;
@@ -615,9 +661,15 @@ function findPreviousComparableMessage(messages: ConversationMessage[]): Convers
   return undefined;
 }
 
-function appendAssistantMessage(session: SessionSnapshot, content: string, turnStartIndex: number): ConversationMessage {
+function appendAssistantMessage(
+  session: SessionSnapshot,
+  content: string,
+  turnStartIndex: number,
+): ConversationMessage {
   const normalized = content.trim();
-  const existing = session.messages.slice(turnStartIndex + 1).find((message) => message.role === 'assistant' && message.content.trim() === normalized);
+  const existing = session.messages
+    .slice(turnStartIndex + 1)
+    .find((message) => message.role === 'assistant' && message.content.trim() === normalized);
   if (existing) {
     return existing;
   }
@@ -671,4 +723,3 @@ function shouldStopTurnForDisconnectedDevice(toolName: string, output: string): 
     return false;
   }
 }
-

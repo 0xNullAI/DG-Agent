@@ -73,7 +73,9 @@ export interface BridgeOriginMetadata {
 
 export const BRIDGE_ORIGIN_METADATA_KEY = 'bridgeOrigin';
 
-export function getBridgeOriginMetadata(metadata: Record<string, unknown> | undefined): BridgeOriginMetadata | null {
+export function getBridgeOriginMetadata(
+  metadata: Record<string, unknown> | undefined,
+): BridgeOriginMetadata | null {
   const value = metadata?.[BRIDGE_ORIGIN_METADATA_KEY];
   if (!value || typeof value !== 'object') return null;
 
@@ -82,7 +84,11 @@ export function getBridgeOriginMetadata(metadata: Record<string, unknown> | unde
   const userId = record.userId;
   const userName = record.userName;
 
-  if ((platform !== 'qq' && platform !== 'telegram') || typeof userId !== 'string' || userId.trim() === '') {
+  if (
+    (platform !== 'qq' && platform !== 'telegram') ||
+    typeof userId !== 'string' ||
+    userId.trim() === ''
+  ) {
     return null;
   }
 
@@ -97,7 +103,10 @@ export function mergeBridgeOriginMetadata(
   metadata: Record<string, unknown> | undefined,
   context: Pick<ActionContext, 'sourceType' | 'sourceUserId' | 'sourceUserName'>,
 ): Record<string, unknown> | undefined {
-  if ((context.sourceType !== 'qq' && context.sourceType !== 'telegram') || !context.sourceUserId?.trim()) {
+  if (
+    (context.sourceType !== 'qq' && context.sourceType !== 'telegram') ||
+    !context.sourceUserId?.trim()
+  ) {
     return metadata;
   }
 
@@ -139,7 +148,13 @@ export interface RuntimeTraceEntry {
 }
 
 export type DeviceCommand =
-  | { type: 'start'; channel: Channel; strength: number; waveform: WaveformDefinition; loop: boolean }
+  | {
+      type: 'start';
+      channel: Channel;
+      strength: number;
+      waveform: WaveformDefinition;
+      loop: boolean;
+    }
   | { type: 'stop'; channel?: Channel }
   | { type: 'adjustStrength'; channel: Channel; delta: number }
   | { type: 'changeWave'; channel: Channel; waveform: WaveformDefinition; loop: boolean }
@@ -173,17 +188,38 @@ export type PolicyDecision =
   | { type: 'require-confirm'; reason: string };
 
 export type RuntimeEvent =
-  | { type: 'user-message-accepted'; sessionId: string; message: ConversationMessage; sourceType: SourceType }
+  | {
+      type: 'user-message-accepted';
+      sessionId: string;
+      message: ConversationMessage;
+      sourceType: SourceType;
+    }
   | { type: 'assistant-message-delta'; sessionId: string; content: string }
   | { type: 'session-updated'; sessionId: string }
-  | { type: 'assistant-message-completed'; sessionId: string; message: ConversationMessage; sourceType: SourceType }
-  | { type: 'assistant-message-aborted'; sessionId: string; reason: string; message: ConversationMessage; sourceType: SourceType }
+  | {
+      type: 'assistant-message-completed';
+      sessionId: string;
+      message: ConversationMessage;
+      sourceType: SourceType;
+    }
+  | {
+      type: 'assistant-message-aborted';
+      sessionId: string;
+      reason: string;
+      message: ConversationMessage;
+      sourceType: SourceType;
+    }
   | { type: 'tool-call-proposed'; sessionId: string; toolCall: ToolCall }
   | { type: 'timer-scheduled'; sessionId: string; label: string; dueAt: number }
   | { type: 'timer-fired'; sessionId: string; label: string; firedAt: number }
   | { type: 'tool-call-denied'; sessionId: string; toolCall: ToolCall; reason: string }
   | { type: 'tool-call-failed'; sessionId: string; toolCall: ToolCall; error: string }
-  | { type: 'device-command-executed'; sessionId: string; command: DeviceCommand; result: DeviceCommandResult }
+  | {
+      type: 'device-command-executed';
+      sessionId: string;
+      command: DeviceCommand;
+      result: DeviceCommandResult;
+    }
   | { type: 'device-state-changed'; state: DeviceState }
   | { type: 'runtime-warning'; sessionId?: string; message: string };
 
@@ -211,7 +247,11 @@ export function isDeviceToolName(name: string): boolean {
   );
 }
 
-export function createMessage(role: MessageRole, content: string, createdAt = Date.now()): ConversationMessage {
+export function createMessage(
+  role: MessageRole,
+  content: string,
+  createdAt = Date.now(),
+): ConversationMessage {
   return {
     id: `${createdAt}-${Math.random().toString(36).slice(2, 8)}`,
     role,

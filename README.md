@@ -25,14 +25,14 @@
 
 点击顶栏 ⚙️ 按钮，选择一个 AI 服务商并填入 API Key：
 
-| 服务商                 | 国内直连  | 说明                                                                              |
-| ---------------------- | --------- | --------------------------------------------------------------------------------- |
-| **免费体验** (推荐)     | ✅        | 无需 API Key，使用阿里云线路，每分钟限 10 条（模型由 [MapleLeaf API](https://ai.071129.xyz) 提供） |
-| **通义千问**            | ✅        | [bailian.console.aliyun.com](https://bailian.console.aliyun.com)                  |
-| **DeepSeek**            | ✅        | [platform.deepseek.com](https://platform.deepseek.com)                            |
-| **豆包**                | ✅        | 火山方舟 [www.volcengine.com/product/ark](https://www.volcengine.com/product/ark) |
-| **OpenAI**              | ❌ 需代理 | [platform.openai.com](https://platform.openai.com)                                |
-| **自定义**              | —         | 自定义模型、API Key 和接口地址，兼容 OpenAI API 格式                              |
+| 服务商              | 国内直连  | 说明                                                                                               |
+| ------------------- | --------- | -------------------------------------------------------------------------------------------------- |
+| **免费体验** (推荐) | ✅        | 无需 API Key，使用阿里云线路，每分钟限 10 条（模型由 [MapleLeaf API](https://ai.071129.xyz) 提供） |
+| **通义千问**        | ✅        | [bailian.console.aliyun.com](https://bailian.console.aliyun.com)                                   |
+| **DeepSeek**        | ✅        | [platform.deepseek.com](https://platform.deepseek.com)                                             |
+| **豆包**            | ✅        | 火山方舟 [www.volcengine.com/product/ark](https://www.volcengine.com/product/ark)                  |
+| **OpenAI**          | ❌ 需代理 | [platform.openai.com](https://platform.openai.com)                                                 |
+| **自定义**          | —         | 自定义模型、API Key 和接口地址，兼容 OpenAI API 格式                                               |
 
 ### 2. 连接设备
 
@@ -55,14 +55,14 @@ AI：已经开始了哦，是很轻柔的呼吸波形，感觉怎么样？
 
 ## 浏览器支持
 
-| 浏览器              | 状态        | 说明                         |
-| ------------------- | ----------- | ---------------------------- |
-| Chrome (桌面)       | ✅ 支持     | 推荐                         |
-| Edge (桌面)         | ✅ 支持     | 推荐                         |
-| Chrome (Android)    | ✅ 支持     | 需系统蓝牙权限               |
-| Opera               | ⚠️ 部分支持 | 需手动启用 Web Bluetooth     |
-| Safari              | ❌ 不支持   | Apple 未实现 Web Bluetooth   |
-| Firefox             | ❌ 不支持   | Mozilla 未实现 Web Bluetooth |
+| 浏览器           | 状态        | 说明                         |
+| ---------------- | ----------- | ---------------------------- |
+| Chrome (桌面)    | ✅ 支持     | 推荐                         |
+| Edge (桌面)      | ✅ 支持     | 推荐                         |
+| Chrome (Android) | ✅ 支持     | 需系统蓝牙权限               |
+| Opera            | ⚠️ 部分支持 | 需手动启用 Web Bluetooth     |
+| Safari           | ❌ 不支持   | Apple 未实现 Web Bluetooth   |
+| Firefox          | ❌ 不支持   | Mozilla 未实现 Web Bluetooth |
 
 ## 安全须知
 

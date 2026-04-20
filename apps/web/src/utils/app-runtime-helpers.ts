@@ -1,4 +1,7 @@
-import { SPEECH_ABORTED_ERROR_MESSAGE, SPEECH_SYNTHESIS_ABORTED_ERROR_MESSAGE } from '@dg-agent/audio-browser';
+import {
+  SPEECH_ABORTED_ERROR_MESSAGE,
+  SPEECH_SYNTHESIS_ABORTED_ERROR_MESSAGE,
+} from '@dg-agent/audio-browser';
 
 const REPLY_ABORTED_ERROR_MESSAGE = '已停止当前回复';
 

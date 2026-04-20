@@ -24,8 +24,7 @@ SheetOverlay.displayName = DialogPrimitive.Overlay.displayName;
 const sheetVariants = {
   right:
     'fixed inset-y-0 right-0 z-50 h-full w-full max-w-[440px] border-l border-[var(--surface-border)] bg-[var(--bg-elevated)] p-4 shadow-xl sm:rounded-none',
-  left:
-    'fixed inset-y-0 left-0 z-50 h-full w-full max-w-[440px] border-r border-[var(--surface-border)] bg-[var(--bg-elevated)] p-4 shadow-xl sm:rounded-none',
+  left: 'fixed inset-y-0 left-0 z-50 h-full w-full max-w-[440px] border-r border-[var(--surface-border)] bg-[var(--bg-elevated)] p-4 shadow-xl sm:rounded-none',
 } as const;
 
 interface SheetContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
@@ -57,7 +56,11 @@ const SheetTitle = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
 >(({ className, ...props }, ref) => (
-  <DialogPrimitive.Title ref={ref} className={cn('text-lg font-semibold text-[var(--text)]', className)} {...props} />
+  <DialogPrimitive.Title
+    ref={ref}
+    className={cn('text-lg font-semibold text-[var(--text)]', className)}
+    {...props}
+  />
 ));
 SheetTitle.displayName = DialogPrimitive.Title.displayName;
 
@@ -65,7 +68,11 @@ const SheetDescription = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Description>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Description>
 >(({ className, ...props }, ref) => (
-  <DialogPrimitive.Description ref={ref} className={cn('text-sm text-[var(--text-soft)]', className)} {...props} />
+  <DialogPrimitive.Description
+    ref={ref}
+    className={cn('text-sm text-[var(--text-soft)]', className)}
+    {...props}
+  />
 ));
 SheetDescription.displayName = DialogPrimitive.Description.displayName;
 

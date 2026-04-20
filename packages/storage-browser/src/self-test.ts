@@ -47,7 +47,10 @@ function testSessionScopedKeys(): void {
     },
   });
 
-  const persistedSettings = JSON.parse(localStorageRef.getItem(SETTINGS_KEY) ?? '{}') as Record<string, unknown>;
+  const persistedSettings = JSON.parse(localStorageRef.getItem(SETTINGS_KEY) ?? '{}') as Record<
+    string,
+    unknown
+  >;
   assert.equal(saved.provider.apiKey, 'sk-live');
   assert.equal(saved.voice.apiKey, 'voice-secret');
   assert.equal(Object.hasOwn(persistedSettings.provider as object, 'apiKey'), false);

@@ -31,7 +31,10 @@ export class QQAdapter implements PlatformAdapter {
   readonly platform = 'qq' as const;
   private ws: WebSocket | null = null;
   private handlers: Array<(message: BridgePlatformMessage) => void> = [];
-  private waiters = new Map<string, { resolve: (text: string) => void; timer: ReturnType<typeof setTimeout> }>();
+  private waiters = new Map<
+    string,
+    { resolve: (text: string) => void; timer: ReturnType<typeof setTimeout> }
+  >();
   private pendingResponses = new Map<
     string,
     {
@@ -266,7 +269,11 @@ export class QQAdapter implements PlatformAdapter {
     }
 
     pending.reject(
-      new Error(response.wording?.trim() || response.msg?.trim() || `QQ 消息发送失败，retcode=${response.retcode}`),
+      new Error(
+        response.wording?.trim() ||
+          response.msg?.trim() ||
+          `QQ 消息发送失败，retcode=${response.retcode}`,
+      ),
     );
   }
 

@@ -18,6 +18,10 @@ export const V2_BATTERY_CHAR = v2Uuid('1500');
 
 export const COYOTE_REQUEST_DEVICE_OPTIONS: RequestDeviceOptionsLike = {
   filters: [{ namePrefix: V3_DEVICE_NAME_PREFIX }, { namePrefix: V2_DEVICE_NAME_PREFIX }],
-  optionalServices: [V3_PRIMARY_SERVICE, V3_BATTERY_SERVICE, V2_PRIMARY_SERVICE, V2_BATTERY_SERVICE],
+  optionalServices: [
+    V3_PRIMARY_SERVICE,
+    V3_BATTERY_SERVICE,
+    V2_PRIMARY_SERVICE,
+    V2_BATTERY_SERVICE,
+  ],
 };
-

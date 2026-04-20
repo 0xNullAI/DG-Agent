@@ -1,4 +1,9 @@
-import type { LlmConversationItem, LlmPort, LlmTurnInput, LlmTurnResult } from '@dg-agent/contracts';
+import type {
+  LlmConversationItem,
+  LlmPort,
+  LlmTurnInput,
+  LlmTurnResult,
+} from '@dg-agent/contracts';
 import type { SessionSnapshot, ToolDefinition, ToolCall } from '@dg-agent/core';
 import type { ProviderEndpoint } from '@dg-agent/providers-catalog';
 import { z } from 'zod';
@@ -79,8 +84,14 @@ export class OpenAiHttpLlmPort implements LlmPort {
       body: JSON.stringify({
         model: this.config.model,
         temperature: this.config.temperature,
-        messages: toChatMessages(input.conversation ?? toConversationItems(input.session), input.instructions),
-        tools: input.tools.length > 0 ? input.tools.map((tool) => toChatTool(tool, this.config.useStrict)) : undefined,
+        messages: toChatMessages(
+          input.conversation ?? toConversationItems(input.session),
+          input.instructions,
+        ),
+        tools:
+          input.tools.length > 0
+            ? input.tools.map((tool) => toChatTool(tool, this.config.useStrict))
+            : undefined,
         tool_choice: input.tools.length > 0 ? 'auto' : undefined,
         parallel_tool_calls: input.tools.length > 0 ? true : undefined,
         stream: streaming || undefined,
@@ -124,7 +135,9 @@ export class OpenAiHttpLlmPort implements LlmPort {
         store: false,
         temperature: this.config.temperature,
         tools:
-          input.tools.length > 0 ? input.tools.map((tool) => toResponsesTool(tool, this.config.useStrict)) : undefined,
+          input.tools.length > 0
+            ? input.tools.map((tool) => toResponsesTool(tool, this.config.useStrict))
+            : undefined,
         tool_choice: input.tools.length > 0 ? 'auto' : undefined,
         parallel_tool_calls: input.tools.length > 0 ? true : undefined,
         stream: streaming || undefined,
@@ -299,7 +312,8 @@ async function parseChatCompletionsStream(
 
           if (toolCall.id) fnCallSlots[index].id = toolCall.id;
           if (toolCall.function?.name) fnCallSlots[index].name += toolCall.function.name;
-          if (toolCall.function?.arguments) fnCallSlots[index].arguments += toolCall.function.arguments;
+          if (toolCall.function?.arguments)
+            fnCallSlots[index].arguments += toolCall.function.arguments;
         }
       }
     }
@@ -315,7 +329,10 @@ async function parseChatCompletionsStream(
   };
 }
 
-function toChatMessages(conversation: LlmConversationItem[], instructions: string): Array<Record<string, unknown>> {
+function toChatMessages(
+  conversation: LlmConversationItem[],
+  instructions: string,
+): Array<Record<string, unknown>> {
   const messages: Array<Record<string, unknown>> = [];
 
   if (instructions.trim()) {
@@ -580,7 +597,9 @@ function strictify(node: unknown): unknown {
   if (output.type === 'object' && output.properties && typeof output.properties === 'object') {
     const properties = output.properties as Record<string, unknown>;
     const propKeys = Object.keys(properties);
-    const originalRequired = new Set<string>(Array.isArray(output.required) ? (output.required as string[]) : []);
+    const originalRequired = new Set<string>(
+      Array.isArray(output.required) ? (output.required as string[]) : [],
+    );
 
     output.required = propKeys;
     output.additionalProperties = false;

@@ -20,7 +20,11 @@ export function BridgePanel({ enabled, bridgeStatus, bridgeLogs }: BridgePanelPr
       <CardContent className="px-4 pt-0">
         <div className="flex flex-wrap gap-2">
           <Badge variant={!enabled ? 'default' : bridgeStatus?.started ? 'success' : 'warning'}>
-            {!enabled ? '桥接未启用' : bridgeStatus?.started ? '桥接管理器已启动' : '桥接管理器已停止'}
+            {!enabled
+              ? '桥接未启用'
+              : bridgeStatus?.started
+                ? '桥接管理器已启动'
+                : '桥接管理器已停止'}
           </Badge>
 
           {(bridgeStatus?.adapters ?? []).map((adapter) => (
@@ -31,7 +35,9 @@ export function BridgePanel({ enabled, bridgeStatus, bridgeLogs }: BridgePanelPr
         </div>
 
         <div className="mt-4 flex flex-col gap-3">
-          {bridgeLogs.length === 0 && <div className="text-sm text-[var(--text-soft)]">还没有桥接日志</div>}
+          {bridgeLogs.length === 0 && (
+            <div className="text-sm text-[var(--text-soft)]">还没有桥接日志</div>
+          )}
           {bridgeLogs.map((entry, index) => (
             <pre
               key={`${entry.timestamp}-${index}`}

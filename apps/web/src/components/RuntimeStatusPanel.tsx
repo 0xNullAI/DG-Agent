@@ -37,7 +37,9 @@ export function RuntimeStatusPanel({
     `A / B 强度上限：${settings.maxStrengthA} / ${settings.maxStrengthB}`,
     `A 通道：${deviceState.strengthA} / ${deviceState.currentWaveA ?? '未运行'}`,
     `B 通道：${deviceState.strengthB} / ${deviceState.currentWaveB ?? '未运行'}`,
-    !modes.bluetoothAvailability.supported ? `不可用原因：${modes.bluetoothAvailability.reason ?? '—'}` : null,
+    !modes.bluetoothAvailability.supported
+      ? `不可用原因：${modes.bluetoothAvailability.reason ?? '—'}`
+      : null,
   ].filter(Boolean) as string[];
 
   const modelLines = [
@@ -70,14 +72,18 @@ export function RuntimeStatusPanel({
     <Card>
       <CardHeader className="px-4 pb-3">
         <CardTitle>运行概览</CardTitle>
-        <CardDescription>把设备、模型、语音和桥接分开看，避免所有东西都堆在设备下面</CardDescription>
+        <CardDescription>
+          把设备、模型、语音和桥接分开看，避免所有东西都堆在设备下面
+        </CardDescription>
       </CardHeader>
 
       <CardContent className="px-4 pt-0">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-2">
           <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4">
             <div className="text-sm text-[var(--text-faint)]">连接状态</div>
-            <div className="mt-1 text-lg font-semibold">{deviceState.connected ? '已连接' : '未连接'}</div>
+            <div className="mt-1 text-lg font-semibold">
+              {deviceState.connected ? '已连接' : '未连接'}
+            </div>
           </div>
           <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4">
             <div className="text-sm text-[var(--text-faint)]">电量</div>
@@ -94,8 +100,12 @@ export function RuntimeStatusPanel({
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          <Badge variant={deviceState.connected ? 'success' : 'default'}>{deviceState.connected ? '设备在线' : '设备离线'}</Badge>
-          <Badge variant={settings.bridge.enabled ? 'accent' : 'default'}>{settings.bridge.enabled ? '桥接已开启' : '桥接未开启'}</Badge>
+          <Badge variant={deviceState.connected ? 'success' : 'default'}>
+            {deviceState.connected ? '设备在线' : '设备离线'}
+          </Badge>
+          <Badge variant={settings.bridge.enabled ? 'accent' : 'default'}>
+            {settings.bridge.enabled ? '桥接已开启' : '桥接未开启'}
+          </Badge>
           <Badge variant={speechCapabilities.recognitionSupported ? 'success' : 'warning'}>
             {speechCapabilities.recognitionSupported ? '语音识别可用' : '语音识别不可用'}
           </Badge>
@@ -108,7 +118,10 @@ export function RuntimeStatusPanel({
             { title: '语音', lines: voiceLines },
             { title: '桥接与安全', lines: bridgeLines },
           ].map((section) => (
-            <section key={section.title} className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4">
+            <section
+              key={section.title}
+              className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4"
+            >
               <div className="text-sm font-semibold text-[var(--text)]">{section.title}</div>
               <ul className="mt-3 grid gap-2">
                 {section.lines.map((line) => (

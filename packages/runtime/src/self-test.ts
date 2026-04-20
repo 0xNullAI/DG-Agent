@@ -130,7 +130,9 @@ class TestLlm implements LlmPort {
 }
 
 class InspectingTestLlm implements LlmPort {
-  readonly conversations: Array<ReadonlyArray<NonNullable<Parameters<LlmPort['runTurn']>[0]['conversation']>[number]>> = [];
+  readonly conversations: Array<
+    ReadonlyArray<NonNullable<Parameters<LlmPort['runTurn']>[0]['conversation']>[number]>
+  > = [];
 
   async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
     this.conversations.push([...(input.conversation ?? [])]);
@@ -165,7 +167,9 @@ class ContextProbeLlm implements LlmPort {
 
   async runTurn(input: Parameters<LlmPort['runTurn']>[0]) {
     this.conversations.push(
-      (input.conversation ?? []).flatMap((item) => (item.kind === 'message' ? [`${item.role}:${item.content}`] : [])),
+      (input.conversation ?? []).flatMap((item) =>
+        item.kind === 'message' ? [`${item.role}:${item.content}`] : [],
+      ),
     );
 
     return {
@@ -265,7 +269,11 @@ class TestSessionStore implements SessionStorePort {
     return session ? this.cloneSession(session) : null;
   }
 
-  async save(session: Awaited<ReturnType<TestSessionStore['get']>> extends infer T ? Exclude<T, null> : never) {
+  async save(
+    session: Awaited<ReturnType<TestSessionStore['get']>> extends infer T
+      ? Exclude<T, null>
+      : never,
+  ) {
     this.sessions.set(session.id, this.cloneSession(session));
   }
 
@@ -291,12 +299,20 @@ interface TestSessionStoreEntry {
   id: string;
   createdAt: number;
   updatedAt: number;
-  messages: Array<{ id: string; role: 'system' | 'user' | 'assistant'; content: string; createdAt: number }>;
+  messages: Array<{
+    id: string;
+    role: 'system' | 'user' | 'assistant';
+    content: string;
+    createdAt: number;
+  }>;
   deviceState: DeviceState;
   metadata?: Record<string, unknown>;
 }
 
-function createScriptedMessages(entries: Array<['user' | 'assistant', string]>, startedAt = Date.now()) {
+function createScriptedMessages(
+  entries: Array<['user' | 'assistant', string]>,
+  startedAt = Date.now(),
+) {
   return entries.map(([role, content], index) => createMessage(role, content, startedAt + index));
 }
 
@@ -342,7 +358,8 @@ async function main(): Promise<void> {
   });
   const duplicatedNarrations =
     inspectingLlm.conversations[1]?.filter(
-      (item) => item.kind === 'message' && item.role === 'assistant' && item.content === '准备启动 A',
+      (item) =>
+        item.kind === 'message' && item.role === 'assistant' && item.content === '准备启动 A',
     ) ?? [];
   assert.equal(duplicatedNarrations.length, 1);
 
@@ -367,7 +384,17 @@ async function main(): Promise<void> {
     },
     {
       strategy: 'last-five-user-turns',
-      expected: ['user:u3', 'assistant:a3', 'user:u4', 'assistant:a4', 'user:u5', 'assistant:a5', 'user:u6', 'assistant:a6', 'user:u7'],
+      expected: [
+        'user:u3',
+        'assistant:a3',
+        'user:u4',
+        'assistant:a4',
+        'user:u5',
+        'assistant:a5',
+        'user:u6',
+        'assistant:a6',
+        'user:u7',
+      ],
     },
     {
       strategy: 'full-history',
@@ -502,7 +529,9 @@ async function main(): Promise<void> {
     },
   });
   assert.equal(
-    burstDeniedEvents.some((event) => event.type === 'device-command-executed' && event.command.type === 'burst'),
+    burstDeniedEvents.some(
+      (event) => event.type === 'device-command-executed' && event.command.type === 'burst',
+    ),
     false,
   );
 

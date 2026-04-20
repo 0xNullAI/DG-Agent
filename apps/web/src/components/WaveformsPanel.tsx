@@ -10,7 +10,13 @@ interface WaveformsPanelProps {
   onEdit: (waveform: WaveformDefinition) => void;
 }
 
-export function WaveformsPanel({ waveforms, customWaveforms, onImport, onRemove, onEdit }: WaveformsPanelProps) {
+export function WaveformsPanel({
+  waveforms,
+  customWaveforms,
+  onImport,
+  onRemove,
+  onEdit,
+}: WaveformsPanelProps) {
   return (
     <Card>
       <CardHeader className="px-4 pb-3">
@@ -33,7 +39,9 @@ export function WaveformsPanel({ waveforms, customWaveforms, onImport, onRemove,
         </label>
 
         <div className="flex flex-col gap-3">
-          {waveforms.length === 0 && <div className="text-sm text-[var(--text-soft)]">还没有可用波形</div>}
+          {waveforms.length === 0 && (
+            <div className="text-sm text-[var(--text-soft)]">还没有可用波形</div>
+          )}
           {waveforms.map((waveform) => {
             const isCustom = customWaveforms.some((item) => item.id === waveform.id);
             return (
@@ -53,7 +61,12 @@ export function WaveformsPanel({ waveforms, customWaveforms, onImport, onRemove,
                     <Button variant="ghost" size="sm" onClick={() => onEdit(waveform)}>
                       编辑
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-[var(--danger)] hover:text-[var(--danger)]" onClick={() => onRemove(waveform.id)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-[var(--danger)] hover:text-[var(--danger)]"
+                      onClick={() => onRemove(waveform.id)}
+                    >
                       删除
                     </Button>
                   </div>

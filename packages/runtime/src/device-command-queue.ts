@@ -38,4 +38,3 @@ export class DeviceCommandQueue {
     return task;
   }
 }
-

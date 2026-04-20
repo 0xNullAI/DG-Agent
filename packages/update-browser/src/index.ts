@@ -25,9 +25,12 @@ export class BrowserUpdateChecker {
       void this.checkOnce();
     }, this.options.firstCheckDelayMs ?? 30_000);
 
-    this.intervalId = window.setInterval(() => {
-      void this.checkOnce();
-    }, this.options.pollIntervalMs ?? 5 * 60_000);
+    this.intervalId = window.setInterval(
+      () => {
+        void this.checkOnce();
+      },
+      this.options.pollIntervalMs ?? 5 * 60_000,
+    );
 
     document.addEventListener('visibilitychange', this.handleVisibilityChange);
   }
@@ -59,7 +62,9 @@ export class BrowserUpdateChecker {
 
   getStatus(): UpdateCheckerStatus {
     return {
-      hasUpdate: Boolean(this.remoteBuildId && this.remoteBuildId !== this.options.currentBuildId && !this.dismissed),
+      hasUpdate: Boolean(
+        this.remoteBuildId && this.remoteBuildId !== this.options.currentBuildId && !this.dismissed,
+      ),
       dismissed: this.dismissed,
       remoteBuildId: this.remoteBuildId,
     };

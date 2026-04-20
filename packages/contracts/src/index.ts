@@ -68,7 +68,10 @@ export interface SessionStorePort {
 
 export interface SessionTraceStorePort {
   list(sessionId: string): Promise<RuntimeTraceEntry[]>;
-  append(sessionId: string, entry: Omit<RuntimeTraceEntry, 'id' | 'createdAt'>): Promise<RuntimeTraceEntry>;
+  append(
+    sessionId: string,
+    entry: Omit<RuntimeTraceEntry, 'id' | 'createdAt'>,
+  ): Promise<RuntimeTraceEntry>;
   clear(sessionId: string): Promise<void>;
 }
 

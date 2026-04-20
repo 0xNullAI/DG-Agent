@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { type BridgeLogEntry, type BridgeManagerStatus, type MessageOrigin } from '@dg-agent/bridge-core';
+import {
+  type BridgeLogEntry,
+  type BridgeManagerStatus,
+  type MessageOrigin,
+} from '@dg-agent/bridge-core';
 import { createEmptyDeviceState, type PermissionDecision } from '@dg-agent/core';
 import { BrowserSafetyGuard } from '@dg-agent/safety-browser';
 import { applyTheme, subscribeThemeChanges } from '@dg-agent/theme-browser';
@@ -36,7 +40,10 @@ import {
 } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { useBrowserAppServices, type PendingPermissionRequest } from './composition/use-browser-app-services.js';
+import {
+  useBrowserAppServices,
+  type PendingPermissionRequest,
+} from './composition/use-browser-app-services.js';
 import { useRuntimeSessionState } from './hooks/use-runtime-session-state.js';
 import { useSettingsManager } from './hooks/use-settings-manager.js';
 import { useToastManager } from './hooks/use-toast-manager.js';
@@ -44,7 +51,11 @@ import { useVoiceController } from './hooks/use-voice-controller.js';
 import { useWaveformManager } from './hooks/use-waveform-manager.js';
 import { createSessionId, isReplyAbortError } from './utils/app-runtime-helpers.js';
 import { buildWarnings } from './utils/runtime-warnings.js';
-import { formatUiErrorMessage, getRecentToolActivities, isBluetoothChooserCancelledError } from './utils/ui-formatters.js';
+import {
+  formatUiErrorMessage,
+  getRecentToolActivities,
+  isBluetoothChooserCancelledError,
+} from './utils/ui-formatters.js';
 import { buildTraceFeed } from './utils/trace-feed.js';
 
 type SettingsModalTab = 'general' | 'safety' | 'waveforms' | 'bridge' | 'voice';
@@ -61,13 +72,15 @@ function formatVoiceStateLabel(voiceState: 'idle' | 'listening' | 'speaking'): s
   }
 }
 
-
 export function App() {
   const activeSessionIdRef = useRef<string | null>(null);
-  const bridgeSessionResolverRef = useRef<(origin: MessageOrigin) => Promise<string | null> | string | null>(
-    () => activeSessionIdRef.current,
+  const bridgeSessionResolverRef = useRef<
+    (origin: MessageOrigin) => Promise<string | null> | string | null
+  >(() => activeSessionIdRef.current);
+  const resolveBridgeSessionId = useCallback(
+    (origin: MessageOrigin) => bridgeSessionResolverRef.current(origin),
+    [],
   );
-  const resolveBridgeSessionId = useCallback((origin: MessageOrigin) => bridgeSessionResolverRef.current(origin), []);
 
   const {
     settingsDraft,
@@ -93,7 +106,9 @@ export function App() {
   const [pendingSend, setPendingSend] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [safetyNoticeAccepted, setSafetyNoticeAccepted] = useState(() => !settings.showSafetyNoticeOnStartup);
+  const [safetyNoticeAccepted, setSafetyNoticeAccepted] = useState(
+    () => !settings.showSafetyNoticeOnStartup,
+  );
   const [text, setText] = useState('');
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [settingsModalTab, setSettingsModalTab] = useState<SettingsModalTab>('general');
@@ -116,7 +131,9 @@ export function App() {
     setPendingPermission,
   });
 
-  const [updateStatus, setUpdateStatus] = useState<UpdateCheckerStatus>(() => updateChecker.getStatus());
+  const [updateStatus, setUpdateStatus] = useState<UpdateCheckerStatus>(() =>
+    updateChecker.getStatus(),
+  );
 
   const voice = useVoiceController({
     speechRecognition,
@@ -163,12 +180,8 @@ export function App() {
   const toolActivities = getRecentToolActivities(events);
   const traceFeed = buildTraceFeed(sessionTrace);
 
-  const {
-    visibleErrorItems,
-    visibleWarnings,
-    visibleEventToasts,
-    hasVisibleToasts,
-  } = useToastManager({ errorMessage, warnings, events });
+  const { visibleErrorItems, visibleWarnings, visibleEventToasts, hasVisibleToasts } =
+    useToastManager({ errorMessage, warnings, events });
 
   useEffect(() => {
     activeSessionIdRef.current = activeSessionId;
@@ -278,11 +291,14 @@ export function App() {
     };
   }, [bridgeManager, safetyNoticeAccepted, settings.bridge.enabled]);
 
-  const denyPendingPermissionRequest = useCallback((reason = '当前回复已停止'): void => {
-    if (!pendingPermission) return;
-    pendingPermission.resolve({ type: 'deny', reason });
-    setPendingPermission(null);
-  }, [pendingPermission]);
+  const denyPendingPermissionRequest = useCallback(
+    (reason = '当前回复已停止'): void => {
+      if (!pendingPermission) return;
+      pendingPermission.resolve({ type: 'deny', reason });
+      setPendingPermission(null);
+    },
+    [pendingPermission],
+  );
 
   async function performLifecycleStop(reason: 'leave-page' | 'background-hidden'): Promise<void> {
     denyPendingPermissionRequest('当前回复已在页面离开前台时终止');
@@ -310,7 +326,11 @@ export function App() {
     } catch (error) {
       if (isBluetoothChooserCancelledError(error)) {
         setErrorMessage(null);
-        setStatusMessage(liveDeviceState.connected ? '已取消重连，当前设备连接保持不变' : '已取消设备选择，当前仍未连接设备');
+        setStatusMessage(
+          liveDeviceState.connected
+            ? '已取消重连，当前设备连接保持不变'
+            : '已取消设备选择，当前仍未连接设备',
+        );
         return false;
       }
       setErrorMessage(formatUiErrorMessage(error));
@@ -331,38 +351,41 @@ export function App() {
     }
   }, [activeSessionId, client, refreshCurrentSession]);
 
-  const sendTextMessage = useCallback(async (message: string): Promise<'sent' | 'aborted' | 'failed'> => {
-    if (!message.trim() || !activeSessionId) return 'failed';
+  const sendTextMessage = useCallback(
+    async (message: string): Promise<'sent' | 'aborted' | 'failed'> => {
+      if (!message.trim() || !activeSessionId) return 'failed';
 
-    setPendingSend(true);
-    try {
-      setErrorMessage(null);
-      stopSpeechPlayback();
+      setPendingSend(true);
+      try {
+        setErrorMessage(null);
+        stopSpeechPlayback();
 
-      await client.sendUserMessage({
-        sessionId: activeSessionId,
-        text: message,
-        context: {
+        await client.sendUserMessage({
           sessionId: activeSessionId,
-          sourceType: 'web',
-          traceId: `web-${Date.now()}`,
-        },
-      });
+          text: message,
+          context: {
+            sessionId: activeSessionId,
+            sourceType: 'web',
+            traceId: `web-${Date.now()}`,
+          },
+        });
 
-      setStatusMessage('消息已发送');
-      await refreshCurrentSession(activeSessionId);
-      return 'sent';
-    } catch (error) {
-      if (isReplyAbortError(error)) {
-        setStatusMessage('已停止当前回复');
-        return 'aborted';
+        setStatusMessage('消息已发送');
+        await refreshCurrentSession(activeSessionId);
+        return 'sent';
+      } catch (error) {
+        if (isReplyAbortError(error)) {
+          setStatusMessage('已停止当前回复');
+          return 'aborted';
+        }
+        setErrorMessage(formatUiErrorMessage(error));
+        return 'failed';
+      } finally {
+        setPendingSend(false);
       }
-      setErrorMessage(formatUiErrorMessage(error));
-      return 'failed';
-    } finally {
-      setPendingSend(false);
-    }
-  }, [activeSessionId, client, refreshCurrentSession, stopSpeechPlayback]);
+    },
+    [activeSessionId, client, refreshCurrentSession, stopSpeechPlayback],
+  );
 
   async function send(): Promise<void> {
     const draft = text;
@@ -515,13 +538,9 @@ export function App() {
   function renderSettingsTabContent() {
     switch (settingsModalTab) {
       case 'general':
-        return (
-          <GeneralTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />
-        );
+        return <GeneralTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
       case 'safety':
-        return (
-          <SafetyTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />
-        );
+        return <SafetyTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
       case 'waveforms':
         return (
           <WaveformsPanel
@@ -533,13 +552,9 @@ export function App() {
           />
         );
       case 'bridge':
-        return (
-          <BridgeTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />
-        );
+        return <BridgeTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
       case 'voice':
-        return (
-          <VoiceTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />
-        );
+        return <VoiceTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
       default:
         return null;
     }
@@ -572,7 +587,9 @@ export function App() {
         <div className="flex w-full max-w-[800px] flex-col gap-3">
           {voiceMode && (
             <section className="pointer-events-auto mx-auto w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] rounded-[12px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-3 text-center shadow-[var(--shadow)]">
-              <div className="text-sm font-medium text-[var(--text)]">语音状态：{formatVoiceStateLabel(voiceState)}</div>
+              <div className="text-sm font-medium text-[var(--text)]">
+                语音状态：{formatVoiceStateLabel(voiceState)}
+              </div>
               <div className="mt-1 whitespace-normal break-words text-sm text-[var(--text-soft)]">
                 {voiceTranscript || '正在等待你的语音输入…'}
               </div>
@@ -581,30 +598,50 @@ export function App() {
 
           {visibleErrorItems.map((item) => (
             <div key={item.key} className="pointer-events-auto flex justify-center">
-              <Alert variant={item.variant} className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]">
-                <AlertDescription className="whitespace-normal break-words text-center">{item.text}</AlertDescription>
+              <Alert
+                variant={item.variant}
+                className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]"
+              >
+                <AlertDescription className="whitespace-normal break-words text-center">
+                  {item.text}
+                </AlertDescription>
               </Alert>
             </div>
           ))}
           {visibleWarnings.map((item) => (
             <div key={item.key} className="pointer-events-auto flex justify-center">
-              <Alert variant={item.variant} className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]">
-                <AlertDescription className="whitespace-normal break-words text-center">{item.text}</AlertDescription>
+              <Alert
+                variant={item.variant}
+                className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]"
+              >
+                <AlertDescription className="whitespace-normal break-words text-center">
+                  {item.text}
+                </AlertDescription>
               </Alert>
             </div>
           ))}
           {visibleEventToasts.map((item) => (
             <div key={item.key} className="pointer-events-auto flex justify-center">
-              <Alert variant={item.variant} className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]">
-                <AlertDescription className="whitespace-normal break-words text-center">{item.text}</AlertDescription>
+              <Alert
+                variant={item.variant}
+                className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]"
+              >
+                <AlertDescription className="whitespace-normal break-words text-center">
+                  {item.text}
+                </AlertDescription>
               </Alert>
             </div>
           ))}
 
           {updateStatus.hasUpdate && (
             <div className="pointer-events-auto flex justify-center">
-              <Alert variant="info" className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]">
-                <AlertDescription className="whitespace-normal break-words text-center">检测到新版本，刷新页面可能会中断蓝牙连接与语音会话</AlertDescription>
+              <Alert
+                variant="info"
+                className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]"
+              >
+                <AlertDescription className="whitespace-normal break-words text-center">
+                  检测到新版本，刷新页面可能会中断蓝牙连接与语音会话
+                </AlertDescription>
                 <div className="mt-3 flex flex-wrap justify-center gap-2">
                   <Button variant="secondary" size="sm" onClick={() => updateChecker.dismiss()}>
                     稍后提醒
@@ -622,14 +659,19 @@ export function App() {
 
   return (
     <>
-      <main className="relative flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden" aria-hidden={!safetyNoticeAccepted}>
+      <main
+        className="relative flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden"
+        aria-hidden={!safetyNoticeAccepted}
+      >
         {pendingPermission && (
           <PermissionModal
             summary={pendingPermission.input.summary}
             args={pendingPermission.input.args}
             onDeny={() => resolvePermission({ type: 'deny' })}
             onAllowOnce={() => resolvePermission({ type: 'approve-once' })}
-            onAllowTimed={() => resolvePermission({ type: 'approve-scoped', expiresAt: Date.now() + 5 * 60_000 })}
+            onAllowTimed={() =>
+              resolvePermission({ type: 'approve-scoped', expiresAt: Date.now() + 5 * 60_000 })
+            }
             onAllowSession={() => resolvePermission({ type: 'approve-scoped' })}
           />
         )}
@@ -647,7 +689,9 @@ export function App() {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>保存提示词</DialogTitle>
-              <DialogDescription>给当前这组自定义提示词起一个名称，之后可以在设置里快速复用</DialogDescription>
+              <DialogDescription>
+                给当前这组自定义提示词起一个名称，之后可以在设置里快速复用
+              </DialogDescription>
             </DialogHeader>
 
             <form
@@ -668,7 +712,11 @@ export function App() {
               </label>
 
               <DialogFooter>
-                <Button type="button" variant="secondary" onClick={() => setSavePromptDialogOpen(false)}>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => setSavePromptDialogOpen(false)}
+                >
                   取消
                 </Button>
                 <Button type="submit" disabled={!promptPresetName.trim()}>
@@ -755,18 +803,35 @@ export function App() {
               </div>
             </div>
 
-            <Tabs value={settingsModalTab} onValueChange={(value) => setSettingsModalTab(value as SettingsModalTab)} className="flex min-h-0 flex-1 flex-col">
+            <Tabs
+              value={settingsModalTab}
+              onValueChange={(value) => setSettingsModalTab(value as SettingsModalTab)}
+              className="flex min-h-0 flex-1 flex-col"
+            >
               <div className="border-b border-[var(--surface-border)] px-3 sm:px-6">
                 <TabsList className="control-tabs grid w-full grid-cols-3 gap-0 bg-transparent sm:grid-cols-5">
-                  <TabsTrigger className="control-tab-trigger" value="general">基础</TabsTrigger>
-                  <TabsTrigger className="control-tab-trigger" value="safety">安全</TabsTrigger>
-                  <TabsTrigger className="control-tab-trigger" value="waveforms">波形</TabsTrigger>
-                  <TabsTrigger className="control-tab-trigger" value="bridge">桥接</TabsTrigger>
-                  <TabsTrigger className="control-tab-trigger" value="voice">语音</TabsTrigger>
+                  <TabsTrigger className="control-tab-trigger" value="general">
+                    基础
+                  </TabsTrigger>
+                  <TabsTrigger className="control-tab-trigger" value="safety">
+                    安全
+                  </TabsTrigger>
+                  <TabsTrigger className="control-tab-trigger" value="waveforms">
+                    波形
+                  </TabsTrigger>
+                  <TabsTrigger className="control-tab-trigger" value="bridge">
+                    桥接
+                  </TabsTrigger>
+                  <TabsTrigger className="control-tab-trigger" value="voice">
+                    语音
+                  </TabsTrigger>
                 </TabsList>
               </div>
 
-              <TabsContent value={settingsModalTab} className="mt-0 min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+              <TabsContent
+                value={settingsModalTab}
+                className="mt-0 min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6"
+              >
                 <div className="settings settings-grouped settings-panel-body">
                   {renderSettingsTabContent()}
                 </div>
@@ -791,7 +856,9 @@ export function App() {
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <SheetTitle>历史记录</SheetTitle>
-                  <SheetDescription className="mt-1.5">选择历史对话，或者新建一条会话</SheetDescription>
+                  <SheetDescription className="mt-1.5">
+                    选择历史对话，或者新建一条会话
+                  </SheetDescription>
                 </div>
                 <SheetClose className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-strong)] text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2">
                   <X className="h-5 w-5" />

@@ -1,8 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import type { AgentClient } from '@dg-agent/client';
 import type { PermissionRequest } from '@dg-agent/contracts';
-import { createEmptyDeviceState, createMessage, type RuntimeEvent, type RuntimeTraceEntry, type SessionSnapshot } from '@dg-agent/core';
-import { BridgeAdapterRegistry, BridgeManager, BridgePermissionPort, MessageQueue, type PlatformAdapter } from './index.js';
+import {
+  createEmptyDeviceState,
+  createMessage,
+  type RuntimeEvent,
+  type RuntimeTraceEntry,
+  type SessionSnapshot,
+} from '@dg-agent/core';
+import {
+  BridgeAdapterRegistry,
+  BridgeManager,
+  BridgePermissionPort,
+  MessageQueue,
+  type PlatformAdapter,
+} from './index.js';
 import type { BridgePlatformMessage } from './index.js';
 
 class FakePermissionPort {
@@ -96,13 +108,15 @@ class FakeAgentClient implements AgentClient {
   }
 
   async getSessionSnapshot(sessionId: string): Promise<SessionSnapshot> {
-    return this.sessions.get(sessionId) ?? {
-      id: sessionId,
-      createdAt: 0,
-      updatedAt: 0,
-      messages: [],
-      deviceState: createEmptyDeviceState(),
-    };
+    return (
+      this.sessions.get(sessionId) ?? {
+        id: sessionId,
+        createdAt: 0,
+        updatedAt: 0,
+        messages: [],
+        deviceState: createEmptyDeviceState(),
+      }
+    );
   }
 
   async getSessionTrace(_sessionId: string): Promise<RuntimeTraceEntry[]> {
@@ -182,8 +196,21 @@ describe('bridge-core', () => {
     const port = new BridgePermissionPort({
       settings: {
         enabled: true,
-        qq: { enabled: false, wsUrl: '', accessToken: '', allowUsers: [], allowGroups: [], permissionMode: 'confirm' },
-        telegram: { enabled: true, botToken: 'bot', proxyUrl: '', allowUsers: ['user-1'], permissionMode: 'confirm' },
+        qq: {
+          enabled: false,
+          wsUrl: '',
+          accessToken: '',
+          allowUsers: [],
+          allowGroups: [],
+          permissionMode: 'confirm',
+        },
+        telegram: {
+          enabled: true,
+          botToken: 'bot',
+          proxyUrl: '',
+          allowUsers: ['user-1'],
+          permissionMode: 'confirm',
+        },
       },
       fallback,
       registry: new BridgeAdapterRegistry(),
@@ -214,8 +241,21 @@ describe('bridge-core', () => {
     const port = new BridgePermissionPort({
       settings: {
         enabled: true,
-        qq: { enabled: false, wsUrl: '', accessToken: '', allowUsers: [], allowGroups: [], permissionMode: 'confirm' },
-        telegram: { enabled: true, botToken: 'bot', proxyUrl: '', allowUsers: ['user-1'], permissionMode: 'confirm' },
+        qq: {
+          enabled: false,
+          wsUrl: '',
+          accessToken: '',
+          allowUsers: [],
+          allowGroups: [],
+          permissionMode: 'confirm',
+        },
+        telegram: {
+          enabled: true,
+          botToken: 'bot',
+          proxyUrl: '',
+          allowUsers: ['user-1'],
+          permissionMode: 'confirm',
+        },
       },
       fallback: new FakePermissionPort(),
       registry,

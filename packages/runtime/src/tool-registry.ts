@@ -29,7 +29,10 @@ export class ToolRegistry {
   async listDefinitions(): Promise<ToolDefinition[]> {
     return Promise.all(
       [...this.handlers.values()].map(async (handler) => {
-        const definition = typeof handler.definition === 'function' ? await handler.definition() : handler.definition;
+        const definition =
+          typeof handler.definition === 'function'
+            ? await handler.definition()
+            : handler.definition;
         return handler.displayName && !definition.displayName
           ? { ...definition, displayName: handler.displayName }
           : definition;
@@ -422,7 +425,9 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
   return registry;
 }
 
-async function buildWaveformIdParameter(waveformLibrary: WaveformLibraryPort | undefined): Promise<Record<string, unknown>> {
+async function buildWaveformIdParameter(
+  waveformLibrary: WaveformLibraryPort | undefined,
+): Promise<Record<string, unknown>> {
   if (!waveformLibrary) {
     return {
       type: 'string',
@@ -441,7 +446,9 @@ async function buildWaveformIdParameter(waveformLibrary: WaveformLibraryPort | u
   };
 }
 
-async function buildWaveformDescriptionText(waveformLibrary: WaveformLibraryPort | undefined): Promise<string> {
+async function buildWaveformDescriptionText(
+  waveformLibrary: WaveformLibraryPort | undefined,
+): Promise<string> {
   if (!waveformLibrary) {
     return '';
   }
@@ -461,7 +468,10 @@ function buildWaveformSummaryText(
   }
 
   return waveforms
-    .map((waveform) => `${waveform.id}（${waveform.name}${waveform.description ? `：${waveform.description}` : ''}）`)
+    .map(
+      (waveform) =>
+        `${waveform.id}（${waveform.name}${waveform.description ? `：${waveform.description}` : ''}）`,
+    )
     .join('；');
 }
 

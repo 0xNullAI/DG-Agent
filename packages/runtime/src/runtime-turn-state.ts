@@ -32,11 +32,13 @@ export function buildConversationItems(
   modelContextStrategy: ModelContextStrategy = 'last-user-turn',
 ): LlmConversationItem[] {
   return [
-    ...selectModelContextMessages(session.messages, modelContextStrategy).map<LlmConversationItem>((message) => ({
-      kind: 'message',
-      role: message.role,
-      content: message.content,
-    })),
+    ...selectModelContextMessages(session.messages, modelContextStrategy).map<LlmConversationItem>(
+      (message) => ({
+        kind: 'message',
+        role: message.role,
+        content: message.content,
+      }),
+    ),
     ...(currentInput ? [currentInput] : []),
     ...turnState.workingItems,
   ];
@@ -63,12 +65,20 @@ export function collectTurnToolCalls(turnState: TurnState): TurnToolCallSummary[
   );
 }
 
-export function consumeTurnQuota(toolName: string, turnState: TurnState, config: ToolCallConfig, toolArgs?: Record<string, unknown>): string | null {
+export function consumeTurnQuota(
+  toolName: string,
+  turnState: TurnState,
+  config: ToolCallConfig,
+  toolArgs?: Record<string, unknown>,
+): string | null {
   if (turnState.totalToolCalls >= config.maxToolCallsPerTurn) {
     return `本轮工具调用次数上限为 ${config.maxToolCallsPerTurn}，请直接回复用户，不要继续调用工具`;
   }
 
-  if (toolName === 'adjust_strength' && turnState.adjustStrengthCalls >= config.maxAdjustStrengthCallsPerTurn) {
+  if (
+    toolName === 'adjust_strength' &&
+    turnState.adjustStrengthCalls >= config.maxAdjustStrengthCallsPerTurn
+  ) {
     return `本轮 adjust_strength 最多只能调用 ${config.maxAdjustStrengthCallsPerTurn} 次`;
   }
 
@@ -100,13 +110,17 @@ function selectModelContextMessages(
     return filteredMessages;
   }
 
-  const userMessageIndices = filteredMessages.flatMap((message, index) => (message.role === 'user' ? [index] : []));
+  const userMessageIndices = filteredMessages.flatMap((message, index) =>
+    message.role === 'user' ? [index] : [],
+  );
   if (userMessageIndices.length === 0) {
     return filteredMessages;
   }
 
   if (strategy === 'last-five-user-turns') {
-    return filteredMessages.slice(userMessageIndices[Math.max(userMessageIndices.length - 5, 0)] ?? 0);
+    return filteredMessages.slice(
+      userMessageIndices[Math.max(userMessageIndices.length - 5, 0)] ?? 0,
+    );
   }
 
   if (userMessageIndices.length === 1) {
