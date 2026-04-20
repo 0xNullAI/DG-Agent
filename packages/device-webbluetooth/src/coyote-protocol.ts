@@ -418,6 +418,8 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
       if (!this.tickPaused) {
         this.emit();
       }
+    } catch {
+      // GATT disconnected mid-tick — suppress and let disconnect handler clean up
     } finally {
       this.tickInFlight = false;
     }

@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react';
 import type { SessionSnapshot } from '@dg-agent/core';
-import { MessageSquarePlus, PanelLeft, Trash2 } from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Search, Settings, SquarePen, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { formatTimestamp, getSessionTitle } from '../utils/ui-formatters.js';
+import { SessionSearchDialog } from './SessionSearchDialog.js';
 
 interface SessionPanelProps {
   savedSessions: SessionSnapshot[];
@@ -13,12 +13,13 @@ interface SessionPanelProps {
   onSelectSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
   onCreateSession?: () => void;
+  onOpenSettings?: () => void;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
   detached?: boolean;
 }
 
-const SESSION_BATCH_SIZE = 80;
+const SESSION_BATCH_SIZE = 60;
 
 export function SessionPanel({
   savedSessions,
@@ -26,6 +27,7 @@ export function SessionPanel({
   onSelectSession,
   onDeleteSession,
   onCreateSession,
+  onOpenSettings,
   collapsed = false,
   onToggleCollapsed,
   detached = false,
@@ -35,159 +37,212 @@ export function SessionPanel({
   );
   const [visibleSessionCount, setVisibleSessionCount] = useState(SESSION_BATCH_SIZE);
   const renderedSessions = visibleSessions.slice(0, visibleSessionCount);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     setVisibleSessionCount(SESSION_BATCH_SIZE);
   }, [activeSessionId, visibleSessions.length]);
 
+  /* ===== Collapsed ===== */
   if (collapsed) {
     return (
-      <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-transparent shadow-none transition-all duration-300 ease-out">
-        <div className="shrink-0 px-2 py-2">
-          {onToggleCollapsed && (
-            <Button
-              variant="ghost"
-              className="h-10 w-full justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-              onClick={onToggleCollapsed}
-              aria-label="展开侧边栏"
-            >
-              <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out" />
-            </Button>
-          )}
-          {onCreateSession && (
-            <Button
-              variant="ghost"
-              className="mt-4 h-10 w-12 justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-              onClick={onCreateSession}
-              aria-label="发起新对话"
-            >
-              <MessageSquarePlus className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
-      </Card>
+      <div className="flex h-full flex-col items-center gap-1 py-4">
+        {onToggleCollapsed && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+            onClick={onToggleCollapsed}
+            aria-label="展开侧边栏"
+          >
+            <PanelLeftOpen className="h-4 w-4" />
+          </Button>
+        )}
+        <div className="my-1 w-5 border-t border-[var(--surface-border)]" />
+        {onCreateSession && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+            onClick={onCreateSession}
+            aria-label="发起新对话"
+          >
+            <SquarePen className="h-4 w-4" />
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+          onClick={() => setSearchOpen(true)}
+          aria-label="搜索对话"
+        >
+          <Search className="h-4 w-4" />
+        </Button>
+        <div className="flex-1" />
+        {onOpenSettings && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+            onClick={onOpenSettings}
+            aria-label="设置"
+          >
+            <Settings className="h-4 w-4" />
+          </Button>
+        )}
+        <SessionSearchDialog
+          open={searchOpen}
+          onOpenChange={setSearchOpen}
+          sessions={visibleSessions}
+          onSelectSession={(id) => {
+            setSearchOpen(false);
+            onSelectSession(id);
+          }}
+        />
+      </div>
     );
   }
 
+  /* ===== Expanded ===== */
   return (
-    <Card className="flex h-full flex-1 flex-col overflow-hidden rounded-none border-0 bg-transparent shadow-none transition-all duration-300 ease-out">
+    <div className="flex h-full flex-col overflow-hidden">
+      {/* Header: title + collapse */}
       {!detached && (
-        <CardHeader className="shrink-0 px-2.5 pb-1 pt-0">
-          <div className="transition-all duration-300 ease-out">
-            <div className="relative flex items-center py-2">
-              <div className="w-full pl-1.5">
-                <Button
-                  variant="ghost"
-                  className="flex justify-start h-10 w-full gap-3 rounded-[12px] pl-4 pr-2 tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-                  onClick={onToggleCollapsed}
-                  aria-label="收起侧边栏"
-                >
-                  <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out -ml-0.5" />
-                  <span className="transition-opacity duration-200 ease-out -mt-[0.15em] text-sm font-semibold">
-                    收起
-                  </span>
-                </Button>
-              </div>
-              <div className="absolute inset-x-1 bottom-[1.5px] border-t border-[var(--surface-border)] opacity-100" />
-            </div>
-          </div>
-        </CardHeader>
-      )}
-
-      <CardContent className="flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 pr-1">
-        <div className="mt-1 mb-2 flex-none pl-1.25">
-          {onCreateSession && (
+        <div className="flex shrink-0 items-center justify-between px-4 pt-4 pb-2">
+          <h1 className="text-[16px] font-bold tracking-tight text-[var(--text)]">DG-Agent</h1>
+          {onToggleCollapsed && (
             <Button
               variant="ghost"
-              className="flex justify-start h-10 w-full rounded-[8px] pl-4 pr-2.5 text-[12px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-              onClick={onCreateSession}
-              aria-label="发起新对话"
+              size="icon"
+              className="h-8 w-8 rounded-[10px] text-[var(--text-faint)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+              onClick={onToggleCollapsed}
+              aria-label="收起侧边栏"
             >
-              <MessageSquarePlus className="h-4 w-4 mr-1" />
-              <span className="-mt-[0.15em] text-[14px] font-bold">发起新对话</span>
+              <PanelLeftClose className="h-4 w-4" />
             </Button>
           )}
         </div>
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden pl-2">
-          <div className="flex-none mb-1.5 pl-1">
-            <div className="uppercase tracking-[0.14em] text-[var(--text-faint)] text-xs font-semibold">
-              历史记录
-            </div>
-          </div>
-          <div className="flex-1 min-h-0">
-            <ScrollArea className="h-full min-h-0 max-h-full pr-4">
-              <div className="space-y-0.5">
-                {visibleSessions.length === 0 && (
-                  <div className="px-2 py-4 text-sm text-[var(--text-soft)]">
-                    <div className="pl-3">还没有保存的会话</div>
-                  </div>
-                )}
-                {renderedSessions.map((item) => {
-                  const active = item.id === activeSessionId;
-                  return (
+      )}
+
+      {/* Action buttons — each on its own row */}
+      <div className="shrink-0 space-y-0.5 px-3 pb-3">
+        {onCreateSession && (
+          <Button
+            variant="ghost"
+            className="h-9 w-full justify-start gap-2.5 rounded-[10px] px-3 text-[13px] font-medium text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+            onClick={onCreateSession}
+          >
+            <SquarePen className="h-4 w-4 shrink-0" />
+            新对话
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          className="h-9 w-full justify-start gap-2.5 rounded-[10px] px-3 text-[13px] font-medium text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+          onClick={() => setSearchOpen(true)}
+        >
+          <Search className="h-4 w-4 shrink-0" />
+          搜索
+        </Button>
+      </div>
+
+      {/* Divider */}
+      <div className="mx-4 border-t border-[var(--surface-border)]" />
+
+      {/* Session list */}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden pt-2">
+        <ScrollArea className="h-full px-2">
+          <div className="space-y-0.5 pb-4">
+            {visibleSessions.length === 0 && (
+              <div className="px-3 py-8 text-center text-sm text-[var(--text-faint)]">
+                还没有保存的会话
+              </div>
+            )}
+            {renderedSessions.map((item) => {
+              const active = item.id === activeSessionId;
+              return (
+                <div
+                  key={item.id}
+                  className={cn(
+                    'group relative flex items-center gap-1 rounded-[10px] transition-colors',
+                    active ? 'bg-[var(--bg-soft)]' : 'hover:bg-[var(--bg-soft)]',
+                  )}
+                >
+                  <button
+                    type="button"
+                    className="min-w-0 flex-1 bg-transparent px-3 py-2 text-left"
+                    onClick={() => onSelectSession(item.id)}
+                  >
                     <div
-                      key={item.id}
                       className={cn(
-                        'group grid grid-cols-[minmax(0,1fr)_28px] items-start gap-1 rounded-[12px] px-2 py-1 transition-colors',
-                        active ? 'bg-[var(--bg-soft)]' : 'hover:bg-[var(--bg-soft)]',
+                        'truncate text-[13px] leading-5',
+                        active ? 'font-medium text-[var(--text)]' : 'text-[var(--text)]',
                       )}
                     >
-                      <button
-                        type="button"
-                        className="min-w-0 bg-transparent px-0 py-0 text-left text-inherit"
-                        onClick={() => onSelectSession(item.id)}
-                      >
-                        <div className="min-w-0 pl-3 pr-2">
-                          <div
-                            className={cn(
-                              'truncate text-xs leading-5',
-                              active
-                                ? 'font-medium text-[var(--text)]'
-                                : 'font-normal text-[var(--text)]',
-                            )}
-                          >
-                            {getSessionTitle(item)}
-                          </div>
-                          <div className=" text-[10px] text-[var(--text-faint)]">
-                            {formatTimestamp(item.updatedAt)}
-                          </div>
-                        </div>
-                      </button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className={cn(
-                          'h-7 w-7 self-center rounded-full text-[var(--text-faint)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]',
-                          active
-                            ? 'opacity-100'
-                            : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100',
-                        )}
-                        onClick={() => onDeleteSession(item.id)}
-                        aria-label="删除会话"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {getSessionTitle(item)}
                     </div>
-                  );
-                })}
-                {visibleSessions.length > renderedSessions.length && (
-                  <div className="px-2 py-2">
-                    <Button
-                      variant="ghost"
-                      className="h-auto w-full justify-start rounded-[12px] px-3 py-2 text-sm text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-                      onClick={() =>
-                        setVisibleSessionCount((current) => current + SESSION_BATCH_SIZE)
-                      }
-                    >
-                      显示更多历史（剩余 {visibleSessions.length - renderedSessions.length} 条）
-                    </Button>
-                  </div>
-                )}
+                    <div className="text-[11px] text-[var(--text-faint)]">
+                      {formatTimestamp(item.updatedAt)}
+                    </div>
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={cn(
+                      'mr-1 h-7 w-7 shrink-0 rounded-full text-[var(--text-faint)] transition-all hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]',
+                      active
+                        ? 'opacity-60 hover:opacity-100'
+                        : 'opacity-0 group-hover:opacity-60 group-hover:hover:opacity-100',
+                    )}
+                    onClick={() => onDeleteSession(item.id)}
+                    aria-label="删除会话"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              );
+            })}
+            {visibleSessions.length > renderedSessions.length && (
+              <div className="pt-2 text-center">
+                <Button
+                  variant="ghost"
+                  className="h-8 rounded-full px-4 text-xs text-[var(--text-faint)] hover:text-[var(--text)]"
+                  onClick={() =>
+                    setVisibleSessionCount((current) => current + SESSION_BATCH_SIZE)
+                  }
+                >
+                  加载更多（{visibleSessions.length - renderedSessions.length}）
+                </Button>
               </div>
-            </ScrollArea>
+            )}
           </div>
+        </ScrollArea>
+      </div>
+
+      {/* Settings — bottom */}
+      {onOpenSettings && (
+        <div className="shrink-0 border-t border-[var(--surface-border)] px-3 py-2">
+          <Button
+            variant="ghost"
+            className="h-9 w-full justify-start gap-2.5 rounded-[10px] px-3 text-[13px] font-medium text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+            onClick={onOpenSettings}
+          >
+            <Settings className="h-4 w-4 shrink-0" />
+            设置
+          </Button>
         </div>
-      </CardContent>
-    </Card>
+      )}
+
+      <SessionSearchDialog
+        open={searchOpen}
+        onOpenChange={setSearchOpen}
+        sessions={visibleSessions}
+        onSelectSession={(id) => {
+          setSearchOpen(false);
+          onSelectSession(id);
+        }}
+      />
+    </div>
   );
 }

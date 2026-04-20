@@ -1,14 +1,5 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type Dispatch,
-  type KeyboardEvent,
-  type SetStateAction,
-} from 'react';
-import { PanelLeft } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import type { DeviceState, SessionSnapshot } from '@dg-agent/core';
-import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import {
   ArrowUp,
   AudioLines,
@@ -19,14 +10,14 @@ import {
   BatteryWarning,
   Bluetooth,
   Mic,
-  OctagonX,
+  CircleStop,
+  PanelLeft,
   Settings,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import { MarkdownText } from './MarkdownText.js';
-import { PresetSelector } from './PresetSelector.js';
 import type { TraceFeedItem } from '../utils/trace-feed.js';
 
 interface ToolActivity {
@@ -58,10 +49,6 @@ interface ChatPanelProps {
   onEmergencyStop: () => void;
   onOpenSidebar: () => void;
   onOpenSettings: () => void;
-  settingsDraft: BrowserAppSettings;
-  setSettingsDraft: Dispatch<SetStateAction<BrowserAppSettings>>;
-  onSaveCurrentPromptPreset: () => void;
-  onDeleteSavedPromptPreset: (presetId: string) => void;
 }
 
 function BatteryIcon({ level }: { level: number | null | undefined }) {
@@ -121,7 +108,7 @@ export function ChatPanel({
   busy,
   voiceEnabled,
   voiceMode,
-  voiceState,
+  voiceState: _voiceState,
   speechRecognitionSupported,
   session,
   traceFeed,
@@ -134,28 +121,15 @@ export function ChatPanel({
   onEmergencyStop,
   onOpenSidebar,
   onOpenSettings,
-  settingsDraft,
-  setSettingsDraft,
-  onSaveCurrentPromptPreset,
-  onDeleteSavedPromptPreset,
 }: ChatPanelProps) {
-  const composerRef = useRef<HTMLTextAreaElement | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
-  const _listening = voiceState === 'listening';
   const hasText = text.trim().length > 0;
   const messages = session?.messages ?? [];
   const timelineItems = buildRenderableTimeline(messages, traceFeed);
   const [visibleMessageCount, setVisibleMessageCount] = useState(MESSAGE_BATCH_SIZE);
   const renderedMessages = timelineItems.slice(-visibleMessageCount);
   const voiceModeAvailable = voiceEnabled && speechRecognitionSupported;
-  const emergencyStopDisabled = !activeSessionId || !deviceState.connected;
-
-  useEffect(() => {
-    const node = composerRef.current;
-    if (!node) return;
-    node.style.height = 'auto';
-    node.style.height = `${Math.min(node.scrollHeight, 140)}px`;
-  }, [text]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ block: 'end' });
@@ -179,99 +153,30 @@ export function ChatPanel({
     }
   }
 
-  function handleComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>): void {
-    if (event.key !== 'Enter' || event.shiftKey) return;
-    event.preventDefault();
-    if (!busy && hasText) {
-      onSend();
+  function handleInputKeyDown(e: React.KeyboardEvent<HTMLInputElement>): void {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!busy && hasText) onSend();
     }
   }
 
   const showVoiceAsPrimary = !hasText && !busy;
 
   return (
-    <div className="relative flex min-h-full w-full flex-1 flex-col overflow-hidden">
-      {/* ===== Top bar ===== */}
-      <header className="relative z-20 flex shrink-0 items-center justify-between gap-1 bg-[var(--glass)] px-2 backdrop-blur-xl sm:gap-2 sm:px-3 py-2">
-        {/* Left */}
-        <div className="flex shrink-0 items-center gap-2">
+    <div className="relative flex w-full flex-1 flex-col overflow-hidden">
+      {/* ===== Top bar — only visible on non-lg when device NOT connected ===== */}
+      {!deviceState.connected && (
+        <header className="flex shrink-0 items-center justify-between px-2 py-2 lg:hidden">
           <Button
             variant="ghost"
             size="icon"
-            className="h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)] lg:hidden"
+            className="h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
             onClick={onOpenSidebar}
             aria-label="历史记录"
           >
-            <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out -ml-0.5" />
+            <PanelLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-[17px] font-bold tracking-[-0.3px] text-[var(--text)]">DG-Agent</h1>
-          <span
-            className={cn(
-              'inline-block h-2 w-2 rounded-full transition-colors',
-              deviceState.connected ? 'bg-[var(--success)]' : 'bg-[var(--text-faint)]',
-            )}
-          />
-        </div>
-
-        {/* Center — preset selector */}
-        <div className="flex min-w-0 flex-1 items-center justify-center">
-          <PresetSelector
-            settingsDraft={settingsDraft}
-            setSettingsDraft={setSettingsDraft}
-            onSaveCurrentPromptPreset={onSaveCurrentPromptPreset}
-            onDeleteSavedPromptPreset={onDeleteSavedPromptPreset}
-          />
-        </div>
-
-        {/* Right */}
-        <div className="flex shrink-0 items-center gap-1.5">
-          <Button
-            variant="destructive"
-            size="sm"
-            className="h-9 w-9 rounded-[10px] px-0 text-[13px] font-medium shadow-none sm:w-auto sm:gap-1.5 sm:px-3"
-            disabled={emergencyStopDisabled}
-            onClick={onEmergencyStop}
-            aria-label="紧急停止"
-          >
-            <OctagonX className="h-4 w-4" />
-            <span className="hidden sm:inline">停止</span>
-          </Button>
-
-          {/* Connect — animates away when connected */}
-          <div
-            className={cn(
-              'overflow-hidden transition-all duration-300 ease-out',
-              deviceState.connected ? 'w-0 opacity-0' : 'w-auto opacity-100',
-            )}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-              disabled={!activeSessionId}
-              onClick={onConnect}
-              aria-label="连接设备"
-            >
-              <Bluetooth className="h-5 w-5" />
-            </Button>
-          </div>
-
-          {/* Device info — appears when connected */}
-          {deviceState.connected && (
-            <button
-              type="button"
-              className="flex items-center gap-1.5 rounded-[10px] px-2 py-1.5 text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)]"
-              onClick={onConnect}
-              title="重连设备"
-            >
-              <Bluetooth className="h-3.5 w-3.5 text-[var(--success)]" />
-              <BatteryIcon level={deviceState.battery} />
-              <span className="text-[11px] tabular-nums">
-                {typeof deviceState.battery === 'number' ? `${deviceState.battery}%` : '--'}
-              </span>
-            </button>
-          )}
-
+          <span className="text-sm font-semibold text-[var(--text)]">DG-Agent</span>
           <Button
             variant="ghost"
             size="icon"
@@ -279,29 +184,66 @@ export function ChatPanel({
             onClick={onOpenSettings}
             aria-label="设置"
           >
-            <Settings className="h-5 w-5" />
+            <Settings className="h-4 w-4" />
           </Button>
-        </div>
-      </header>
+        </header>
+      )}
 
-      <div className="border-t border-[var(--surface-border)]" />
-
-      {/* ===== Device strength bar — only when connected ===== */}
+      {/* ===== Device status bar — only when connected ===== */}
       {deviceState.connected && (
-        <div className="flex shrink-0 items-center gap-4 border-b border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-2 animate-in slide-in-from-top-1 duration-200">
+        <div className="flex shrink-0 items-center gap-1.5 border-b border-[var(--surface-border)] bg-[var(--bg-elevated)] px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 rounded-[8px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)] lg:hidden"
+            onClick={onOpenSidebar}
+            aria-label="历史记录"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </Button>
+          <button
+            type="button"
+            className="flex shrink-0 items-center gap-1 rounded-[8px] px-1.5 py-1 text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] sm:gap-1.5 sm:px-2"
+            onClick={onConnect}
+            title="重连设备"
+          >
+            <Bluetooth className="h-3.5 w-3.5 text-[var(--success)]" />
+            <BatteryIcon level={deviceState.battery} />
+            <span className="hidden text-[11px] tabular-nums sm:inline">
+              {typeof deviceState.battery === 'number' ? `${deviceState.battery}%` : '--'}
+            </span>
+          </button>
           <ChannelStrengthBar channel="A" value={deviceState.strengthA} max={maxStrengthA} />
           <ChannelStrengthBar channel="B" value={deviceState.strengthB} max={maxStrengthB} />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0 rounded-[8px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)] lg:hidden"
+            onClick={onOpenSettings}
+            aria-label="设置"
+          >
+            <Settings className="h-3.5 w-3.5" />
+          </Button>
+          <Button
+            variant="destructive"
+            size="sm"
+            className="h-7 shrink-0 rounded-[8px] px-2 text-[12px] font-medium shadow-none sm:px-2.5"
+            onClick={onEmergencyStop}
+            aria-label="紧急停止"
+          >
+            <CircleStop className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">停止</span>
+          </Button>
         </div>
       )}
 
       {/* ===== Chat area ===== */}
-      <div className="main-content-scroll min-h-0 flex-1 overflow-y-auto px-4 pt-3 [scrollbar-gutter:stable] sm:px-6">
-        <div className="mx-auto flex min-h-full w-full max-w-[800px] flex-col justify-end gap-4 pb-3">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 [scrollbar-gutter:stable] sm:px-6">
+        <div className="mx-auto flex min-h-full w-full max-w-[800px] flex-col justify-end gap-4 pb-4">
           {!busy && !streamingAssistantText && messages.length === 0 && (
             <div className="flex justify-start">
-              <div className="max-w-[92%] overflow-hidden break-words whitespace-pre-wrap rounded-[14px] rounded-bl-[4px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-3 text-[14.5px] leading-[1.6] text-[var(--text)]">
-                你好！我是 DG-Agent，可以帮你通过自然语言控制 DG-Lab Coyote 设备。{'\n\n'}
-                请先点击右上角蓝牙按钮连接设备，然后告诉我你想做什么。
+              <div className="max-w-[min(92%,560px)] overflow-hidden break-words whitespace-pre-wrap rounded-[14px] rounded-bl-[4px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-3 text-[14.5px] leading-[1.6] text-[var(--text)]">
+                欢迎使用DG-Agent，请使用蓝牙连接郊狼后开始使用哦！
               </div>
             </div>
           )}
@@ -322,7 +264,7 @@ export function ChatPanel({
             if (message.kind === 'trace-system') {
               return (
                 <div key={message.id} className="flex justify-center">
-                  <div className="max-w-[85%] rounded-[8px] border-l-[3px] border-l-[var(--accent)] bg-[var(--accent-soft)] px-3.5 py-1 text-[13px] leading-[1.35] text-[var(--text-soft)]">
+                  <div className="max-w-[min(85%,480px)] rounded-[8px] border-l-[3px] border-l-[var(--accent)] bg-[var(--accent-soft)] px-3.5 py-1 text-[13px] leading-[1.35] text-[var(--text-soft)]">
                     {message.content}
                   </div>
                 </div>
@@ -332,7 +274,7 @@ export function ChatPanel({
             if (message.role === 'assistant' && isToolExecutionSummary(message.content)) {
               return (
                 <div key={message.id} className="flex justify-center">
-                  <div className="max-w-[85%] rounded-[8px] border border-[var(--surface-border)] bg-[var(--bg-soft)] px-4 py-2 text-sm text-[var(--text-soft)]">
+                  <div className="max-w-[min(85%,480px)] rounded-[8px] border border-[var(--surface-border)] bg-[var(--bg-soft)] px-4 py-2 text-sm text-[var(--text-soft)]">
                     {summarizeAssistantContent(message.content)}
                   </div>
                 </div>
@@ -342,7 +284,7 @@ export function ChatPanel({
             if (message.role === 'system') {
               return (
                 <div key={message.id} className="flex justify-center">
-                  <div className="max-w-[85%] rounded-[8px] border-l-[3px] border-l-[var(--accent)] bg-[var(--accent-soft)] px-3.5 py-1.5 text-[13px] leading-[1.35] text-[var(--text-soft)]">
+                  <div className="max-w-[min(85%,480px)] rounded-[8px] border-l-[3px] border-l-[var(--accent)] bg-[var(--accent-soft)] px-3.5 py-1.5 text-[13px] leading-[1.35] text-[var(--text-soft)]">
                     {message.content}
                   </div>
                 </div>
@@ -357,7 +299,7 @@ export function ChatPanel({
               >
                 <div
                   className={cn(
-                    'max-w-[92%] overflow-hidden break-words whitespace-pre-wrap px-4 py-3 text-[14.5px] leading-[1.6]',
+                    'max-w-[min(92%,560px)] overflow-hidden break-words whitespace-pre-wrap px-4 py-3 text-[14.5px] leading-[1.6]',
                     userMessage
                       ? 'rounded-[14px] rounded-br-[4px] bg-[var(--accent)] text-[var(--button-text)]'
                       : 'rounded-[14px] rounded-bl-[4px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] text-[var(--text)]',
@@ -401,7 +343,7 @@ export function ChatPanel({
 
           {streamingAssistantText && (
             <div className="flex justify-start">
-              <div className="max-w-[92%] overflow-hidden break-words whitespace-pre-wrap rounded-[14px] rounded-bl-[4px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-3 text-[14.5px] leading-[1.6] text-[var(--text)]">
+              <div className="max-w-[min(92%,560px)] overflow-hidden break-words whitespace-pre-wrap rounded-[14px] rounded-bl-[4px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-3 text-[14.5px] leading-[1.6] text-[var(--text)]">
                 <MarkdownText content={streamingAssistantText} />
               </div>
             </div>
@@ -420,48 +362,66 @@ export function ChatPanel({
         </div>
       </div>
 
-      {/* ===== Input area — single row ===== */}
-      <div className="flex z-30 shrink-0 border-t border-[var(--surface-border)] bg-[var(--glass)] backdrop-blur-xl">
-        <div className="mx-auto my-1.5 flex w-full items-center max-w-[800px] gap-4">
-          <Textarea
-            ref={composerRef}
-            value={text}
-            disabled={busy || voiceMode}
-            rows={1}
-            onChange={(event) => onTextChange(event.target.value)}
-            onKeyDown={handleComposerKeyDown}
-            placeholder={voiceMode ? '语音识别中…' : '输入消息…'}
-            className="box-border min-h-0 max-h-[140px] flex-1 resize-none overflow-y-hidden rounded-[20px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-3 py-[9px] text-sm shadow-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
-          />
-          {voiceMode ? (
-            <Button
-              variant="destructive"
-              size="icon"
-              className="h-[40px] w-[40px] shrink-0 rounded-full"
-              onClick={onToggleVoiceMode}
-              aria-label="结束识别"
-            >
-              <Mic className="h-4 w-4" />
-            </Button>
-          ) : (
-            <Button
-              variant={busy ? 'destructive' : showVoiceAsPrimary ? 'secondary' : 'default'}
-              size="icon"
-              className="h-[40px] w-[40px] shrink-0 rounded-full"
-              disabled={!activeSessionId || (showVoiceAsPrimary && !voiceModeAvailable)}
-              onClick={handlePrimaryAction}
-              aria-label={busy ? '停止回复' : hasText ? '发送' : '语音识别'}
-            >
-              {showVoiceAsPrimary ? (
-                <AudioLines className="h-4 w-4" />
-              ) : (
-                <ArrowUp className="h-4 w-4" />
-              )}
-            </Button>
-          )}
-        </div>
-        <div className="h-2" />
+      {/* ===== Input area ===== */}
+      <div className="mx-auto flex w-full max-w-[800px] shrink-0 items-center gap-2 px-3 pb-1 sm:px-6">
+        <Input
+          ref={inputRef}
+          type="text"
+          value={text}
+          disabled={busy || voiceMode || !deviceState.connected}
+          onChange={(e) => onTextChange(e.target.value)}
+          onKeyDown={handleInputKeyDown}
+          placeholder={!deviceState.connected ? '请连接蓝牙' : voiceMode ? '语音识别中…' : '输入消息…'}
+          className="!h-10 flex-1 rounded-full"
+        />
+        {!deviceState.connected ? (
+          <Button
+            variant="default"
+            size="icon"
+            className="h-10 w-10 shrink-0 rounded-[10px]"
+            onClick={onConnect}
+            aria-label="连接蓝牙"
+          >
+            <Bluetooth className="h-4 w-4" />
+          </Button>
+        ) : voiceMode ? (
+          <Button
+            variant="destructive"
+            size="icon"
+            className="h-10 w-10 shrink-0 rounded-[10px]"
+            onClick={onToggleVoiceMode}
+            aria-label="结束识别"
+          >
+            <Mic className="h-4 w-4" />
+          </Button>
+        ) : (
+          <Button
+            variant={busy ? 'destructive' : showVoiceAsPrimary && voiceModeAvailable ? 'secondary' : hasText ? 'default' : 'ghost'}
+            size="icon"
+            className="h-10 w-10 shrink-0 rounded-[10px]"
+            disabled={!activeSessionId || (!hasText && !busy && !voiceModeAvailable)}
+            onClick={handlePrimaryAction}
+            aria-label={busy ? '停止回复' : hasText ? '发送' : voiceModeAvailable ? '语音识别' : '发送'}
+          >
+            {showVoiceAsPrimary && voiceModeAvailable ? (
+              <AudioLines className="h-4 w-4" />
+            ) : (
+              <ArrowUp className="h-4 w-4" />
+            )}
+          </Button>
+        )}
       </div>
+      <p className="shrink-0 px-3 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-1 text-center text-[11px] text-[var(--text-faint)]">
+        本项目仅供学习交流使用，请遵守当地法律法规。{' '}
+        <a
+          href="https://github.com/0xNullAI/DG-Agent"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline transition-colors hover:text-[var(--text-soft)]"
+        >
+          GitHub
+        </a>
+      </p>
     </div>
   );
 }
@@ -477,11 +437,11 @@ function ChannelStrengthBar({ channel, value, max }: ChannelStrengthBarProps) {
   const normalizedMax = clampPercentage((max / DEVICE_STRENGTH_CAP) * 100);
 
   return (
-    <div className="grid flex-1 grid-cols-[16px_minmax(0,1fr)_26px] items-center gap-2">
-      <span className="justify-self-start text-[10px] font-semibold leading-none tracking-[0.12em] text-[var(--accent)]">
+    <div className="grid flex-1 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-1 sm:gap-1.5">
+      <span className="text-[10px] font-semibold leading-none tracking-wide text-[var(--accent)]">
         {channel}
       </span>
-      <div className="relative h-2.5 w-full justify-self-stretch overflow-hidden rounded-full bg-[var(--bg-soft)]">
+      <div className="relative h-3 w-full overflow-hidden rounded-full bg-[var(--bg-soft)] sm:h-3.5">
         <div
           className="absolute inset-y-0 left-0 rounded-full bg-[var(--accent)]/80 transition-[width] duration-300 ease-out"
           style={{ width: `${normalizedValue}%` }}
@@ -491,7 +451,7 @@ function ChannelStrengthBar({ channel, value, max }: ChannelStrengthBarProps) {
           style={{ left: `calc(${normalizedMax}% - 1.5px)` }}
         />
       </div>
-      <span className="justify-self-end text-right text-[10px] font-medium tabular-nums leading-none text-[var(--text-soft)]">
+      <span className="text-[10px] font-medium tabular-nums leading-none text-[var(--text-soft)]">
         {value}
       </span>
     </div>

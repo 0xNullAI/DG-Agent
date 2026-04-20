@@ -123,51 +123,42 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
 
   return (
     <div className="settings-panel-tab-content">
-      <section className="settings-group">
-        <h3 className="settings-group-title">基础</h3>
+      <div className="flex items-center gap-3 pb-3">
+        <div className="h-px flex-1 bg-[var(--surface-border)]" />
+        <span className="shrink-0 text-xs font-bold text-[var(--accent)]">基本设置</span>
+        <div className="h-px flex-1 bg-[var(--surface-border)]" />
+      </div>
 
-        <SettingSegmented
-          label="主题"
-          value={settingsDraft.themeMode}
-          onValueChange={(value) =>
-            setSettingsDraft((current) => ({
-              ...current,
-              themeMode: value as BrowserAppSettings['themeMode'],
-            }))
-          }
-          options={[
-            { value: 'auto', label: '跟随系统' },
+      <div className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 pb-3">
+        <span className="text-sm font-medium text-[var(--text)]">主题模式</span>
+        <div className="flex rounded-full bg-[var(--bg-strong)] p-0.5">
+          {([
+            { value: 'auto', label: '系统' },
             { value: 'dark', label: '深色' },
             { value: 'light', label: '浅色' },
-          ]}
-        />
-      </section>
+          ] as const).map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={`flex-1 rounded-full px-3.5 py-1 text-xs font-medium transition-all duration-150 ${
+                settingsDraft.themeMode === option.value
+                  ? 'bg-[var(--accent)] text-[var(--button-text)] shadow-sm'
+                  : 'text-[var(--text-soft)] hover:text-[var(--text)]'
+              }`}
+              onClick={() =>
+                setSettingsDraft((current) => ({
+                  ...current,
+                  themeMode: option.value as BrowserAppSettings['themeMode'],
+                }))
+              }
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
 
-      <section className="settings-group">
-        <h3 className="settings-group-title">模型服务</h3>
-
-        <label>
-          <span>服务提供方</span>
-          <SettingSelect
-            value={settingsDraft.provider.providerId}
-            onValueChange={(value) => switchProvider(value as ProviderId)}
-            options={PROVIDER_DEFINITIONS.map((provider) => ({
-              value: provider.id,
-              label: provider.browserSupported
-                ? provider.name
-                : `${provider.name}（当前浏览器不可用）`,
-            }))}
-          />
-        </label>
-
-        {selectedProviderDef?.hint && (
-          <div className="provider-hint">{selectedProviderDef.hint}</div>
-        )}
-
-        {selectedProviderDef?.fields.map((field) => renderProviderField(field))}
-
-        <SettingSegmented
-          label="上下文策略"
+        <span className="text-sm font-medium text-[var(--text)]">上下文策略</span>
+        <SettingSelect
           value={settingsDraft.modelContextStrategy}
           onValueChange={(value) =>
             setSettingsDraft((current) => ({
@@ -176,23 +167,103 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
             }))
           }
           options={[
-            { value: 'last-user-turn', label: '上一轮' },
-            { value: 'last-five-user-turns', label: '前五轮' },
-            { value: 'full-history', label: '无限制' },
+            { value: 'last-user-turn', label: '基础' },
+            { value: 'last-five-user-turns', label: '中等' },
+            { value: 'full-history', label: '复杂' },
           ]}
         />
+      </div>
 
-        <SettingToggle
-          label="在当前设备记住 API 密钥"
-          checked={settingsDraft.rememberApiKey}
-          onCheckedChange={(checked) =>
-            setSettingsDraft((current) => ({
-              ...current,
-              rememberApiKey: checked,
-            }))
-          }
-        />
-      </section>
+      <div className="flex items-center gap-3 py-2">
+        <div className="h-px flex-1 bg-[var(--surface-border)]" />
+        <span className="shrink-0 text-xs font-bold text-[var(--accent)]">模型选择</span>
+        <div className="h-px flex-1 bg-[var(--surface-border)]" />
+      </div>
+
+      {/* Current model display */}
+      <div className="pb-3 text-center text-sm text-[var(--text-soft)]">
+        当前：<span className="font-medium text-[var(--text)]">{selectedProviderDef?.name ?? '未知'}</span>
+        {settingsDraft.provider.model && (
+          <span className="ml-1 text-[var(--text-faint)]">/ {settingsDraft.provider.model}</span>
+        )}
+      </div>
+
+      {/* Provider selector grid */}
+      <ProviderScroller
+        currentProviderId={settingsDraft.provider.providerId}
+        onSwitch={switchProvider}
+      />
+
+      {/* Hint for current provider */}
+      {selectedProviderDef?.hint && (
+        <div className="mt-2 rounded-[8px] bg-[var(--accent-soft)] px-3 py-2 text-[12px] leading-relaxed text-[var(--text-soft)]">
+          {selectedProviderDef.id === 'free' ? (
+            <>
+              无需配置 API-Key，当前由{' '}
+              <a
+                href="https://ai.071129.xyz/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline text-[var(--accent)] hover:text-[var(--text)]"
+              >
+                MapLeaf API
+              </a>
+              {' '}提供支持。
+            </>
+          ) : (
+            selectedProviderDef.hint
+          )}
+        </div>
+      )}
+
+      {/* Provider fields + remember key if has apiKey */}
+      {selectedProviderDef && selectedProviderDef.fields.length > 0 && (
+        <div className="mt-3 grid gap-3">
+          {selectedProviderDef.fields.map((field) => renderProviderField(field))}
+          {selectedProviderDef.fields.some((f) => f.key === 'apiKey') && (
+            <SettingToggle
+              label="在当前设备记住 API 密钥"
+              checked={settingsDraft.rememberApiKey}
+              onCheckedChange={(checked) =>
+                setSettingsDraft((current) => ({
+                  ...current,
+                  rememberApiKey: checked,
+                }))
+              }
+            />
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ProviderScroller({
+  currentProviderId,
+  onSwitch,
+}: {
+  currentProviderId: ProviderId;
+  onSwitch: (id: ProviderId) => void;
+}) {
+  return (
+    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+      {PROVIDER_DEFINITIONS.map((provider) => {
+        const active = provider.id === currentProviderId;
+        return (
+          <button
+            key={provider.id}
+            type="button"
+            className={`rounded-full px-2 py-1.5 text-[13px] font-medium transition-all duration-150 ${
+              active
+                ? 'bg-[var(--accent)] text-[var(--button-text)] shadow-sm'
+                : 'bg-[var(--bg-strong)] text-[var(--text-soft)] hover:text-[var(--text)]'
+            } ${!provider.browserSupported ? 'opacity-50' : ''}`}
+            onClick={() => onSwitch(provider.id)}
+          >
+            {provider.name}
+          </button>
+        );
+      })}
     </div>
   );
 }

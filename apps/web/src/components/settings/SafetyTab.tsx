@@ -1,9 +1,8 @@
 import type { Dispatch, SetStateAction } from 'react';
-import { Input } from '@/components/ui/input';
+import { Minus, Plus } from 'lucide-react';
 
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
-import { clampStrengthSetting } from '../../utils/ui-formatters.js';
-import { SettingSegmented } from './SettingSegmented.js';
+import { cn } from '@/lib/utils';
 import { SettingToggle } from './SettingToggle.js';
 
 interface SafetyTabProps {
@@ -11,67 +10,88 @@ interface SafetyTabProps {
   setSettingsDraft: Dispatch<SetStateAction<BrowserAppSettings>>;
 }
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
 export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
+  function setStrengthA(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      maxStrengthA: clamp(value, 0, 200),
+    }));
+  }
+
+  function setStrengthB(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      maxStrengthB: clamp(value, 0, 200),
+    }));
+  }
+
+  const permissionOptions: Array<{
+    value: BrowserAppSettings['permissionMode'];
+    label: string;
+    desc: string;
+    warn?: boolean;
+  }> = [
+    { value: 'confirm', label: '每次询问', desc: '推荐，最安全' },
+    { value: 'timed', label: '5 分钟内免询问', desc: '到期自动恢复询问' },
+    { value: 'allow-all', label: '全部允许', desc: '高风险，不再弹窗', warn: true },
+  ];
+
   return (
-    <div className="settings-panel-tab-content">
-      <section className="settings-group">
-        <h3 className="settings-group-title">安全</h3>
+    <div className="settings-panel-tab-content space-y-5">
+      {/* 最大强度上限 */}
+      <div className="flex items-center gap-3"><div className="h-px flex-1 bg-[var(--surface-border)]" /><span className="shrink-0 text-xs font-bold text-[var(--accent)]">最大强度上限</span><div className="h-px flex-1 bg-[var(--surface-border)]" /></div>
 
-        <SettingSegmented
-          label="权限策略"
-          value={settingsDraft.permissionMode}
-          onValueChange={(value) =>
-            setSettingsDraft((current) => ({
-              ...current,
-              permissionMode: value as BrowserAppSettings['permissionMode'],
-            }))
-          }
-          options={[
-            { value: 'confirm', label: '每次确认' },
-            { value: 'timed', label: '放行 5 分钟' },
-            { value: 'allow-all', label: '全部放行' },
-          ]}
-        />
+      <div className="grid grid-cols-2 gap-3">
+        <StrengthControl channel="A" value={settingsDraft.maxStrengthA} onChange={setStrengthA} />
+        <StrengthControl channel="B" value={settingsDraft.maxStrengthB} onChange={setStrengthB} />
+      </div>
 
-        <label>
-          <span>A 通道强度上限</span>
-          <Input
-            type="number"
-            min={0}
-            max={200}
-            value={settingsDraft.maxStrengthA}
-            onChange={(event) =>
-              setSettingsDraft((current) => ({
-                ...current,
-                maxStrengthA: clampStrengthSetting(event.target.value),
-              }))
-            }
-          />
-        </label>
+      {/* 工具调用确认模式 */}
+      <div className="flex items-center gap-3"><div className="h-px flex-1 bg-[var(--surface-border)]" /><span className="shrink-0 text-xs font-bold text-[var(--accent)]">工具调用确认模式</span><div className="h-px flex-1 bg-[var(--surface-border)]" /></div>
 
-        <label>
-          <span>B 通道强度上限</span>
-          <Input
-            type="number"
-            min={0}
-            max={200}
-            value={settingsDraft.maxStrengthB}
-            onChange={(event) =>
-              setSettingsDraft((current) => ({
-                ...current,
-                maxStrengthB: clampStrengthSetting(event.target.value),
-              }))
-            }
-          />
-        </label>
+      <div className="grid grid-cols-3 gap-2">
+        {permissionOptions.map((opt) => {
+          const active = settingsDraft.permissionMode === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              className={cn(
+                'rounded-[10px] border px-3 py-3 text-left transition-colors',
+                active
+                  ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
+                  : 'border-[var(--surface-border)] bg-[var(--bg-strong)] hover:border-[var(--text-faint)]',
+              )}
+              onClick={() =>
+                setSettingsDraft((current) => ({ ...current, permissionMode: opt.value }))
+              }
+            >
+              <div className={cn('text-[13px] font-semibold', active ? 'text-[var(--accent)]' : 'text-[var(--text)]')}>
+                {opt.label}
+              </div>
+              <div className={cn('mt-0.5 text-[11px]', opt.warn ? 'text-[var(--danger)]' : 'text-[var(--text-faint)]')}>
+                {opt.desc}
+              </div>
+            </button>
+          );
+        })}
+      </div>
 
+      {/* 后台行为 */}
+      <div className="flex items-center gap-3"><div className="h-px flex-1 bg-[var(--surface-border)]" /><span className="shrink-0 text-xs font-bold text-[var(--accent)]">后台行为</span><div className="h-px flex-1 bg-[var(--surface-border)]" /></div>
+
+      <div className="space-y-3">
         <SettingToggle
-          label="离开页面时自动停止设备输出"
-          checked={settingsDraft.safetyStopOnLeave}
+          label="切到后台时停止输出"
+          checked={settingsDraft.backgroundBehavior === 'stop'}
           onCheckedChange={(checked) =>
             setSettingsDraft((current) => ({
               ...current,
-              safetyStopOnLeave: checked,
+              backgroundBehavior: checked ? 'stop' : 'keep',
             }))
           }
         />
@@ -86,18 +106,49 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
             }))
           }
         />
+      </div>
+    </div>
+  );
+}
 
-        <SettingToggle
-          label="切到后台后继续运行"
-          checked={settingsDraft.backgroundBehavior === 'keep'}
-          onCheckedChange={(checked) =>
-            setSettingsDraft((current) => ({
-              ...current,
-              backgroundBehavior: checked ? 'keep' : 'stop',
-            }))
-          }
+function StrengthControl({
+  channel,
+  value,
+  onChange,
+}: {
+  channel: 'A' | 'B';
+  value: number;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 rounded-[12px] border border-[var(--surface-border)] bg-[var(--bg-strong)] px-3 py-2.5">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-[var(--accent)] text-sm font-bold text-[var(--accent)]">
+        {channel}
+      </span>
+      <div className="flex flex-1 items-center justify-end gap-0">
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center rounded-l-[8px] bg-[var(--bg-elevated)] text-[var(--text-soft)] transition-colors hover:text-[var(--text)]"
+          onClick={() => onChange(value - 5)}
+        >
+          <Minus className="h-4 w-4" />
+        </button>
+        <input
+          type="number"
+          min={0}
+          max={200}
+          value={value}
+          onChange={(e) => onChange(Number(e.target.value) || 0)}
+          className="h-8 w-12 bg-[var(--bg-elevated)] text-center text-sm font-bold tabular-nums text-[var(--text)] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
         />
-      </section>
+        <button
+          type="button"
+          className="flex h-8 w-8 items-center justify-center rounded-r-[8px] bg-[var(--bg-elevated)] text-[var(--text-soft)] transition-colors hover:text-[var(--text)]"
+          onClick={() => onChange(value + 5)}
+        >
+          <Plus className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }

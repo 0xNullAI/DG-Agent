@@ -12,6 +12,7 @@ import { X } from 'lucide-react';
 import { ChatPanel } from './components/ChatPanel.js';
 import { PermissionModal } from './components/PermissionModal.js';
 import { SafetyNoticeModal } from './components/SafetyNoticeModal.js';
+import { PresetSelector } from './components/PresetSelector.js';
 import { SessionPanel } from './components/SessionPanel.js';
 import { WaveformsPanel } from './components/WaveformsPanel.js';
 import { GeneralTab } from './components/settings/GeneralTab.js';
@@ -58,7 +59,7 @@ import {
 } from './utils/ui-formatters.js';
 import { buildTraceFeed } from './utils/trace-feed.js';
 
-type SettingsModalTab = 'general' | 'safety' | 'waveforms' | 'bridge' | 'voice';
+type SettingsModalTab = 'general' | 'preset' | 'safety' | 'waveforms' | 'bridge' | 'voice';
 
 function formatVoiceStateLabel(voiceState: 'idle' | 'listening' | 'speaking'): string {
   switch (voiceState) {
@@ -225,13 +226,13 @@ export function App() {
   const safetyGuard = useMemo(
     () =>
       new BrowserSafetyGuard({
-        stopOnLeave: settings.safetyStopOnLeave,
+        stopOnLeave: true,
         backgroundBehavior: settings.backgroundBehavior,
         onStop: async (reason) => {
           await performLifecycleStop(reason);
         },
       }),
-    [settings.backgroundBehavior, settings.safetyStopOnLeave],
+    [settings.backgroundBehavior],
   );
 
   useEffect(() => {
@@ -539,6 +540,15 @@ export function App() {
     switch (settingsModalTab) {
       case 'general':
         return <GeneralTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
+      case 'preset':
+        return (
+          <PresetSelector
+            settingsDraft={settingsDraft}
+            setSettingsDraft={setSettingsDraft}
+            onSaveCurrentPromptPreset={saveCurrentPromptPreset}
+            onDeleteSavedPromptPreset={deleteSavedPromptPreset}
+          />
+        );
       case 'safety':
         return <SafetyTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
       case 'waveforms':
@@ -579,10 +589,7 @@ export function App() {
   const floatingStatus =
     voiceMode || hasVisibleToasts || updateStatus.hasUpdate ? (
       <div
-        className={[
-          'pointer-events-none absolute inset-x-0 z-40 flex justify-center px-3',
-          deviceState.connected ? 'top-[6.5rem]' : 'top-[4rem]',
-        ].join(' ')}
+        className="pointer-events-none absolute inset-x-0 top-[3.5rem] z-40 flex justify-center px-3"
       >
         <div className="flex w-full max-w-[800px] flex-col gap-3">
           {voiceMode && (
@@ -808,10 +815,13 @@ export function App() {
               onValueChange={(value) => setSettingsModalTab(value as SettingsModalTab)}
               className="flex min-h-0 flex-1 flex-col"
             >
-              <div className="border-b border-[var(--surface-border)] px-3 sm:px-6">
-                <TabsList className="control-tabs grid w-full grid-cols-3 gap-0 bg-transparent sm:grid-cols-5">
+              <div className="px-3 sm:px-6">
+                <TabsList className="control-tabs grid w-full grid-cols-3 gap-0 bg-transparent sm:grid-cols-6">
                   <TabsTrigger className="control-tab-trigger" value="general">
                     基础
+                  </TabsTrigger>
+                  <TabsTrigger className="control-tab-trigger" value="preset">
+                    场景
                   </TabsTrigger>
                   <TabsTrigger className="control-tab-trigger" value="safety">
                     安全
@@ -820,7 +830,7 @@ export function App() {
                     波形
                   </TabsTrigger>
                   <TabsTrigger className="control-tab-trigger" value="bridge">
-                    桥接
+                    Bot
                   </TabsTrigger>
                   <TabsTrigger className="control-tab-trigger" value="voice">
                     语音
@@ -835,8 +845,7 @@ export function App() {
                 <div className="settings settings-grouped settings-panel-body">
                   {renderSettingsTabContent()}
                 </div>
-                <div className="settings-actions settings-actions-footer mt-6">
-                  <div className="text-sm text-[var(--text-faint)]">设置会自动保存到当前浏览器</div>
+                <div className="mt-6 flex justify-end">
                   <Button variant="secondary" onClick={resetSettings}>
                     恢复默认
                   </Button>
@@ -860,7 +869,7 @@ export function App() {
                     选择历史对话，或者新建一条会话
                   </SheetDescription>
                 </div>
-                <SheetClose className="inline-flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-strong)] text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2">
+                <SheetClose className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-strong)] text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--text)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2">
                   <X className="h-5 w-5" />
                   <span className="sr-only">关闭</span>
                 </SheetClose>
@@ -873,6 +882,7 @@ export function App() {
                 onSelectSession={selectSession}
                 onDeleteSession={(sessionId) => void deleteSession(sessionId)}
                 onCreateSession={() => void createNewSession()}
+                onOpenSettings={() => openSettingsModal()}
                 detached={true}
               />
             </div>
@@ -885,13 +895,14 @@ export function App() {
           style={{ '--sidebar-w': sidebarCollapsed ? '65px' : '272px' } as React.CSSProperties}
         >
           {/* Desktop sidebar */}
-          <aside className="hidden min-h-0 overflow-hidden border-r border-[var(--surface-border)] bg-[var(--bg-elevated)] transition-all duration-300 ease-out lg:block">
+          <aside className="hidden min-h-0 overflow-hidden border-r border-[var(--surface-border)] bg-[var(--bg-elevated)] lg:block">
             <SessionPanel
               savedSessions={savedSessions}
               activeSessionId={activeSessionId}
               onSelectSession={selectSession}
               onDeleteSession={(sessionId) => void deleteSession(sessionId)}
               onCreateSession={() => void createNewSession()}
+              onOpenSettings={() => openSettingsModal()}
               collapsed={sidebarCollapsed}
               onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
               detached={false}
@@ -925,10 +936,6 @@ export function App() {
               onEmergencyStop={() => void stop()}
               onOpenSidebar={() => setSidebarOpen(true)}
               onOpenSettings={() => openSettingsModal('general')}
-              settingsDraft={settingsDraft}
-              setSettingsDraft={setSettingsDraft}
-              onSaveCurrentPromptPreset={saveCurrentPromptPreset}
-              onDeleteSavedPromptPreset={deleteSavedPromptPreset}
             />
           </section>
         </section>

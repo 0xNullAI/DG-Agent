@@ -63,13 +63,13 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
   {
     id: 'free',
     name: '免费体验',
-    hint: '无需 API 密钥，每分钟限 10 条（使用阿里云线路）',
+    hint: '无需配置 API-Key，当前由 MapLeaf API 提供支持。',
     browserSupported: true,
     fields: [],
   },
   {
     id: 'qwen',
-    name: '通义千问',
+    name: 'Qwen',
     browserSupported: true,
     fields: [
       { key: 'apiKey', label: 'API 密钥', type: 'password', placeholder: 'sk-...' },

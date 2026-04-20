@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 'react';
+import { useState, type Dispatch, type SetStateAction } from 'react';
 import {
   BUILTIN_PROMPT_PRESETS,
   type PromptPreset,
   type SavedPromptPreset,
 } from '@dg-agent/prompts-basic';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
-import { ChevronDown, Trash2 } from 'lucide-react';
+import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 
 interface PresetSelectorProps {
   settingsDraft: BrowserAppSettings;
@@ -16,179 +18,239 @@ interface PresetSelectorProps {
   onDeleteSavedPromptPreset: (presetId: string) => void;
 }
 
-function resolveActivePreset(
-  presetId: string,
-  savedPresets: SavedPromptPreset[],
-): { name: string; icon: string } {
-  const builtin = BUILTIN_PROMPT_PRESETS.find((p) => p.id === presetId);
-  if (builtin) return { name: builtin.name, icon: builtin.icon ?? '💕' };
-  const saved = savedPresets.find((p) => p.id === presetId);
-  if (saved) return { name: saved.name, icon: '📝' };
-  return { name: '温柔调情', icon: '💕' };
-}
-
 export function PresetSelector({
   settingsDraft,
   setSettingsDraft,
   onSaveCurrentPromptPreset,
   onDeleteSavedPromptPreset,
 }: PresetSelectorProps) {
-  const [open, setOpen] = useState(false);
-  const [showCustomPrompt, setShowCustomPrompt] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPrompt, setEditPrompt] = useState('');
+  const [creating, setCreating] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newPrompt, setNewPrompt] = useState('');
 
-  const active = resolveActivePreset(
-    settingsDraft.promptPresetId,
-    settingsDraft.savedPromptPresets,
-  );
-  const selectedSavedPreset = settingsDraft.savedPromptPresets.find(
-    (p) => p.id === settingsDraft.promptPresetId,
-  );
+  function selectPreset(id: string) {
+    setSettingsDraft((current) => ({ ...current, promptPresetId: id }));
+  }
 
-  useEffect(() => {
-    if (!open) return;
-    function handleClickOutside(e: MouseEvent) {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node) &&
-        triggerRef.current &&
-        !triggerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(false);
-        setShowCustomPrompt(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [open]);
+  function startEdit(preset: SavedPromptPreset) {
+    setEditingId(preset.id);
+    setEditName(preset.name);
+    setEditPrompt(preset.prompt);
+    setCreating(false);
+  }
 
-  function selectPreset(preset: PromptPreset | SavedPromptPreset) {
-    setSettingsDraft((current) => ({ ...current, promptPresetId: preset.id }));
-    setOpen(false);
-    setShowCustomPrompt(false);
+  function saveEdit() {
+    if (!editingId || !editName.trim()) return;
+    setSettingsDraft((current) => ({
+      ...current,
+      savedPromptPresets: current.savedPromptPresets.map((p) =>
+        p.id === editingId ? { ...p, name: editName.trim(), prompt: editPrompt } : p,
+      ),
+    }));
+    setEditingId(null);
+  }
+
+  function startCreate() {
+    setCreating(true);
+    setEditingId(null);
+    setNewName('');
+    setNewPrompt('');
+  }
+
+  function confirmCreate() {
+    if (!newName.trim()) return;
+    const id = `custom-${Date.now()}`;
+    setSettingsDraft((current) => ({
+      ...current,
+      promptPresetId: id,
+      savedPromptPresets: [
+        ...current.savedPromptPresets,
+        { id, name: newName.trim(), prompt: newPrompt },
+      ],
+    }));
+    setCreating(false);
+    setNewName('');
+    setNewPrompt('');
   }
 
   return (
-    <div className="relative">
-      <button
-        ref={triggerRef}
-        type="button"
-        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-3.5 py-1.5 text-sm font-medium text-[var(--text)] shadow-sm transition-colors hover:bg-[var(--bg-soft)]"
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span>{active.icon}</span>
-        <span className="max-w-[120px] truncate">{active.name}</span>
-        <ChevronDown
-          className={`h-3.5 w-3.5 text-[var(--text-soft)] transition-transform ${open ? 'rotate-180' : ''}`}
-        />
-      </button>
+    <div className="space-y-4">
+      {/* Built-in presets */}
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-[var(--surface-border)]" />
+        <span className="shrink-0 text-xs font-bold text-[var(--accent)]">内置场景</span>
+        <div className="h-px flex-1 bg-[var(--surface-border)]" />
+      </div>
 
-      {open && (
-        <div
-          ref={dropdownRef}
-          className="preset-dropdown absolute left-1/2 top-full z-[100] mt-2 w-[min(320px,calc(100vw-2rem))] -translate-x-1/2 rounded-[14px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] p-2 shadow-lg animate-in fade-in slide-in-from-top-1 duration-150"
-        >
-          <div className="px-2.5 py-1.5 text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--text-faint)]">
-            场景模式
-          </div>
+      <div className="space-y-1.5">
+        {BUILTIN_PROMPT_PRESETS.map((preset) => (
+          <PresetItem
+            key={preset.id}
+            name={preset.name}
+            icon={preset.icon ?? '💕'}
+            description={preset.description}
+            active={settingsDraft.promptPresetId === preset.id}
+            onClick={() => selectPreset(preset.id)}
+          />
+        ))}
+      </div>
 
-          <div className="grid grid-cols-2 gap-1.5 p-1">
-            {BUILTIN_PROMPT_PRESETS.map((preset) => (
-              <button
-                key={preset.id}
-                type="button"
-                className={`flex items-center gap-2 rounded-[10px] px-3 py-2.5 text-left text-sm transition-colors ${
-                  settingsDraft.promptPresetId === preset.id
-                    ? 'bg-[var(--accent-soft)] text-[var(--text)] font-medium'
-                    : 'text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]'
-                }`}
-                onClick={() => selectPreset(preset)}
-              >
-                <span className="text-base">{preset.icon}</span>
-                <span className="truncate">{preset.name}</span>
-              </button>
-            ))}
-          </div>
+      {/* User-saved presets */}
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-[var(--surface-border)]" />
+        <span className="shrink-0 text-xs font-bold text-[var(--accent)]">自定义场景</span>
+        <div className="h-px flex-1 bg-[var(--surface-border)]" />
+      </div>
 
-          {settingsDraft.savedPromptPresets.length > 0 && (
-            <>
-              <div className="mx-2 my-1.5 border-t border-[var(--surface-border)]" />
-              <div className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.5px] text-[var(--text-faint)]">
-                已保存
-              </div>
-              <div className="space-y-0.5 p-1">
-                {settingsDraft.savedPromptPresets.map((preset) => (
-                  <div key={preset.id} className="group flex items-center gap-1">
-                    <button
-                      type="button"
-                      className={`flex flex-1 items-center gap-2 rounded-[10px] px-3 py-2 text-left text-sm transition-colors ${
-                        settingsDraft.promptPresetId === preset.id
-                          ? 'bg-[var(--accent-soft)] text-[var(--text)] font-medium'
-                          : 'text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]'
-                      }`}
-                      onClick={() => selectPreset(preset)}
-                    >
-                      <span className="text-base">📝</span>
-                      <span className="truncate">{preset.name}</span>
-                    </button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 shrink-0 rounded-full text-[var(--text-faint)] opacity-0 group-hover:opacity-100 hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
-                      onClick={() => onDeleteSavedPromptPreset(preset.id)}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          <div className="mx-2 my-1.5 border-t border-[var(--surface-border)]" />
-
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-[10px] px-3 py-2.5 text-left text-sm text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-            onClick={() => setShowCustomPrompt((v) => !v)}
-          >
-            <span className="text-base">✏️</span>
-            <span>自定义人设</span>
-          </button>
-
-          {showCustomPrompt && (
-            <div className="space-y-2 px-2 pb-2 pt-1">
-              <Textarea
-                value={settingsDraft.customPrompt}
-                onChange={(e) =>
-                  setSettingsDraft((current) => ({
-                    ...current,
-                    customPrompt: e.target.value,
-                  }))
-                }
-                rows={3}
-                placeholder="描述你想要的 AI 人设和互动风格…"
-                className="text-sm"
-              />
-              <div className="flex items-center gap-2">
-                <Button variant="secondary" size="sm" onClick={onSaveCurrentPromptPreset}>
-                  保存
-                </Button>
-                {selectedSavedPreset && (
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => onDeleteSavedPromptPreset(selectedSavedPreset.id)}
-                  >
-                    删除
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
+      {settingsDraft.savedPromptPresets.length === 0 && !creating && (
+        <div className="py-4 text-center text-sm text-[var(--text-faint)]">
+          还没有自定义场景，点击下方按钮创建
         </div>
       )}
+
+      <div className="space-y-1.5">
+        {settingsDraft.savedPromptPresets.map((preset) => {
+          if (editingId === preset.id) {
+            return (
+              <div
+                key={preset.id}
+                className="space-y-2 rounded-[12px] border border-[var(--accent)] bg-[var(--bg-strong)] p-3"
+              >
+                <Input
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="模式名称"
+                  className="text-sm"
+                />
+                <Textarea
+                  value={editPrompt}
+                  onChange={(e) => setEditPrompt(e.target.value)}
+                  rows={4}
+                  placeholder="描述 AI 的人设和互动风格…"
+                  className="text-sm"
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={saveEdit}>
+                    保存
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => setEditingId(null)}>
+                    取消
+                  </Button>
+                </div>
+              </div>
+            );
+          }
+
+          return (
+            <div key={preset.id} className="group flex items-center gap-1">
+              <PresetItem
+                name={preset.name}
+                icon="📝"
+                active={settingsDraft.promptPresetId === preset.id}
+                onClick={() => selectPreset(preset.id)}
+                className="flex-1"
+              />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 rounded-full text-[var(--text-faint)] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[var(--text)]"
+                onClick={() => startEdit(preset)}
+              >
+                <Pencil className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 rounded-full text-[var(--text-faint)] opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
+                onClick={() => onDeleteSavedPromptPreset(preset.id)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Create new */}
+      {creating ? (
+        <div className="space-y-2 rounded-[12px] border border-[var(--surface-border)] bg-[var(--bg-strong)] p-3">
+          <Input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="模式名称"
+            className="text-sm"
+            autoFocus
+          />
+          <Textarea
+            value={newPrompt}
+            onChange={(e) => setNewPrompt(e.target.value)}
+            rows={4}
+            placeholder="描述 AI 的人设和互动风格…"
+            className="text-sm"
+          />
+          <div className="flex gap-2">
+            <Button size="sm" onClick={confirmCreate} disabled={!newName.trim()}>
+              创建
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => setCreating(false)}>
+              取消
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <Button
+          variant="ghost"
+          className="w-full justify-center gap-2 rounded-[10px] border border-dashed border-[var(--surface-border)] text-[var(--text-soft)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          onClick={startCreate}
+        >
+          <Plus className="h-4 w-4" />
+          新建场景
+        </Button>
+      )}
     </div>
+  );
+}
+
+function PresetItem({
+  name,
+  icon,
+  description,
+  active,
+  onClick,
+  className,
+}: {
+  name: string;
+  icon: string;
+  description?: string;
+  active: boolean;
+  onClick: () => void;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={cn(
+        'flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-left transition-colors',
+        active
+          ? 'bg-[var(--accent-soft)] ring-1 ring-[var(--accent)]'
+          : 'hover:bg-[var(--bg-soft)]',
+        className,
+      )}
+      onClick={onClick}
+    >
+      <span className="shrink-0 text-lg">{icon}</span>
+      <div className="min-w-0 flex-1">
+        <div className={cn('text-sm', active ? 'font-medium text-[var(--text)]' : 'text-[var(--text)]')}>
+          {name}
+        </div>
+        {description && (
+          <div className="mt-0.5 truncate text-[12px] text-[var(--text-faint)]">{description}</div>
+        )}
+      </div>
+      {active && <Check className="h-4 w-4 shrink-0 text-[var(--accent)]" />}
+    </button>
   );
 }

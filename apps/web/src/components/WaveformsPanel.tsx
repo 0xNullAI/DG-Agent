@@ -1,6 +1,6 @@
 import type { WaveformDefinition } from '@dg-agent/core';
+import { Pencil, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 interface WaveformsPanelProps {
   waveforms: WaveformDefinition[];
@@ -18,64 +18,67 @@ export function WaveformsPanel({
   onEdit,
 }: WaveformsPanelProps) {
   return (
-    <Card>
-      <CardHeader className="px-4 pb-3">
-        <div className="min-w-0">
-          <CardTitle>波形库</CardTitle>
-          <CardDescription>导入 `.pulse` / `.zip`，并管理你的自定义波形</CardDescription>
+    <div className="space-y-4">
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-[var(--surface-border)]" />
+        <span className="shrink-0 text-xs font-bold text-[var(--accent)]">波形库</span>
+        <div className="h-px flex-1 bg-[var(--surface-border)]" />
+      </div>
+
+      {waveforms.length === 0 && (
+        <div className="py-4 text-center text-sm text-[var(--text-faint)]">
+          还没有可用波形，点击下方按钮导入
         </div>
-      </CardHeader>
+      )}
 
-      <CardContent className="px-4 pt-0">
-        <label className="mb-4 flex flex-col gap-2 text-sm font-medium text-[var(--text)]">
-          <span>导入文件</span>
-          <input
-            className="block w-full rounded-md border border-[var(--surface-border)] bg-[var(--bg-strong)] px-3 py-2 text-sm text-[var(--text-soft)] file:mr-3 file:rounded-md file:border-0 file:bg-[var(--accent-soft)] file:px-3 file:py-2 file:text-sm file:font-medium file:text-[var(--accent)]"
-            type="file"
-            accept=".pulse,.zip"
-            multiple
-            onChange={(event) => onImport(event.target.files)}
-          />
-        </label>
-
-        <div className="flex flex-col gap-3">
-          {waveforms.length === 0 && (
-            <div className="text-sm text-[var(--text-soft)]">还没有可用波形</div>
-          )}
-          {waveforms.map((waveform) => {
-            const isCustom = customWaveforms.some((item) => item.id === waveform.id);
-            return (
-              <div
-                key={waveform.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4"
-              >
+      <div className="space-y-1.5">
+        {waveforms.map((waveform) => {
+          const isCustom = customWaveforms.some((c) => c.id === waveform.id);
+          return (
+            <div key={waveform.id} className="group flex items-center gap-1">
+              <div className="flex min-w-0 flex-1 items-center gap-3 rounded-[10px] px-3 py-2.5">
+                <span className="shrink-0 text-lg">{isCustom ? '📝' : '〰️'}</span>
                 <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-[var(--text)]">{waveform.name}</div>
-                  <div className="mt-1 text-sm text-[var(--text-soft)]">
+                  <div className="text-sm text-[var(--text)]">{waveform.name}</div>
+                  <div className="mt-0.5 truncate text-[12px] text-[var(--text-faint)]">
                     {waveform.id} · {waveform.frames.length} 帧
                   </div>
                 </div>
-
-                {isCustom ? (
-                  <div className="flex flex-wrap gap-2">
-                    <Button variant="ghost" size="sm" onClick={() => onEdit(waveform)}>
-                      编辑
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-[var(--danger)] hover:text-[var(--danger)]"
-                      onClick={() => onRemove(waveform.id)}
-                    >
-                      删除
-                    </Button>
-                  </div>
-                ) : null}
               </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
+              {isCustom && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 rounded-full text-[var(--text-faint)] opacity-0 transition-opacity group-hover:opacity-100 hover:text-[var(--text)]"
+                  onClick={() => onEdit(waveform)}
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+              )}
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 shrink-0 rounded-full text-[var(--text-faint)] opacity-0 transition-opacity group-hover:opacity-100 hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
+                onClick={() => onRemove(waveform.id)}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          );
+        })}
+      </div>
+
+      <label className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-[10px] border border-dashed border-[var(--surface-border)] px-4 py-2.5 text-sm text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
+        <Upload className="h-4 w-4" />
+        导入波形文件
+        <input
+          type="file"
+          accept=".pulse,.zip"
+          multiple
+          className="hidden"
+          onChange={(event) => onImport(event.target.files)}
+        />
+      </label>
+    </div>
   );
 }
