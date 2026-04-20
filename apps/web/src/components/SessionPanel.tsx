@@ -39,19 +39,22 @@ export function SessionPanel({
   if (collapsed) {
     return (
       <Card className="flex h-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-transparent shadow-none transition-all duration-300 ease-out">
-        <div className="shrink-0 space-y-2 px-2.5 pb-3 pt-[0.6875rem]">
-          <Button
-            variant="ghost"
-            className="h-11 w-12 justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-            onClick={onToggleCollapsed}
-            aria-label="展开侧边栏"
-          >
-            <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out" />
-          </Button>
+        <div className="shrink-0 px-2 py-2"> 
+          {
+            onToggleCollapsed && (
+              <Button
+                variant="ghost"
+                className="h-10 w-full justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+                onClick={onToggleCollapsed}
+                aria-label="展开侧边栏"
+              >
+                <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out" />
+              </Button>)
+          }
           {onCreateSession && (
             <Button
               variant="ghost"
-              className="h-11 w-12 justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+              className="mt-4 h-10 w-12 justify-start rounded-[12px] pl-4 pr-0 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
               onClick={onCreateSession}
               aria-label="发起新对话"
             >
@@ -64,23 +67,23 @@ export function SessionPanel({
   }
 
   return (
-    <Card className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-none border-0 bg-transparent shadow-none transition-all duration-300 ease-out">
+    <Card className="flex h-full flex-1 flex-col overflow-hidden rounded-none border-0 bg-transparent shadow-none transition-all duration-300 ease-out">
       <CardHeader className="shrink-0 px-2.5 pb-3 pt-0">
-        <div className="space-y-1 transition-all duration-300 ease-out">
+        <div className="transition-all duration-300 ease-out">
           {onToggleCollapsed && (
-            <div className="relative flex min-h-[66px] items-center">
+            <div className="relative flex items-center py-2">
               <div className="w-full">
                 <Button
                   variant="ghost"
-                  className="h-auto w-full justify-start gap-2.5 rounded-[12px] pl-4 pr-2 py-2.5 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+                  className="h-10 w-full justify-start gap-3 rounded-[12px] pl-4 pr-2 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
                   onClick={onToggleCollapsed}
                   aria-label="收起侧边栏"
                 >
-                  <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out" />
-                  <span className="transition-opacity duration-200 ease-out">收起</span>
+                  <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out -ml-0.5" />
+                  <span className="transition-opacity duration-200 ease-out -mt-[0.15em]">收起</span>
                 </Button>
               </div>
-              <div className="absolute inset-x-1 bottom-0 border-t border-[var(--surface-border)] opacity-100" />
+              <div className="absolute inset-x-1 bottom-[1.5px] border-t border-[var(--surface-border)] opacity-100" />
             </div>
           )}
 
@@ -93,8 +96,8 @@ export function SessionPanel({
                 className="h-7 gap-1.5 rounded-[8px] px-2.5 text-[12px] font-medium text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
                 onClick={onCreateSession}
               >
-                <MessageSquarePlus className="h-3.5 w-3.5" />
-                <span>新对话</span>
+                <MessageSquarePlus className="h-3.5 w-3.5 mr-1" />
+                <span className="-mt-[0.15em] text-[14px]">新对话</span>
               </Button>
             )}
           </div>

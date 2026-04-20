@@ -172,7 +172,7 @@ export function ChatPanel({
   return (
     <div className="relative flex min-h-full w-full flex-1 flex-col overflow-hidden">
       {/* ===== Top bar ===== */}
-      <header className="relative z-20 flex shrink-0 items-center justify-between gap-1 bg-[var(--glass)] px-2 backdrop-blur-xl sm:gap-2 sm:px-3" style={{ height: '56px' }}>
+      <header className="relative z-20 flex shrink-0 items-center justify-between gap-1 bg-[var(--glass)] px-2 backdrop-blur-xl sm:gap-2 sm:px-3 py-2">
         {/* Left */}
         <div className="flex shrink-0 items-center gap-2">
           <Button

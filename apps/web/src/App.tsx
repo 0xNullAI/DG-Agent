@@ -814,7 +814,7 @@ export function App() {
         {/* ===== Main layout ===== */}
         <section
           className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] overflow-hidden transition-[grid-template-columns] duration-300 ease-out lg:grid-cols-[var(--sidebar-w)_minmax(0,1fr)]"
-          style={{ '--sidebar-w': sidebarCollapsed ? '70px' : '272px' } as React.CSSProperties}
+          style={{ '--sidebar-w': sidebarCollapsed ? '65px' : '272px' } as React.CSSProperties}
         >
           {/* Desktop sidebar */}
           <aside className="hidden min-h-0 overflow-hidden border-r border-[var(--surface-border)] bg-[var(--bg-elevated)] transition-all duration-300 ease-out lg:block">
