@@ -98,14 +98,7 @@ body {
   margin: 0;
   overflow: hidden;
   font-family:
-    Inter,
-    'PingFang SC',
-    'Hiragino Sans GB',
-    'Microsoft YaHei',
-    system-ui,
-    -apple-system,
-    BlinkMacSystemFont,
-    sans-serif;
+    'PingFang SC', 'HarmonyOS_Regular', 'Helvetica Neue', 'Microsoft YaHei', sans-serif !important;
   color: var(--text);
   background: var(--bg);
   background-color: var(--bg);
@@ -1425,6 +1418,7 @@ textarea:focus {
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -1437,6 +1431,7 @@ textarea:focus {
     transform: scale(0.9);
     opacity: 0.55;
   }
+
   50% {
     transform: scale(1.08);
     opacity: 1;

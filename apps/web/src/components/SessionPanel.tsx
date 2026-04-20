@@ -69,62 +69,60 @@ export function SessionPanel({
 
   return (
     <Card className="flex h-full flex-1 flex-col overflow-hidden rounded-none border-0 bg-transparent shadow-none transition-all duration-300 ease-out">
-      <CardHeader className="shrink-0 px-2.5 pb-3 pt-0">
+      <CardHeader className="shrink-0 px-2.5 pb-1 pt-0">
         <div className="transition-all duration-300 ease-out">
-          {onToggleCollapsed && (
-            <div className="relative flex items-center py-2">
-              <div className="w-full">
-                <Button
-                  variant="ghost"
-                  className="h-10 w-full justify-start gap-3 rounded-[12px] pl-4 pr-2 text-[13px] font-medium tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-                  onClick={onToggleCollapsed}
-                  aria-label="收起侧边栏"
-                >
-                  <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out -ml-0.5" />
-                  <span className="transition-opacity duration-200 ease-out -mt-[0.15em]">
-                    收起
-                  </span>
-                </Button>
-              </div>
-              <div className="absolute inset-x-1 bottom-[1.5px] border-t border-[var(--surface-border)] opacity-100" />
-            </div>
-          )}
-
-          <div className="flex items-center justify-between gap-3 px-2 mt-4">
-            <div className="pl-1 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-faint)]">
-              历史记录
-            </div>
-            {onCreateSession && (
+          <div className="relative flex items-center py-2">
+            <div className="w-full pl-1.5">
               <Button
                 variant="ghost"
-                size="sm"
-                className="h-7 gap-1.5 rounded-[8px] px-2.5 text-[12px] font-medium text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
-                onClick={onCreateSession}
+                className="flex justify-start h-10 w-full gap-3 rounded-[12px] pl-4 pr-2 tracking-[-0.01em] text-[var(--text-soft)] shadow-none transition-all duration-300 ease-out hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+                onClick={onToggleCollapsed}
+                aria-label="收起侧边栏"
               >
-                <MessageSquarePlus className="h-3.5 w-3.5 mr-1" />
-                <span className="-mt-[0.15em] text-[14px]">新对话</span>
+                <PanelLeft className="h-4 w-4 transition-transform duration-300 ease-out -ml-0.5" />
+                <span className="transition-opacity duration-200 ease-out -mt-[0.15em] text-sm font-semibold">
+                  收起
+                </span>
               </Button>
-            )}
+            </div>
+            <div className="absolute inset-x-1 bottom-[1.5px] border-t border-[var(--surface-border)] opacity-100" />
           </div>
         </div>
       </CardHeader>
 
-      <CardContent className="min-h-0 flex-1 overflow-hidden px-2.5 py-1">
+      <CardContent className="min-h-0 flex-1 overflow-hidden px-2.5">
+        <div className="mt-1 mb-2 pl-1.25">
+          {onCreateSession && (
+            <Button
+              variant="ghost"
+              className="flex justify-start h-10 w-full rounded-[8px] pl-4 pr-2.5 text-[12px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]"
+              onClick={onCreateSession}
+              aria-label="发起新对话"
+            >
+              <MessageSquarePlus className="h-4 w-4 mr-1" />
+              <span className="-mt-[0.15em] text-[14px] font-bold">发起新对话</span>
+            </Button>
+          )}
+        </div>
+        <div className="flex items-center justify-between gap-3 px-2 mb-2">
+          <div className="pl-1 text-xs font-medium uppercase tracking-[0.14em] text-[var(--text-faint)] font-semibold">
+            历史记录
+          </div>
+        </div>
         <ScrollArea className="h-full min-h-0 max-h-full pr-1">
-          <div className="space-y-1">
+          <div>
             {visibleSessions.length === 0 && (
               <div className="px-2 py-4 text-sm text-[var(--text-soft)]">
                 <div className="pl-3">还没有保存的会话</div>
               </div>
             )}
-
             {renderedSessions.map((item) => {
               const active = item.id === activeSessionId;
               return (
                 <div
                   key={item.id}
                   className={cn(
-                    'group grid grid-cols-[minmax(0,1fr)_28px] items-start gap-1 rounded-[12px] px-2 py-2 transition-colors',
+                    'group grid grid-cols-[minmax(0,1fr)_28px] items-start gap-1 rounded-[12px] px-2 py-1 transition-colors',
                     active ? 'bg-[var(--bg-soft)]' : 'hover:bg-[var(--bg-soft)]',
                   )}
                 >
@@ -136,7 +134,7 @@ export function SessionPanel({
                     <div className="min-w-0 pl-3 pr-2">
                       <div
                         className={cn(
-                          'truncate text-[13px] leading-5',
+                          'truncate text-xs leading-5',
                           active
                             ? 'font-medium text-[var(--text)]'
                             : 'font-normal text-[var(--text)]',
@@ -144,7 +142,7 @@ export function SessionPanel({
                       >
                         {getSessionTitle(item)}
                       </div>
-                      <div className="mt-1 text-[11px] text-[var(--text-faint)]">
+                      <div className=" text-[10px] text-[var(--text-faint)]">
                         {formatTimestamp(item.updatedAt)}
                       </div>
                     </div>
@@ -166,7 +164,6 @@ export function SessionPanel({
                 </div>
               );
             })}
-
             {visibleSessions.length > renderedSessions.length && (
               <div className="px-2 py-2">
                 <Button
