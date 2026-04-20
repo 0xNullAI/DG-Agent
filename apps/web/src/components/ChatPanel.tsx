@@ -434,8 +434,8 @@ export function ChatPanel({
       </div>
 
       {/* ===== Input area — single row ===== */}
-      <div className="z-30 shrink-0 border-t border-[var(--surface-border)] bg-[var(--glass)] px-4 pb-[env(safe-area-inset-bottom,8px)] pt-2 backdrop-blur-xl sm:px-6">
-        <div className="mx-auto flex w-full max-w-[800px] items-end gap-2">
+      <div className="flex z-30 shrink-0 border-t border-[var(--surface-border)] bg-[var(--glass)] backdrop-blur-xl">
+        <div className="mx-auto my-1.5 flex w-full items-center max-w-[800px] gap-4">
           <Textarea
             ref={composerRef}
             value={text}
@@ -444,7 +444,7 @@ export function ChatPanel({
             onChange={(event) => onTextChange(event.target.value)}
             onKeyDown={handleComposerKeyDown}
             placeholder={voiceMode ? '语音识别中…' : '输入消息…'}
-            className="box-border min-h-[40px] max-h-[140px] flex-1 resize-none overflow-y-hidden rounded-[20px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-[9px] text-[15px] leading-[1.4] shadow-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
+            className="box-border min-h-0 max-h-[140px] flex-1 resize-none overflow-y-hidden rounded-[20px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-3 py-[9px] text-sm shadow-none focus-visible:ring-1 focus-visible:ring-[var(--accent)]"
           />
           {voiceMode ? (
             <Button
