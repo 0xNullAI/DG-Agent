@@ -79,7 +79,7 @@ describe('BrowserAppSettingsStore', () => {
     expect(store.load().bridge.qq.accessToken).toBe('');
   });
 
-  it('persists API keys outside the main settings payload when remember is disabled', () => {
+  it('keeps API keys only in memory when remember is disabled', () => {
     const localStorageRef = new MemoryStorage();
     const sessionStorageRef = new MemoryStorage();
     const store = new BrowserAppSettingsStore({ localStorageRef, sessionStorageRef });
@@ -111,8 +111,16 @@ describe('BrowserAppSettingsStore', () => {
     expect(persistedSettings.provider).not.toHaveProperty('apiKey');
     expect(persistedSettings.voice).not.toHaveProperty('apiKey');
     expect(localStorageRef.getItem(API_KEYS_LOCAL)).toBeNull();
-    expect(sessionStorageRef.getItem(API_KEYS_SESSION)).toContain('sk-live');
-    expect(sessionStorageRef.getItem(VOICE_API_KEY_SESSION)).toBe('voice-secret');
+    expect(sessionStorageRef.getItem(API_KEYS_SESSION)).toBeNull();
+    expect(sessionStorageRef.getItem(VOICE_API_KEY_SESSION)).toBeNull();
+
+    sessionStorageRef.setItem(API_KEYS_SESSION, JSON.stringify({ openai: 'stale-session-key' }));
+    sessionStorageRef.setItem(VOICE_API_KEY_SESSION, 'stale-voice-key');
+
+    const reloadedStore = new BrowserAppSettingsStore({ localStorageRef, sessionStorageRef });
+    const reloaded = reloadedStore.load();
+    expect(reloaded.provider.apiKey).toBe('');
+    expect(reloaded.voice.apiKey).toBe('');
   });
 
   it('keeps allow-all only as a session override', () => {

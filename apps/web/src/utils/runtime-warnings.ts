@@ -33,7 +33,7 @@ export function buildWarnings(
       settings.provider.apiKey.trim()) ||
       (settings.voice.mode === 'dashscope-proxy' && settings.voice.apiKey.trim()))
   ) {
-    warnings.push('当前 API Key 只会保留到本次浏览器会话结束；如需持久保存，请开启“记住 API Key”');
+    warnings.push('当前 API Key 只会保留在当前页面运行期间；刷新或关闭页面后会丢失');
   }
 
   if (settings.maxStrengthA > 100 || settings.maxStrengthB > 100) {

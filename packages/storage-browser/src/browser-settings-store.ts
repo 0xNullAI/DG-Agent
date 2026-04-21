@@ -31,6 +31,8 @@ export class BrowserAppSettingsStore {
   private readonly sessionStorageRef: StorageLike | undefined;
   private readonly defaults: BrowserAppSettings;
   private sessionPermissionModeOverride: BrowserAppSettings['permissionMode'] | null = null;
+  private runtimeApiKeys: Partial<Record<ProviderId, string>> = {};
+  private runtimeVoiceApiKey = '';
 
   constructor(options: BrowserAppSettingsStoreOptions = {}) {
     this.localStorageRef =
@@ -149,6 +151,8 @@ export class BrowserAppSettingsStore {
 
   reset(): BrowserAppSettings {
     this.sessionPermissionModeOverride = null;
+    this.runtimeApiKeys = {};
+    this.runtimeVoiceApiKey = '';
     this.localStorageRef?.removeItem(SETTINGS_KEY);
     this.localStorageRef?.removeItem(API_KEYS_LOCAL);
     this.localStorageRef?.removeItem(VOICE_API_KEY_LOCAL);
@@ -223,11 +227,7 @@ export class BrowserAppSettingsStore {
   }
 
   private readApiKeys(activeProviderId: ProviderId): Partial<Record<ProviderId, string>> {
-    const fromSession = this.parseApiKeyMap(
-      this.sessionStorageRef?.getItem(API_KEYS_SESSION),
-      activeProviderId,
-    );
-    if (Object.keys(fromSession).length > 0) return fromSession;
+    if (Object.keys(this.runtimeApiKeys).length > 0) return this.runtimeApiKeys;
 
     return this.parseApiKeyMap(this.localStorageRef?.getItem(API_KEYS_LOCAL), activeProviderId);
   }
@@ -240,30 +240,34 @@ export class BrowserAppSettingsStore {
     );
 
     if (remember) {
-      this.localStorageRef?.setItem(API_KEYS_LOCAL, JSON.stringify(apiKeys));
+      this.runtimeApiKeys = {};
+      if (Object.keys(apiKeys).length > 0) {
+        this.localStorageRef?.setItem(API_KEYS_LOCAL, JSON.stringify(apiKeys));
+      } else {
+        this.localStorageRef?.removeItem(API_KEYS_LOCAL);
+      }
       this.sessionStorageRef?.removeItem(API_KEYS_SESSION);
       return;
     }
 
+    this.runtimeApiKeys = apiKeys;
     this.localStorageRef?.removeItem(API_KEYS_LOCAL);
-    if (Object.keys(apiKeys).length > 0) {
-      this.sessionStorageRef?.setItem(API_KEYS_SESSION, JSON.stringify(apiKeys));
-    } else {
-      this.sessionStorageRef?.removeItem(API_KEYS_SESSION);
-    }
+    this.sessionStorageRef?.removeItem(API_KEYS_SESSION);
   }
 
   private readVoiceApiKey(): string {
-    const fromSession = this.sessionStorageRef?.getItem(VOICE_API_KEY_SESSION);
-    if (fromSession) return fromSession;
+    if (this.runtimeVoiceApiKey) return this.runtimeVoiceApiKey;
 
     return this.localStorageRef?.getItem(VOICE_API_KEY_LOCAL) ?? this.defaults.voice.apiKey;
   }
 
   private persistVoiceApiKey(apiKey: string, remember: boolean): void {
+    const trimmedApiKey = apiKey.trim();
+
     if (remember) {
-      if (apiKey.trim()) {
-        this.localStorageRef?.setItem(VOICE_API_KEY_LOCAL, apiKey.trim());
+      this.runtimeVoiceApiKey = '';
+      if (trimmedApiKey) {
+        this.localStorageRef?.setItem(VOICE_API_KEY_LOCAL, trimmedApiKey);
       } else {
         this.localStorageRef?.removeItem(VOICE_API_KEY_LOCAL);
       }
@@ -271,12 +275,9 @@ export class BrowserAppSettingsStore {
       return;
     }
 
+    this.runtimeVoiceApiKey = trimmedApiKey;
     this.localStorageRef?.removeItem(VOICE_API_KEY_LOCAL);
-    if (apiKey.trim()) {
-      this.sessionStorageRef?.setItem(VOICE_API_KEY_SESSION, apiKey.trim());
-    } else {
-      this.sessionStorageRef?.removeItem(VOICE_API_KEY_SESSION);
-    }
+    this.sessionStorageRef?.removeItem(VOICE_API_KEY_SESSION);
   }
 
   private parseApiKeyMap(

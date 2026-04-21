@@ -24,7 +24,7 @@ class MemoryStorage {
   }
 }
 
-function testSessionScopedKeys(): void {
+function testMemoryOnlyKeys(): void {
   const localStorageRef = new MemoryStorage();
   const sessionStorageRef = new MemoryStorage();
   const store = new BrowserAppSettingsStore({ localStorageRef, sessionStorageRef });
@@ -56,8 +56,16 @@ function testSessionScopedKeys(): void {
   assert.equal(Object.hasOwn(persistedSettings.provider as object, 'apiKey'), false);
   assert.equal(Object.hasOwn(persistedSettings.voice as object, 'apiKey'), false);
   assert.equal(localStorageRef.getItem(API_KEYS_LOCAL), null);
-  assert.match(sessionStorageRef.getItem(API_KEYS_SESSION) ?? '', /sk-live/);
-  assert.equal(sessionStorageRef.getItem(VOICE_API_KEY_SESSION), 'voice-secret');
+  assert.equal(sessionStorageRef.getItem(API_KEYS_SESSION), null);
+  assert.equal(sessionStorageRef.getItem(VOICE_API_KEY_SESSION), null);
+
+  sessionStorageRef.setItem(API_KEYS_SESSION, JSON.stringify({ openai: 'stale-session-key' }));
+  sessionStorageRef.setItem(VOICE_API_KEY_SESSION, 'stale-voice-key');
+
+  const reloadedStore = new BrowserAppSettingsStore({ localStorageRef, sessionStorageRef });
+  const reloaded = reloadedStore.load();
+  assert.equal(reloaded.provider.apiKey, '');
+  assert.equal(reloaded.voice.apiKey, '');
 }
 
 function testModelContextStrategyPersistence(): void {
@@ -176,7 +184,7 @@ function testRememberedKeys(): void {
   assert.equal(sessionStorageRef.getItem(VOICE_API_KEY_SESSION), null);
 }
 
-testSessionScopedKeys();
+testMemoryOnlyKeys();
 testModelContextStrategyPersistence();
 testLegacyBridgeAccessTokenFallback();
 testAllowAllOverride();
