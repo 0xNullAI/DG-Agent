@@ -5,6 +5,7 @@ import { Separator } from '@/components/ui/separator';
 
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { parseCommaSeparated } from '../../utils/ui-formatters.js';
+import { SettingLabel } from './SettingLabel.js';
 import { SettingSelect } from './SettingSelect.js';
 
 function formatCommaSeparatedInput(values: string[]): string {
@@ -69,7 +70,7 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
               }))
             }
           />
-          <span>启用软件桥接</span>
+          <SettingLabel>启用软件桥接</SettingLabel>
         </label>
 
         {settingsDraft.bridge.enabled && (
@@ -90,13 +91,13 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
                   }))
                 }
               />
-              <span>启用 QQ Napcat 桥接</span>
+              <SettingLabel>启用 QQ Napcat 桥接</SettingLabel>
             </label>
 
             {settingsDraft.bridge.qq.enabled && (
               <>
                 <label>
-                  <span>Napcat WebSocket Server 地址</span>
+                  <SettingLabel>Napcat WebSocket Server 地址</SettingLabel>
                   <Input
                     value={settingsDraft.bridge.qq.wsUrl}
                     onChange={(event) =>
@@ -116,7 +117,7 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
                 </label>
 
                 <label>
-                  <span>NapCat WebSocket Token</span>
+                  <SettingLabel>NapCat WebSocket Token</SettingLabel>
                   <Input
                     type="password"
                     value={settingsDraft.bridge.qq.accessToken}
@@ -137,7 +138,7 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
                 </label>
 
                 <label>
-                  <span>允许的 QQ 用户</span>
+                  <SettingLabel>允许的 QQ 用户</SettingLabel>
                   <Input
                     value={qqAllowUsersInput}
                     onChange={(event) => {
@@ -159,7 +160,7 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
                 </label>
 
                 <label>
-                  <span>允许的 QQ 群组</span>
+                  <SettingLabel>允许的 QQ 群组</SettingLabel>
                   <Input
                     value={qqAllowGroupsInput}
                     onChange={(event) => {
@@ -181,7 +182,7 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
                 </label>
 
                 <label>
-                  <span>权限模式</span>
+                  <SettingLabel>权限模式</SettingLabel>
                   <SettingSelect
                     value={settingsDraft.bridge.qq.permissionMode}
                     onValueChange={(value) =>
@@ -224,13 +225,13 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
                   }))
                 }
               />
-              <span>启用 Telegram 桥接</span>
+              <SettingLabel>启用 Telegram 桥接</SettingLabel>
             </label>
 
             {settingsDraft.bridge.telegram.enabled && (
               <>
                 <label>
-                  <span>Telegram 机器人 Token</span>
+                  <SettingLabel>Telegram 机器人 Token</SettingLabel>
                   <Input
                     type="password"
                     value={settingsDraft.bridge.telegram.botToken}
@@ -250,7 +251,7 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
                 </label>
 
                 <label>
-                  <span>Telegram 代理地址</span>
+                  <SettingLabel>Telegram 代理地址</SettingLabel>
                   <Input
                     value={settingsDraft.bridge.telegram.proxyUrl}
                     onChange={(event) =>
@@ -270,7 +271,7 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
                 </label>
 
                 <label>
-                  <span>Telegram 允许用户</span>
+                  <SettingLabel>Telegram 允许用户</SettingLabel>
                   <Input
                     value={telegramAllowUsersInput}
                     onChange={(event) => {
@@ -292,7 +293,7 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
                 </label>
 
                 <label>
-                  <span>Telegram 权限模式</span>
+                  <SettingLabel>Telegram 权限模式</SettingLabel>
                   <SettingSelect
                     value={settingsDraft.bridge.telegram.permissionMode}
                     onValueChange={(value) =>

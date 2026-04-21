@@ -1,3 +1,5 @@
+import { SettingLabel } from './SettingLabel.js';
+
 interface SettingToggleProps {
   checked: boolean;
   onCheckedChange: (checked: boolean) => void;
@@ -14,7 +16,7 @@ export function SettingToggle({
   return (
     <label className="!flex items-center justify-between gap-3 py-1 cursor-pointer">
       <div className="min-w-0">
-        <span className="text-sm font-semibold text-[var(--text)]">{label}</span>
+        <SettingLabel>{label}</SettingLabel>
         {description && (
           <div className="text-xs text-[var(--text-faint)] mt-0.5">{description}</div>
         )}

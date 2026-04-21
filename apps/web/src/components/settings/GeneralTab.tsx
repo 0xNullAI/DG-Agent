@@ -11,6 +11,7 @@ import {
   type ProviderId,
 } from '@dg-agent/providers-catalog';
 import { SectionDivider } from './SectionDivider.js';
+import { SettingLabel } from './SettingLabel.js';
 import { SettingSelect } from './SettingSelect.js';
 import { SettingSegmented } from './SettingSegmented.js';
 import { SettingToggle } from './SettingToggle.js';
@@ -79,7 +80,7 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
 
       return (
         <label key={field.key} htmlFor={fieldId}>
-          <span className="text-sm font-semibold">{field.label}</span>
+          <SettingLabel>{field.label}</SettingLabel>
           <SettingSelect
             value={value}
             onValueChange={(nextValue) => {
@@ -110,7 +111,7 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
 
     return (
       <label key={field.key} htmlFor={fieldId}>
-        <span className="text-sm font-semibold">{field.label}</span>
+        <SettingLabel>{field.label}</SettingLabel>
         <Input
           id={fieldId}
           type={field.type}
@@ -129,7 +130,7 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
       </div>
 
       <div className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 pb-3">
-        <span className="text-sm font-semibold text-[var(--text)]">主题模式</span>
+        <SettingLabel>主题模式</SettingLabel>
         <div className="text-xs flex rounded-full bg-[var(--bg-strong)] p-0.5">
           {(
             [
@@ -158,7 +159,7 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
           ))}
         </div>
 
-        <span className="text-sm font-semibold text-[var(--text)]">上下文策略</span>
+        <SettingLabel>上下文策略</SettingLabel>
         <div className="scale-90">
           <SettingSelect
             value={settingsDraft.modelContextStrategy}

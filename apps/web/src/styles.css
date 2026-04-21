@@ -1182,10 +1182,6 @@ textarea:focus {
   gap: 0.48rem;
 }
 
-.settings label > span {
-  font-weight: 600;
-}
-
 .checkbox-row {
   grid-template-columns: auto 1fr;
   align-items: center;

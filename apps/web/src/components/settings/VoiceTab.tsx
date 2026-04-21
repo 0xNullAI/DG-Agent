@@ -3,6 +3,7 @@ import { PROXY_TTS_SPEAKERS } from '@dg-agent/audio-browser';
 import { Input } from '@/components/ui/input';
 
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
+import { SettingLabel } from './SettingLabel.js';
 import { SettingSelect } from './SettingSelect.js';
 import { SettingSegmented } from './SettingSegmented.js';
 import { SettingToggle } from './SettingToggle.js';
@@ -73,7 +74,7 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
         )}
 
         <label>
-          <span className="text-sm font-semibold">语音语言</span>
+          <SettingLabel>语音语言</SettingLabel>
           <Input
             value={settingsDraft.voiceLanguage}
             onChange={(event) =>
@@ -89,7 +90,7 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
         {settingsDraft.voice.mode === 'dashscope-proxy' && (
           <>
             <label>
-              <span className="text-sm font-semibold">语音 API 密钥</span>
+              <SettingLabel>语音 API 密钥</SettingLabel>
               <Input
                 type="password"
                 value={settingsDraft.voice.apiKey}
@@ -99,7 +100,7 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
             </label>
 
             <label>
-              <span className="text-sm font-semibold">语音代理地址</span>
+              <SettingLabel>语音代理地址</SettingLabel>
               <Input
                 value={settingsDraft.voice.proxyUrl}
                 onChange={(event) => updateVoiceSettings('proxyUrl', event.target.value)}
@@ -108,7 +109,7 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
             </label>
 
             <label>
-              <span className="text-sm font-semibold">语音发音人</span>
+              <SettingLabel>语音发音人</SettingLabel>
               <SettingSelect
                 value={settingsDraft.voice.speaker}
                 onValueChange={(value) => updateVoiceSettings('speaker', value)}

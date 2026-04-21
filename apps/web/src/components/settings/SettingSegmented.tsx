@@ -1,3 +1,5 @@
+import { SettingLabel } from './SettingLabel.js';
+
 export interface SegmentOption {
   value: string;
   label: string;
@@ -13,7 +15,7 @@ interface SettingSegmentedProps {
 export function SettingSegmented({ value, onValueChange, options, label }: SettingSegmentedProps) {
   return (
     <label className="space-y-1.5">
-      {label && <span className="text-sm font-semibold">{label}</span>}
+      {label && <SettingLabel>{label}</SettingLabel>}
       <div className="flex rounded-[10px] bg-[var(--bg-strong)] p-0.5">
         {options.map((option) => (
           <button
