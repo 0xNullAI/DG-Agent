@@ -1040,14 +1040,15 @@ textarea:focus {
   display: inline-flex;
   height: 1.55rem;
   align-items: center;
-  padding: 0 0.6rem;
   color: var(--text);
-  font-size: 0.78rem;
-  font-weight: 700;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
   white-space: nowrap;
 }
 
 .strength-control-status {
+  padding: 0 0.6rem;
   color: var(--strength-fill);
   font-size: 0.72rem;
   font-weight: 700;
@@ -1246,7 +1247,8 @@ textarea:focus {
   padding: 0.92rem 1rem;
   border-radius: var(--radius-sm);
   background: var(--bg-soft);
-  line-height: 1.7;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
 }
 
 .settings .saved-prompt-item {

@@ -13,15 +13,15 @@ interface SettingSegmentedProps {
 export function SettingSegmented({ value, onValueChange, options, label }: SettingSegmentedProps) {
   return (
     <label className="space-y-1.5">
-      {label && <span>{label}</span>}
+      {label && <span className="text-sm font-semibold">{label}</span>}
       <div className="flex rounded-[10px] bg-[var(--bg-strong)] p-0.5">
         {options.map((option) => (
           <button
             key={option.value}
             type="button"
-            className={`flex-1 rounded-[8px] px-3 py-1.5 text-xs font-medium transition-all duration-150 ${
+            className={`!text-sm flex-1 rounded-[8px] px-3 py-1.5 text-xs font-medium transition-all duration-150 ${
               value === option.value
-                ? 'bg-[var(--bg-elevated)] text-[var(--text)] shadow-sm'
+                ? 'bg-[var(--bg-elevated)] text-[var(--text)] '
                 : 'text-[var(--text-soft)] hover:text-[var(--text)]'
             }`}
             onClick={() => onValueChange(option.value)}

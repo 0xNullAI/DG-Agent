@@ -14,7 +14,7 @@ export function SettingToggle({
   return (
     <label className="!flex items-center justify-between gap-3 py-1 cursor-pointer">
       <div className="min-w-0">
-        <span className="text-sm text-[var(--text)]">{label}</span>
+        <span className="text-sm font-semibold text-[var(--text)]">{label}</span>
         {description && (
           <div className="text-xs text-[var(--text-faint)] mt-0.5">{description}</div>
         )}
@@ -29,7 +29,7 @@ export function SettingToggle({
         onClick={() => onCheckedChange(!checked)}
       >
         <span
-          className={`pointer-events-none block h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform duration-200 ${
+          className={`pointer-events-none block h-[18px] w-[18px] rounded-full bg-white transition-transform duration-200 ${
             checked ? 'translate-x-[18px]' : 'translate-x-0'
           }`}
         />

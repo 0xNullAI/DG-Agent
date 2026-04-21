@@ -843,7 +843,7 @@ export function App() {
                 <div className="settings settings-grouped settings-panel-body">
                   {renderSettingsTabContent()}
                 </div>
-                <div className="mt-6 flex justify-end">
+                <div className="text-sm mt-6 flex justify-end">
                   <Button variant="secondary" onClick={resetSettings}>
                     恢复默认
                   </Button>

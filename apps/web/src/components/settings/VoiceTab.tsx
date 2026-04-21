@@ -73,7 +73,7 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
         )}
 
         <label>
-          <span>语音语言</span>
+          <span className="text-sm font-semibold">语音语言</span>
           <Input
             value={settingsDraft.voiceLanguage}
             onChange={(event) =>
@@ -89,7 +89,7 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
         {settingsDraft.voice.mode === 'dashscope-proxy' && (
           <>
             <label>
-              <span>语音 API 密钥</span>
+              <span className="text-sm font-semibold">语音 API 密钥</span>
               <Input
                 type="password"
                 value={settingsDraft.voice.apiKey}
@@ -99,7 +99,7 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
             </label>
 
             <label>
-              <span>语音代理地址</span>
+              <span className="text-sm font-semibold">语音代理地址</span>
               <Input
                 value={settingsDraft.voice.proxyUrl}
                 onChange={(event) => updateVoiceSettings('proxyUrl', event.target.value)}
@@ -108,7 +108,7 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
             </label>
 
             <label>
-              <span>语音发音人</span>
+              <span className="text-sm font-semibold">语音发音人</span>
               <SettingSelect
                 value={settingsDraft.voice.speaker}
                 onValueChange={(value) => updateVoiceSettings('speaker', value)}

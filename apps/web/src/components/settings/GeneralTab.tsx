@@ -79,7 +79,7 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
 
       return (
         <label key={field.key} htmlFor={fieldId}>
-          <span>{field.label}</span>
+          <span className="text-sm font-semibold">{field.label}</span>
           <SettingSelect
             value={value}
             onValueChange={(nextValue) => {
@@ -110,7 +110,7 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
 
     return (
       <label key={field.key} htmlFor={fieldId}>
-        <span>{field.label}</span>
+        <span className="text-sm font-semibold">{field.label}</span>
         <Input
           id={fieldId}
           type={field.type}
@@ -129,8 +129,8 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
       </div>
 
       <div className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 pb-3">
-        <span className="text-sm font-medium text-[var(--text)]">主题模式</span>
-        <div className="flex rounded-full bg-[var(--bg-strong)] p-0.5">
+        <span className="text-sm font-semibold text-[var(--text)]">主题模式</span>
+        <div className="text-xs flex rounded-full bg-[var(--bg-strong)] p-0.5">
           {(
             [
               { value: 'auto', label: '系统' },
@@ -143,7 +143,7 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
               type="button"
               className={`flex-1 rounded-full px-3.5 py-1 text-xs font-medium transition-all duration-150 ${
                 settingsDraft.themeMode === option.value
-                  ? 'bg-[var(--accent)] text-[var(--button-text)] shadow-sm'
+                  ? 'bg-[var(--accent)] text-[var(--button-text)]'
                   : 'text-[var(--text-soft)] hover:text-[var(--text)]'
               }`}
               onClick={() =>
@@ -158,21 +158,23 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
           ))}
         </div>
 
-        <span className="text-sm font-medium text-[var(--text)]">上下文策略</span>
-        <SettingSelect
-          value={settingsDraft.modelContextStrategy}
-          onValueChange={(value) =>
-            setSettingsDraft((current) => ({
-              ...current,
-              modelContextStrategy: value as BrowserAppSettings['modelContextStrategy'],
-            }))
-          }
-          options={[
-            { value: 'last-user-turn', label: '基础' },
-            { value: 'last-five-user-turns', label: '中等' },
-            { value: 'full-history', label: '复杂' },
-          ]}
-        />
+        <span className="text-sm font-semibold text-[var(--text)]">上下文策略</span>
+        <div className="scale-90">
+          <SettingSelect
+            value={settingsDraft.modelContextStrategy}
+            onValueChange={(value) =>
+              setSettingsDraft((current) => ({
+                ...current,
+                modelContextStrategy: value as BrowserAppSettings['modelContextStrategy'],
+              }))
+            }
+            options={[
+              { value: 'last-user-turn', label: '基础' },
+              { value: 'last-five-user-turns', label: '中等' },
+              { value: 'full-history', label: '复杂' },
+            ]}
+          />
+        </div>
       </div>
 
       <div className="py-2">
@@ -180,13 +182,15 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
       </div>
 
       {/* Current model display */}
-      <div className="pb-3 text-center text-sm text-[var(--text-soft)]">
+      <div className="pb-3 text-xs text-center text-sm text-[var(--text-soft)]">
         当前：
-        <span className="font-medium text-[var(--text)]">
+        <span className="text-xs font-medium text-[var(--text)]">
           {selectedProviderDef?.name ?? '未知'}
         </span>
         {settingsDraft.provider.model && (
-          <span className="ml-1 text-[var(--text-faint)]">/ {settingsDraft.provider.model}</span>
+          <span className="text-xs ml-1 text-[var(--text-faint)]">
+            / {settingsDraft.provider.model}
+          </span>
         )}
       </div>
 
@@ -248,7 +252,7 @@ function ProviderScroller({
   onSwitch: (id: ProviderId) => void;
 }) {
   return (
-    <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-6">
+    <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 text-xs">
       {PROVIDER_DEFINITIONS.map((provider) => {
         const active = provider.id === currentProviderId;
         return (
@@ -257,7 +261,7 @@ function ProviderScroller({
             type="button"
             className={`rounded-full px-2 py-1.5 text-[13px] font-medium transition-all duration-150 ${
               active
-                ? 'bg-[var(--accent)] text-[var(--button-text)] shadow-sm'
+                ? 'bg-[var(--accent)] text-[var(--button-text)]'
                 : 'bg-[var(--bg-strong)] text-[var(--text-soft)] hover:text-[var(--text)]'
             } ${!provider.browserSupported ? 'opacity-50' : ''}`}
             onClick={() => onSwitch(provider.id)}
