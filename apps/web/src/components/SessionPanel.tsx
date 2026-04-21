@@ -62,7 +62,7 @@ export function SessionPanel({
             <PanelLeftOpen className="h-4 w-4" />
           </Button>
         )}
-        <div className="my-1 w-5 border-t border-[var(--surface-border)]" />
+        <div className="w-5 border-t border-[var(--surface-border)]" />
         {onCreateSession && (
           <Button
             variant="ghost"
@@ -130,7 +130,7 @@ export function SessionPanel({
       )}
 
       {/* Action buttons — each on its own row */}
-      <div className="shrink-0 space-y-0.5 px-3 pb-3">
+      <div className="shrink-0 space-y-0.5 px-3 pb-3 mt-1">
         {onCreateSession && (
           <Button variant="ghost" className={SIDEBAR_BTN} onClick={onCreateSession}>
             <SquarePen className="h-4 w-4 shrink-0" />
