@@ -134,12 +134,12 @@ export function SessionPanel({
         {onCreateSession && (
           <Button variant="ghost" className={SIDEBAR_BTN} onClick={onCreateSession}>
             <SquarePen className="h-4 w-4 shrink-0" />
-            新对话
+            <span className="text-sm -mt-[0.1em] ml-1">新对话</span>
           </Button>
         )}
         <Button variant="ghost" className={SIDEBAR_BTN} onClick={() => setSearchOpen(true)}>
           <Search className="h-4 w-4 shrink-0" />
-          搜索
+          <span className="text-sm -mt-[0.1em] ml-1">搜索</span>
         </Button>
       </div>
 
@@ -219,7 +219,7 @@ export function SessionPanel({
         <div className="shrink-0 border-t border-[var(--surface-border)] px-3 py-2">
           <Button variant="ghost" className={SIDEBAR_BTN} onClick={onOpenSettings}>
             <Settings className="h-4 w-4 shrink-0" />
-            设置
+            <span className="text-sm -mt-[0.1em] ml-1">设置</span>
           </Button>
         </div>
       )}
