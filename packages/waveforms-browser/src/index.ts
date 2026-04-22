@@ -18,7 +18,7 @@ export class BrowserWaveformLibrary implements WaveformLibrary {
   private readonly builtins = createBasicWaveformLibrary();
   private readonly store: UseStore;
 
-  constructor(dbName = 'dg-agent-rewrite-waveforms', storeName = 'waveforms') {
+  constructor(dbName = 'dg-agent-waveforms', storeName = 'waveforms') {
     this.store = createStore(dbName, storeName);
   }
 

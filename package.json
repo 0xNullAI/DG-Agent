@@ -1,5 +1,5 @@
 {
-  "name": "dg-agent-rewrite",
+  "name": "dg-agent",
   "version": "0.1.0",
   "private": true,
   "type": "module",

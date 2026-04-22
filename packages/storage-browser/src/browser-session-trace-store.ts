@@ -15,7 +15,7 @@ export class BrowserSessionTraceStore implements SessionTraceStore {
 
   constructor(options: BrowserSessionTraceStoreOptions = {}) {
     this.store = createStore(
-      options.dbName ?? 'dg-agent-rewrite-traces',
+      options.dbName ?? 'dg-agent-traces',
       options.storeName ?? 'session-traces',
     );
   }

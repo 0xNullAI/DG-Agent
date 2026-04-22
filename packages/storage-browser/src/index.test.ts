@@ -2,11 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { createProviderSettings } from '@dg-agent/providers-catalog';
 import { BrowserAppSettingsStore } from './index.js';
 
-const SETTINGS_KEY = 'dg-agent-rewrite.browser-settings';
-const API_KEYS_LOCAL = 'dg-agent-rewrite.provider-api-keys.local';
-const API_KEYS_SESSION = 'dg-agent-rewrite.provider-api-keys.session';
-const VOICE_API_KEY_LOCAL = 'dg-agent-rewrite.voice-api-key.local';
-const VOICE_API_KEY_SESSION = 'dg-agent-rewrite.voice-api-key.session';
+const SETTINGS_KEY = 'dg-agent.browser-settings';
+const API_KEYS_LOCAL = 'dg-agent.provider-api-keys.local';
+const API_KEYS_SESSION = 'dg-agent.provider-api-keys.session';
+const VOICE_API_KEY_LOCAL = 'dg-agent.voice-api-key.local';
+const VOICE_API_KEY_SESSION = 'dg-agent.voice-api-key.session';
 
 class MemoryStorage {
   private readonly values = new Map<string, string>();

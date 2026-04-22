@@ -12,7 +12,7 @@ export class BrowserSessionStore implements SessionStore {
   private readonly store: UseStore;
 
   constructor(options: BrowserSessionStoreOptions = {}) {
-    this.store = createStore(options.dbName ?? 'dg-agent-rewrite', options.storeName ?? 'sessions');
+    this.store = createStore(options.dbName ?? 'dg-agent', options.storeName ?? 'sessions');
   }
 
   async get(sessionId: string): Promise<SessionSnapshot | null> {
