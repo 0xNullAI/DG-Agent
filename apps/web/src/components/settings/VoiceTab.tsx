@@ -29,8 +29,8 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
 
   return (
     <div className="settings-panel-tab-content">
-      <section className="settings-group">
-        <h3 className="settings-group-title">语音</h3>
+      <section className="settings-row-card">
+        <h3 className="settings-card-legend">语音</h3>
 
         <SettingToggle
           label="启用语音输入"

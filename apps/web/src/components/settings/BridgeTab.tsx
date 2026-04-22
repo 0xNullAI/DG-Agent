@@ -54,8 +54,8 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
 
   return (
     <div className="settings-panel-tab-content">
-      <section className="settings-group">
-        <h3 className="settings-group-title">桥接</h3>
+      <section className="settings-row-card">
+        <h3 className="settings-card-legend">桥接</h3>
 
         <label className="checkbox-row">
           <Checkbox

@@ -2,7 +2,6 @@ import type { CSSProperties, Dispatch, SetStateAction } from 'react';
 
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { cn } from '@/lib/utils';
-import { SectionDivider } from './SectionDivider.js';
 import { SettingToggle } from './SettingToggle.js';
 import styles from './SafetyTab.module.css';
 
@@ -58,79 +57,82 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
   ];
 
   return (
-    <div className="settings-panel-tab-content space-y-5">
-      <SectionDivider label="最大强度上限" />
+    <div className="settings-panel-tab-content">
+      <section className="settings-row-card">
+        <h3 className="settings-card-legend">最大强度上限</h3>
+        <div className={styles.strengthControlList}>
+          <StrengthControl channel="A" value={settingsDraft.maxStrengthA} onChange={setStrengthA} />
+          <StrengthControl channel="B" value={settingsDraft.maxStrengthB} onChange={setStrengthB} />
+        </div>
+      </section>
 
-      <div className={styles.strengthControlList}>
-        <StrengthControl channel="A" value={settingsDraft.maxStrengthA} onChange={setStrengthA} />
-        <StrengthControl channel="B" value={settingsDraft.maxStrengthB} onChange={setStrengthB} />
-      </div>
-
-      <SectionDivider label="工具调用确认模式" />
-
-      <div className="grid grid-cols-3 gap-2">
-        {permissionOptions.map((opt) => {
-          const active = settingsDraft.permissionMode === opt.value;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              className={cn(
-                'rounded-[10px] border px-3 py-3 text-left transition-colors',
-                active
-                  ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
-                  : 'border-[var(--surface-border)] bg-[var(--bg-strong)] hover:border-[var(--text-faint)]',
-              )}
-              onClick={() =>
-                setSettingsDraft((current) => ({ ...current, permissionMode: opt.value }))
-              }
-            >
-              <div
+      <section className="settings-row-card">
+        <h3 className="settings-card-legend">工具调用确认模式</h3>
+        <div className="grid grid-cols-3 gap-2">
+          {permissionOptions.map((opt) => {
+            const active = settingsDraft.permissionMode === opt.value;
+            return (
+              <button
+                key={opt.value}
+                type="button"
                 className={cn(
-                  'text-[13px] font-semibold',
-                  active ? 'text-[var(--accent)]' : 'text-[var(--text)]',
+                  'rounded-[10px] border px-3 py-3 text-left transition-colors',
+                  active
+                    ? 'border-[var(--accent)] bg-[var(--accent-soft)]'
+                    : 'border-[var(--surface-border)] bg-[var(--bg-strong)] hover:border-[var(--text-faint)]',
                 )}
+                onClick={() =>
+                  setSettingsDraft((current) => ({ ...current, permissionMode: opt.value }))
+                }
               >
-                {opt.label}
-              </div>
-              <div
-                className={cn(
-                  'mt-0.5 text-[11px]',
-                  opt.warn ? 'text-[var(--danger)]' : 'text-[var(--text-faint)]',
-                )}
-              >
-                {opt.desc}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+                <div
+                  className={cn(
+                    'text-[13px] font-semibold',
+                    active ? 'text-[var(--accent)]' : 'text-[var(--text)]',
+                  )}
+                >
+                  {opt.label}
+                </div>
+                <div
+                  className={cn(
+                    'mt-0.5 text-[11px]',
+                    opt.warn ? 'text-[var(--danger)]' : 'text-[var(--text-faint)]',
+                  )}
+                >
+                  {opt.desc}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
-      <SectionDivider label="后台行为" />
+      <section className="settings-row-card">
+        <h3 className="settings-card-legend">后台行为</h3>
+        <div className="space-y-3">
+          <SettingToggle
+            label="切到后台时停止输出"
+            checked={settingsDraft.backgroundBehavior === 'stop'}
+            onCheckedChange={(checked) =>
+              setSettingsDraft((current) => ({
+                ...current,
+                backgroundBehavior: checked ? 'stop' : 'keep',
+              }))
+            }
+          />
 
-      <div className="space-y-3">
-        <SettingToggle
-          label="切到后台时停止输出"
-          checked={settingsDraft.backgroundBehavior === 'stop'}
-          onCheckedChange={(checked) =>
-            setSettingsDraft((current) => ({
-              ...current,
-              backgroundBehavior: checked ? 'stop' : 'keep',
-            }))
-          }
-        />
-
-        <SettingToggle
-          label="启动时显示安全确认"
-          checked={settingsDraft.showSafetyNoticeOnStartup}
-          onCheckedChange={(checked) =>
-            setSettingsDraft((current) => ({
-              ...current,
-              showSafetyNoticeOnStartup: checked,
-            }))
-          }
-        />
-      </div>
+          <SettingToggle
+            label="启动时显示安全确认"
+            checked={settingsDraft.showSafetyNoticeOnStartup}
+            onCheckedChange={(checked) =>
+              setSettingsDraft((current) => ({
+                ...current,
+                showSafetyNoticeOnStartup: checked,
+              }))
+            }
+          />
+        </div>
+      </section>
     </div>
   );
 }

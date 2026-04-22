@@ -10,7 +10,6 @@ import {
   type ProviderFieldDefinition,
   type ProviderId,
 } from '@dg-agent/providers-catalog';
-import { SectionDivider } from './SectionDivider.js';
 import { SettingLabel } from './SettingLabel.js';
 import { SettingSelect } from './SettingSelect.js';
 import { SettingSegmented } from './SettingSegmented.js';
@@ -125,122 +124,118 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
 
   return (
     <div className="settings-panel-tab-content">
-      <div className="pb-3">
-        <SectionDivider label="基本设置" />
-      </div>
-
-      <div className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3 pb-3">
-        <SettingLabel>主题模式</SettingLabel>
-        <div className="text-xs flex rounded-full bg-[var(--bg-strong)] p-0.5">
-          {(
-            [
-              { value: 'auto', label: '系统' },
-              { value: 'dark', label: '深色' },
-              { value: 'light', label: '浅色' },
-            ] as const
-          ).map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              className={`flex-1 rounded-full px-3.5 py-1 text-xs font-medium transition-all duration-150 ${
-                settingsDraft.themeMode === option.value
-                  ? 'bg-[var(--accent)] text-[var(--button-text)]'
-                  : 'text-[var(--text-soft)] hover:text-[var(--text)]'
-              }`}
-              onClick={() =>
-                setSettingsDraft((current) => ({
-                  ...current,
-                  themeMode: option.value as BrowserAppSettings['themeMode'],
-                }))
-              }
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-
-        <SettingLabel>上下文策略</SettingLabel>
-        <div className="scale-90">
-          <SettingSelect
-            value={settingsDraft.modelContextStrategy}
-            onValueChange={(value) =>
-              setSettingsDraft((current) => ({
-                ...current,
-                modelContextStrategy: value as BrowserAppSettings['modelContextStrategy'],
-              }))
-            }
-            options={[
-              { value: 'last-user-turn', label: '基础' },
-              { value: 'last-five-user-turns', label: '中等' },
-              { value: 'full-history', label: '复杂' },
-            ]}
-          />
-        </div>
-      </div>
-
-      <div className="py-2">
-        <SectionDivider label="模型选择" />
-      </div>
-
-      {/* Current model display */}
-      <div className="pb-3 text-xs text-center text-sm text-[var(--text-soft)]">
-        当前：
-        <span className="text-xs font-medium text-[var(--text)]">
-          {selectedProviderDef?.name ?? '未知'}
-        </span>
-        {settingsDraft.provider.model && (
-          <span className="text-xs ml-1 text-[var(--text-faint)]">
-            / {settingsDraft.provider.model}
-          </span>
-        )}
-      </div>
-
-      {/* Provider selector grid */}
-      <ProviderScroller
-        currentProviderId={settingsDraft.provider.providerId}
-        onSwitch={switchProvider}
-      />
-
-      {/* Hint for current provider */}
-      {selectedProviderDef?.hint && (
-        <div className="mt-2 rounded-[8px] bg-[var(--accent-soft)] px-3 py-2 text-[12px] leading-relaxed text-[var(--text-soft)]">
-          {selectedProviderDef.id === 'free' ? (
-            <>
-              无需配置 API-Key，当前由{' '}
-              <a
-                href="https://ai.071129.xyz/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline text-[var(--accent)] hover:text-[var(--text)]"
+      <section className="settings-row-section">
+        <div className="settings-row-card grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3">
+          <h3 className="settings-card-legend">基本设置</h3>
+          <SettingLabel>主题模式</SettingLabel>
+          <div className="text-xs flex rounded-full bg-[var(--bg-strong)] p-0.5">
+            {(
+              [
+                { value: 'auto', label: '系统' },
+                { value: 'dark', label: '深色' },
+                { value: 'light', label: '浅色' },
+              ] as const
+            ).map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                className={`flex-1 rounded-full px-3.5 py-1 text-xs font-medium transition-all duration-150 ${
+                  settingsDraft.themeMode === option.value
+                    ? 'bg-[var(--accent)] text-[var(--button-text)]'
+                    : 'text-[var(--text-soft)] hover:text-[var(--text)]'
+                }`}
+                onClick={() =>
+                  setSettingsDraft((current) => ({
+                    ...current,
+                    themeMode: option.value as BrowserAppSettings['themeMode'],
+                  }))
+                }
               >
-                MapLeaf API
-              </a>{' '}
-              提供支持。
-            </>
-          ) : (
-            selectedProviderDef.hint
-          )}
-        </div>
-      )}
+                {option.label}
+              </button>
+            ))}
+          </div>
 
-      {/* Provider fields + remember key if has apiKey */}
-      {selectedProviderDef && selectedProviderDef.fields.length > 0 && (
-        <div className="mt-3 grid gap-3">
-          {selectedProviderDef.fields.map((field) => renderProviderField(field))}
-          {selectedProviderDef.fields.some((f) => f.key === 'apiKey') && (
-            <SettingToggle
-              label="在当前设备记住 API 密钥"
-              checked={settingsDraft.rememberApiKey}
-              onCheckedChange={(checked) =>
+          <SettingLabel>上下文策略</SettingLabel>
+          <div className="scale-90">
+            <SettingSelect
+              value={settingsDraft.modelContextStrategy}
+              onValueChange={(value) =>
                 setSettingsDraft((current) => ({
                   ...current,
-                  rememberApiKey: checked,
+                  modelContextStrategy: value as BrowserAppSettings['modelContextStrategy'],
                 }))
               }
+              options={[
+                { value: 'last-user-turn', label: '基础' },
+                { value: 'last-five-user-turns', label: '中等' },
+                { value: 'full-history', label: '复杂' },
+              ]}
             />
+          </div>
+        </div>
+      </section>
+
+      <section className="settings-row-section">
+        <div className="settings-row-card">
+          <h3 className="settings-card-legend">模型选择</h3>
+          <div className="text-xs text-sm text-[var(--text-soft)]">
+            当前：
+            <span className="text-xs font-medium text-[var(--text)]">
+              {selectedProviderDef?.name ?? '未知'}
+            </span>
+            {settingsDraft.provider.model && (
+              <span className="text-xs ml-1 text-[var(--text-faint)]">
+                / {settingsDraft.provider.model}
+              </span>
+            )}
+          </div>
+
+          <ProviderScroller
+            currentProviderId={settingsDraft.provider.providerId}
+            onSwitch={switchProvider}
+          />
+
+          {selectedProviderDef?.hint && (
+            <div className="rounded-[8px] bg-[var(--accent-soft)] px-3 py-2 text-[12px] leading-relaxed text-[var(--text-soft)]">
+              {selectedProviderDef.id === 'free' ? (
+                <>
+                  无需配置 API-Key，当前由{' '}
+                  <a
+                    href="https://ai.071129.xyz/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline text-[var(--accent)] hover:text-[var(--text)]"
+                  >
+                    MapLeaf API
+                  </a>{' '}
+                  提供支持。
+                </>
+              ) : (
+                selectedProviderDef.hint
+              )}
+            </div>
+          )}
+
+          {selectedProviderDef && selectedProviderDef.fields.length > 0 && (
+            <div className="grid gap-3">
+              {selectedProviderDef.fields.map((field) => renderProviderField(field))}
+              {selectedProviderDef.fields.some((f) => f.key === 'apiKey') && (
+                <SettingToggle
+                  label="在当前设备记住 API 密钥"
+                  checked={settingsDraft.rememberApiKey}
+                  onCheckedChange={(checked) =>
+                    setSettingsDraft((current) => ({
+                      ...current,
+                      rememberApiKey: checked,
+                    }))
+                  }
+                />
+              )}
+            </div>
           )}
         </div>
-      )}
+      </section>
     </div>
   );
 }

@@ -8,7 +8,18 @@ import { createEmptyDeviceState, type PermissionDecision } from '@dg-agent/core'
 import { BrowserSafetyGuard } from '@dg-agent/safety-browser';
 import { applyTheme, subscribeThemeChanges } from '@dg-agent/theme-browser';
 import type { UpdateCheckerStatus } from '@dg-agent/update-browser';
-import { X } from 'lucide-react';
+import {
+  ArrowLeft,
+  Bot,
+  Brain,
+  RotateCcw,
+  Settings2,
+  ShieldCheck,
+  Volume2,
+  Waves,
+  X,
+  type LucideIcon,
+} from 'lucide-react';
 import { ChatPanel } from './components/ChatPanel.js';
 import { PermissionModal } from './components/PermissionModal.js';
 import { SafetyNoticeModal } from './components/SafetyNoticeModal.js';
@@ -39,7 +50,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import {
   useBrowserAppServices,
@@ -60,6 +70,79 @@ import {
 import { buildTraceFeed } from './utils/trace-feed.js';
 
 type SettingsModalTab = 'general' | 'preset' | 'safety' | 'waveforms' | 'bridge' | 'voice';
+
+const SETTINGS_NAV_ITEMS: Array<{
+  value: SettingsModalTab;
+  label: string;
+  description: string;
+  icon: LucideIcon;
+  sections: Record<string, string>;
+}> = [
+  {
+    value: 'general',
+    label: '基础',
+    description: '主题、上下文和模型供应商',
+    icon: Settings2,
+    sections: {
+      基本设置: '调整界面主题和会话上下文策略。',
+      模型选择: '选择模型供应商，并配置该供应商需要的参数。',
+    },
+  },
+  {
+    value: 'preset',
+    label: '场景',
+    description: '提示词预设和自定义场景',
+    icon: Brain,
+    sections: {
+      内置场景: '选择内置互动风格。',
+      自定义场景: '管理你自己的提示词预设。',
+    },
+  },
+  {
+    value: 'safety',
+    label: '安全',
+    description: '强度上限、权限和离开保护',
+    icon: ShieldCheck,
+    sections: {
+      最大强度上限: '限制每个通道允许输出的最高强度。',
+      工具调用确认模式: '决定 AI 控制设备前需要怎样确认。',
+      后台行为: '设置切换后台和启动安全确认行为。',
+    },
+  },
+  {
+    value: 'waveforms',
+    label: '波形',
+    description: '内置波形和自定义波形库',
+    icon: Waves,
+    sections: {},
+  },
+  {
+    value: 'bridge',
+    label: 'Bot',
+    description: 'QQ、Telegram 和远程控制',
+    icon: Bot,
+    sections: {
+      桥接: '配置远程消息入口和允许访问的用户。',
+    },
+  },
+  {
+    value: 'voice',
+    label: '语音',
+    description: '语音识别和朗读配置',
+    icon: Volume2,
+    sections: {
+      语音: '配置输入识别、回复朗读和语音后端。',
+    },
+  },
+];
+
+const SETTINGS_NAV_GROUPS: Array<{
+  label: string;
+  values: SettingsModalTab[];
+}> = [
+  { label: '配置', values: ['general', 'preset', 'safety', 'waveforms'] },
+  { label: '扩展', values: ['bridge', 'voice'] },
+];
 
 function formatVoiceStateLabel(voiceState: 'idle' | 'listening' | 'speaking'): string {
   switch (voiceState) {
@@ -113,6 +196,8 @@ export function App() {
   const [text, setText] = useState('');
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const [settingsModalTab, setSettingsModalTab] = useState<SettingsModalTab>('general');
+  const [settingsMobileNavOpen, setSettingsMobileNavOpen] = useState(false);
+  const [resetSettingsDialogOpen, setResetSettingsDialogOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
@@ -435,6 +520,7 @@ export function App() {
   }
 
   async function createNewSession(): Promise<void> {
+    closeSettingsWorkspace();
     clearSessionPermissionOverride();
     resetPermissionGrants();
 
@@ -491,7 +577,11 @@ export function App() {
   }
 
   function selectSession(sessionId: string): void {
-    if (sessionId === activeSessionId) return;
+    if (sessionId === activeSessionId) {
+      if (settingsModalOpen) closeSettingsWorkspace();
+      return;
+    }
+    closeSettingsWorkspace();
     resetPermissionGrants();
     setActiveSessionId(sessionId);
     setText('');
@@ -524,16 +614,17 @@ export function App() {
   function openSettingsModal(tab: SettingsModalTab = 'general'): void {
     setSettingsModalTab(tab);
     setSettingsModalOpen(true);
+    setSettingsMobileNavOpen(true);
+    setSidebarOpen(false);
   }
 
-  function handleSettingsModalOpenChange(nextOpen: boolean): void {
-    if (settingsModalOpen && !nextOpen) {
+  function closeSettingsWorkspace(): void {
+    if (settingsModalOpen) {
       flushSettingsDraft();
     }
-    if (!nextOpen) {
-      setEditingWaveform(null);
-    }
-    setSettingsModalOpen(nextOpen);
+    setEditingWaveform(null);
+    setSettingsMobileNavOpen(false);
+    setSettingsModalOpen(false);
   }
 
   function renderSettingsTabContent() {
@@ -568,6 +659,128 @@ export function App() {
       default:
         return null;
     }
+  }
+
+  function renderSettingsSidebar() {
+    return (
+      <aside className="settings-sidebar">
+        <button type="button" className="settings-sidebar-back" onClick={closeSettingsWorkspace}>
+          <ArrowLeft className="h-4 w-4" />
+          <span>返回聊天</span>
+        </button>
+
+        <nav className="settings-sidebar-nav" aria-label="设置分类">
+          {SETTINGS_NAV_GROUPS.map((group) => (
+            <div key={group.label} className="settings-nav-group">
+              <div className="settings-nav-group-label">{group.label}</div>
+              {group.values.map((value) => {
+                const item = SETTINGS_NAV_ITEMS.find((entry) => entry.value === value)!;
+                const active = item.value === settingsModalTab;
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.value}
+                    type="button"
+                    className={active ? 'settings-nav-item active' : 'settings-nav-item'}
+                    onClick={() => {
+                      setSettingsModalTab(item.value);
+                      setSettingsMobileNavOpen(false);
+                    }}
+                  >
+                    <Icon className="settings-nav-icon" />
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+
+        <div className="settings-sidebar-footer">
+          <Button
+            variant="ghost"
+            className="settings-sidebar-reset"
+            onClick={() => setResetSettingsDialogOpen(true)}
+          >
+            <RotateCcw className="h-4 w-4 shrink-0" />
+            恢复默认
+          </Button>
+        </div>
+      </aside>
+    );
+  }
+
+  function renderSettingsWorkspace() {
+    const currentItem =
+      SETTINGS_NAV_ITEMS.find((item) => item.value === settingsModalTab) ?? SETTINGS_NAV_ITEMS[0]!;
+
+    return (
+      <section
+        className={
+          settingsMobileNavOpen
+            ? 'settings-workspace settings-mobile-nav-open'
+            : 'settings-workspace'
+        }
+      >
+        <section className="settings-mobile-directory lg:hidden">
+          <header className="settings-mobile-directory-header">
+            <button type="button" onClick={closeSettingsWorkspace} aria-label="返回聊天">
+              <ArrowLeft className="h-4 w-4" />
+            </button>
+            <h2>设置</h2>
+          </header>
+          <nav className="settings-mobile-directory-list" aria-label="设置分类">
+            {SETTINGS_NAV_GROUPS.map((group) => (
+              <div key={group.label} className="settings-mobile-directory-group">
+                <div className="settings-mobile-directory-group-label">{group.label}</div>
+                {group.values.map((value) => {
+                  const item = SETTINGS_NAV_ITEMS.find((entry) => entry.value === value)!;
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.value}
+                      type="button"
+                      onClick={() => {
+                        setSettingsModalTab(item.value);
+                        setSettingsMobileNavOpen(false);
+                      }}
+                    >
+                      <Icon className="settings-mobile-directory-icon" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </nav>
+        </section>
+
+        <header className="settings-mobile-header lg:hidden">
+          <button
+            type="button"
+            className="settings-mobile-back"
+            onClick={() => setSettingsMobileNavOpen(true)}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>设置</span>
+          </button>
+          <span>{currentItem.label}</span>
+        </header>
+
+        <main className="settings-workspace-main">
+          <header className="settings-workspace-title">
+            <h2>{currentItem.label}</h2>
+            <p>{currentItem.description}</p>
+          </header>
+
+          <div className="settings-workspace-content">
+            <div className="settings settings-grouped settings-panel-body">
+              {renderSettingsTabContent()}
+            </div>
+          </div>
+        </main>
+      </section>
+    );
   }
 
   function resolvePermission(decision: PermissionDecision): void {
@@ -795,61 +1008,38 @@ export function App() {
           )}
         </Dialog>
 
-        {/* ===== Settings modal (centered dialog, not side sheet) ===== */}
-        <Dialog open={settingsModalOpen} onOpenChange={handleSettingsModalOpenChange}>
+        <Dialog open={resetSettingsDialogOpen} onOpenChange={setResetSettingsDialogOpen}>
           <DialogContent
-            overlayClassName="bg-black/18 backdrop-blur-[2px]"
-            className="flex max-h-[85vh] w-[calc(100%-1rem)] max-w-[720px] flex-col overflow-hidden p-0 sm:w-[calc(100%-2rem)]"
+            overlayClassName="bg-black/30 backdrop-blur-[1px]"
+            className="reset-settings-dialog max-w-[380px] rounded-[14px] p-5 shadow-[var(--shadow-soft)]"
           >
-            <div className="flex items-center justify-between border-b border-[var(--surface-border)] px-4 py-3 sm:px-6 sm:py-4">
-              <div>
-                <DialogTitle className="text-[1.1rem] tracking-[-0.03em]">设置</DialogTitle>
-                <DialogDescription className="mt-1">设置、波形、桥接和调试信息</DialogDescription>
-              </div>
-            </div>
-
-            <Tabs
-              value={settingsModalTab}
-              onValueChange={(value) => setSettingsModalTab(value as SettingsModalTab)}
-              className="flex min-h-0 flex-1 flex-col"
-            >
-              <div className="px-3 sm:px-6">
-                <TabsList className="control-tabs grid w-full grid-cols-3 gap-0 bg-transparent sm:grid-cols-6">
-                  <TabsTrigger className="control-tab-trigger" value="general">
-                    基础
-                  </TabsTrigger>
-                  <TabsTrigger className="control-tab-trigger" value="preset">
-                    场景
-                  </TabsTrigger>
-                  <TabsTrigger className="control-tab-trigger" value="safety">
-                    安全
-                  </TabsTrigger>
-                  <TabsTrigger className="control-tab-trigger" value="waveforms">
-                    波形
-                  </TabsTrigger>
-                  <TabsTrigger className="control-tab-trigger" value="bridge">
-                    Bot
-                  </TabsTrigger>
-                  <TabsTrigger className="control-tab-trigger" value="voice">
-                    语音
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              <TabsContent
-                value={settingsModalTab}
-                className="mt-0 min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6"
+            <DialogHeader className="gap-1 pr-10">
+              <DialogTitle className="text-base font-semibold">恢复默认设置？</DialogTitle>
+              <DialogDescription className="text-[13px] leading-5">
+                这会重置当前模型、提示词、安全、桥接和语音配置。确认后会立即生效。
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="mt-5 gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                className="h-9 min-w-[72px] rounded-[8px] px-4 text-xs font-medium"
+                onClick={() => setResetSettingsDialogOpen(false)}
               >
-                <div className="settings settings-grouped settings-panel-body">
-                  {renderSettingsTabContent()}
-                </div>
-                <div className="text-sm mt-6 flex justify-end">
-                  <Button variant="secondary" onClick={resetSettings}>
-                    恢复默认
-                  </Button>
-                </div>
-              </TabsContent>
-            </Tabs>
+                取消
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                className="h-9 min-w-[88px] rounded-[8px] px-4 text-xs font-medium"
+                onClick={() => {
+                  resetSettings();
+                  setResetSettingsDialogOpen(false);
+                }}
+              >
+                确认恢复
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 
@@ -857,13 +1047,13 @@ export function App() {
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent
             side="left"
-            className="flex h-full w-screen max-w-none flex-col overflow-hidden bg-[var(--bg-elevated)] p-0 sm:max-w-[420px] [&>button]:hidden"
+            className="dg-sidebar-sheet flex h-full w-screen max-w-none flex-col overflow-hidden bg-[var(--bg-elevated)] p-0 sm:max-w-[420px] [&>button]:hidden"
           >
             <SheetHeader className="px-5 pt-5">
               <div className="flex items-center justify-between gap-4">
                 <div className="min-w-0 flex-1">
                   <SheetTitle>历史记录</SheetTitle>
-                  <SheetDescription className="mt-1.5">
+                  <SheetDescription className="sr-only">
                     选择历史对话，或者新建一条会话
                   </SheetDescription>
                 </div>
@@ -890,51 +1080,63 @@ export function App() {
         {/* ===== Main layout ===== */}
         <section
           className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] overflow-hidden transition-[grid-template-columns] duration-300 ease-out lg:grid-cols-[var(--sidebar-w)_minmax(0,1fr)]"
-          style={{ '--sidebar-w': sidebarCollapsed ? '65px' : '272px' } as React.CSSProperties}
+          style={
+            {
+              '--sidebar-w': settingsModalOpen ? '272px' : sidebarCollapsed ? '65px' : '272px',
+            } as React.CSSProperties
+          }
         >
           {/* Desktop sidebar */}
-          <aside className="hidden min-h-0 overflow-hidden border-r border-[var(--surface-border)] bg-[var(--bg-elevated)] lg:block">
-            <SessionPanel
-              savedSessions={savedSessions}
-              activeSessionId={activeSessionId}
-              onSelectSession={selectSession}
-              onDeleteSession={(sessionId) => void deleteSession(sessionId)}
-              onCreateSession={() => void createNewSession()}
-              onOpenSettings={() => openSettingsModal()}
-              collapsed={sidebarCollapsed}
-              onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
-              detached={false}
-            />
+          <aside className="dg-sidebar-shell hidden min-h-0 overflow-hidden border-r border-[var(--surface-border)] lg:block">
+            {settingsModalOpen ? (
+              renderSettingsSidebar()
+            ) : (
+              <SessionPanel
+                savedSessions={savedSessions}
+                activeSessionId={activeSessionId}
+                onSelectSession={selectSession}
+                onDeleteSession={(sessionId) => void deleteSession(sessionId)}
+                onCreateSession={() => void createNewSession()}
+                onOpenSettings={() => openSettingsModal()}
+                collapsed={sidebarCollapsed}
+                onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
+                detached={false}
+              />
+            )}
           </aside>
 
           {/* Chat section */}
           <section className="relative flex min-h-0 min-w-0 overflow-hidden">
             {floatingStatus}
-            <ChatPanel
-              activeSessionId={activeSessionId}
-              text={text}
-              statusMessage={statusMessage}
-              onTextChange={setText}
-              onAbortReply={() => void abortCurrentReply()}
-              onToggleVoiceMode={() => void toggleVoiceMode()}
-              onSend={() => void send()}
-              busy={busy}
-              voiceEnabled={settings.voiceInputEnabled}
-              voiceMode={voiceMode}
-              voiceState={voiceState}
-              speechRecognitionSupported={speechCapabilities.recognitionSupported}
-              session={session}
-              traceFeed={traceFeed}
-              streamingAssistantText={streamingAssistantText}
-              deviceState={deviceState}
-              maxStrengthA={settings.maxStrengthA}
-              maxStrengthB={settings.maxStrengthB}
-              toolActivities={toolActivities}
-              onConnect={() => void connect()}
-              onEmergencyStop={() => void stop()}
-              onOpenSidebar={() => setSidebarOpen(true)}
-              onOpenSettings={() => openSettingsModal('general')}
-            />
+            {settingsModalOpen ? (
+              renderSettingsWorkspace()
+            ) : (
+              <ChatPanel
+                activeSessionId={activeSessionId}
+                text={text}
+                statusMessage={statusMessage}
+                onTextChange={setText}
+                onAbortReply={() => void abortCurrentReply()}
+                onToggleVoiceMode={() => void toggleVoiceMode()}
+                onSend={() => void send()}
+                busy={busy}
+                voiceEnabled={settings.voiceInputEnabled}
+                voiceMode={voiceMode}
+                voiceState={voiceState}
+                speechRecognitionSupported={speechCapabilities.recognitionSupported}
+                session={session}
+                traceFeed={traceFeed}
+                streamingAssistantText={streamingAssistantText}
+                deviceState={deviceState}
+                maxStrengthA={settings.maxStrengthA}
+                maxStrengthB={settings.maxStrengthB}
+                toolActivities={toolActivities}
+                onConnect={() => void connect()}
+                onEmergencyStop={() => void stop()}
+                onOpenSidebar={() => setSidebarOpen(true)}
+                onOpenSettings={() => openSettingsModal('general')}
+              />
+            )}
           </section>
         </section>
       </main>
