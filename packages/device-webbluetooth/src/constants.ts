@@ -1,6 +1,7 @@
 import type { RequestDeviceOptionsLike } from './types.js';
 
 export const V3_DEVICE_NAME_PREFIX = '47L121';
+export const V3_SENSOR_NAME_PREFIX = '47L120';
 export const V3_PRIMARY_SERVICE = '0000180c-0000-1000-8000-00805f9b34fb';
 export const V3_WRITE_CHAR = '0000150a-0000-1000-8000-00805f9b34fb';
 export const V3_NOTIFY_CHAR = '0000150b-0000-1000-8000-00805f9b34fb';
@@ -17,7 +18,11 @@ export const V2_BATTERY_SERVICE = v2Uuid('180a');
 export const V2_BATTERY_CHAR = v2Uuid('1500');
 
 export const COYOTE_REQUEST_DEVICE_OPTIONS: RequestDeviceOptionsLike = {
-  filters: [{ namePrefix: V3_DEVICE_NAME_PREFIX }, { namePrefix: V2_DEVICE_NAME_PREFIX }],
+  filters: [
+    { namePrefix: V3_DEVICE_NAME_PREFIX },
+    { namePrefix: V3_SENSOR_NAME_PREFIX },
+    { namePrefix: V2_DEVICE_NAME_PREFIX },
+  ],
   optionalServices: [
     V3_PRIMARY_SERVICE,
     V3_BATTERY_SERVICE,

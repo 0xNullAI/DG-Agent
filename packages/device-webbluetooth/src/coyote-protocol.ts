@@ -494,7 +494,9 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
       current.active = false;
     }
 
-    const [frequency, intensity] = frame;
+    const [rawFreq, rawInt] = frame;
+    const frequency = this.clamp(rawFreq, 10, 240);
+    const intensity = this.clamp(rawInt, 0, 100);
     return {
       freq: [frequency, frequency, frequency, frequency],
       int: [intensity, intensity, intensity, intensity],
@@ -581,9 +583,10 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
 
   private waveFrameToV2(freq: number, intensity: number): { x: number; y: number; z: number } {
     const periodMs = this.decodeV3Freq(freq);
+    const x = this.clamp(Math.round(Math.sqrt(periodMs / 1000) * 15), 1, 31);
     return {
-      x: 1,
-      y: this.clamp(periodMs - 1, 0, 1023),
+      x,
+      y: this.clamp(periodMs - x, 0, 1023),
       z: this.clamp(Math.round((intensity * 31) / 100), 0, 31),
     };
   }
