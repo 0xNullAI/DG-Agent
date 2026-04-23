@@ -12,7 +12,6 @@ import {
 } from '@dg-agent/providers-catalog';
 import { SettingLabel } from './SettingLabel.js';
 import { SettingSelect } from './SettingSelect.js';
-import { SettingSegmented } from './SettingSegmented.js';
 import { SettingToggle } from './SettingToggle.js';
 
 interface GeneralTabProps {

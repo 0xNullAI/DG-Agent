@@ -177,7 +177,7 @@ export function App() {
     promptPresetName,
     setPromptPresetName,
     resetSettings: resetSettingsManager,
-    saveCurrentPromptPreset: saveCurrentPromptPresetManager,
+    saveCurrentPromptPreset: _saveCurrentPromptPresetManager,
     confirmSaveCurrentPromptPreset: confirmSaveCurrentPromptPresetManager,
     deleteSavedPromptPreset: deleteSavedPromptPresetManager,
     flushSettingsDraft,
@@ -185,8 +185,8 @@ export function App() {
   } = useSettingsManager();
 
   const [pendingPermission, setPendingPermission] = useState<PendingPermissionRequest | null>(null);
-  const [bridgeLogs, setBridgeLogs] = useState<BridgeLogEntry[]>([]);
-  const [bridgeStatus, setBridgeStatus] = useState<BridgeManagerStatus | null>(null);
+  const [_bridgeLogs, setBridgeLogs] = useState<BridgeLogEntry[]>([]);
+  const [_bridgeStatus, setBridgeStatus] = useState<BridgeManagerStatus | null>(null);
   const [pendingSend, setPendingSend] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -317,6 +317,7 @@ export function App() {
           await performLifecycleStop(reason);
         },
       }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [settings.backgroundBehavior],
   );
 
@@ -424,7 +425,7 @@ export function App() {
     }
   }, [activeSessionId, client, liveDeviceState.connected, refreshCurrentSession]);
 
-  const disconnect = useCallback(async (): Promise<void> => {
+  const _disconnect = useCallback(async (): Promise<void> => {
     try {
       setErrorMessage(null);
       await client.disconnectDevice();
@@ -599,10 +600,6 @@ export function App() {
     });
   }
 
-  function saveCurrentPromptPreset(): void {
-    saveCurrentPromptPresetManager(setErrorMessage);
-  }
-
   function confirmSaveCurrentPromptPreset(): void {
     confirmSaveCurrentPromptPresetManager(setErrorMessage, setStatusMessage);
   }
@@ -636,7 +633,6 @@ export function App() {
           <PresetSelector
             settingsDraft={settingsDraft}
             setSettingsDraft={setSettingsDraft}
-            onSaveCurrentPromptPreset={saveCurrentPromptPreset}
             onDeleteSavedPromptPreset={deleteSavedPromptPreset}
           />
         );

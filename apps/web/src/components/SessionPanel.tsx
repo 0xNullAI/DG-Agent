@@ -43,9 +43,11 @@ export function SessionPanel({
   const renderedSessions = visibleSessions.slice(0, visibleSessionCount);
   const [searchOpen, setSearchOpen] = useState(false);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setVisibleSessionCount(SESSION_BATCH_SIZE);
   }, [activeSessionId, visibleSessions.length]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   /* ===== Collapsed ===== */
   if (collapsed) {

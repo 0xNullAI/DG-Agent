@@ -5,7 +5,7 @@ import type { BrowserSpeechCapabilities } from '@dg-agent/audio-browser';
 import type { AgentClient } from '@dg-agent/client';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { describeBrowserModes } from '../composition/create-browser-agent-client.js';
+import type { describeBrowserModes } from '../composition/create-browser-agent-client.js';
 
 interface RuntimeStatusPanelProps {
   client: AgentClient;

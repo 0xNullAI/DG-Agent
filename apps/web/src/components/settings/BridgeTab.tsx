@@ -28,6 +28,7 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
     formatCommaSeparatedInput(settingsDraft.bridge.telegram.allowUsers),
   );
 
+  /* eslint-disable react-hooks/set-state-in-effect -- sync local text fields with external draft */
   useEffect(() => {
     const formatted = formatCommaSeparatedInput(settingsDraft.bridge.qq.allowUsers);
     const normalizedLocal = formatCommaSeparatedInput(parseCommaSeparated(qqAllowUsersInput));
@@ -51,6 +52,7 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
       setTelegramAllowUsersInput(formatted);
     }
   }, [settingsDraft.bridge.telegram.allowUsers, telegramAllowUsersInput]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   return (
     <div className="settings-panel-tab-content">

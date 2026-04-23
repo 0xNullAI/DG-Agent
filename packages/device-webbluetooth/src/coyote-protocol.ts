@@ -16,7 +16,6 @@ import {
   V2_WAVE_B_CHAR,
   V3_BATTERY_CHAR,
   V3_BATTERY_SERVICE,
-  V3_DEVICE_NAME_PREFIX,
   V3_NOTIFY_CHAR,
   V3_PRIMARY_SERVICE,
   V3_WRITE_CHAR,
@@ -507,8 +506,8 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     buffer[0] = 0xb0;
 
     let modeNibble = 0;
-    let strengthA = this.pendingStrA;
-    let strengthB = this.pendingStrB;
+    const strengthA = this.pendingStrA;
+    const strengthB = this.pendingStrB;
 
     if (!this.awaitingAck && this.pendingMode !== 0) {
       this.seq = this.nextSeq();

@@ -22,6 +22,7 @@ export function SessionSearchDialog({
   const [activeIndex, setActiveIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     if (!open) {
       setQuery('');
@@ -44,6 +45,7 @@ export function SessionSearchDialog({
   useEffect(() => {
     setActiveIndex(0);
   }, [results.length]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function handleKeyDown(e: React.KeyboardEvent) {
     if (e.key === 'ArrowDown') {

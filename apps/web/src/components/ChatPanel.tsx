@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { DeviceState, SessionSnapshot } from '@dg-agent/core';
 import {
   ArrowUp,
@@ -134,7 +134,7 @@ export function ChatPanel({
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const hasText = text.trim().length > 0;
-  const messages = session?.messages ?? [];
+  const messages = useMemo(() => session?.messages ?? [], [session?.messages]);
   const timelineItems = buildRenderableTimeline(messages, traceFeed);
   const [visibleMessageCount, setVisibleMessageCount] = useState(MESSAGE_BATCH_SIZE);
   const renderedMessages = timelineItems.slice(-visibleMessageCount);
@@ -144,9 +144,11 @@ export function ChatPanel({
     messagesEndRef.current?.scrollIntoView({ block: 'end' });
   }, [messages, streamingAssistantText, busy, statusMessage]);
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setVisibleMessageCount(MESSAGE_BATCH_SIZE);
   }, [activeSessionId]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   function handlePrimaryAction(): void {
     if (busy) {

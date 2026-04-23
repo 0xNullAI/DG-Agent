@@ -10,14 +10,12 @@ import { cn } from '@/lib/utils';
 interface PresetSelectorProps {
   settingsDraft: BrowserAppSettings;
   setSettingsDraft: Dispatch<SetStateAction<BrowserAppSettings>>;
-  onSaveCurrentPromptPreset: () => void;
   onDeleteSavedPromptPreset: (presetId: string) => void;
 }
 
 export function PresetSelector({
   settingsDraft,
   setSettingsDraft,
-  onSaveCurrentPromptPreset,
   onDeleteSavedPromptPreset,
 }: PresetSelectorProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
