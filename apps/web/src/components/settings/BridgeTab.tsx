@@ -20,9 +20,6 @@ interface BridgeTabProps {
 }
 
 export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
-  const [selectedConnector, setSelectedConnector] = useState<BridgeConnector>(() =>
-    settingsDraft.bridge.telegram.enabled && !settingsDraft.bridge.qq.enabled ? 'telegram' : 'qq',
-  );
   const [qqAllowUsersInput, setQqAllowUsersInput] = useState(() =>
     formatCommaSeparatedInput(settingsDraft.bridge.qq.allowUsers),
   );
@@ -69,7 +66,6 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
       };
       return { ...current, bridge };
     });
-    setSelectedConnector('qq');
   }
 
   function setTelegramEnabled(enabled: boolean): void {
@@ -82,13 +78,7 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
       };
       return { ...current, bridge };
     });
-    setSelectedConnector('telegram');
   }
-
-  const selectedConnectorEnabled =
-    selectedConnector === 'qq'
-      ? settingsDraft.bridge.qq.enabled
-      : settingsDraft.bridge.telegram.enabled;
 
   return (
     <div className="settings-panel-tab-content">
@@ -100,33 +90,22 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
             icon={MessageCircle}
             title="QQ / NapCat"
             description="通过 OneBot WebSocket 接收和回复 QQ 消息"
-            active={selectedConnector === 'qq'}
             enabled={settingsDraft.bridge.qq.enabled}
-            onSelect={() => setSelectedConnector('qq')}
             onToggle={() => setQqEnabled(!settingsDraft.bridge.qq.enabled)}
           />
           <BridgeConnectorRow
             icon={Send}
             title="Telegram"
             description="通过 Telegram Bot 接收和回复消息"
-            active={selectedConnector === 'telegram'}
             enabled={settingsDraft.bridge.telegram.enabled}
-            onSelect={() => setSelectedConnector('telegram')}
             onToggle={() => setTelegramEnabled(!settingsDraft.bridge.telegram.enabled)}
           />
         </div>
       </section>
 
-      <section className="settings-row-card bridge-config-card">
-        <h3 className="settings-card-legend">
-          {selectedConnector === 'qq' ? 'QQ / NapCat 配置' : 'Telegram 配置'}
-        </h3>
-
-        <div className="bridge-config-status">
-          当前连接器：{selectedConnectorEnabled ? '已启用' : '未启用'}
-        </div>
-
-        {selectedConnector === 'qq' ? (
+      {settingsDraft.bridge.qq.enabled && (
+        <section className="settings-row-card bridge-config-card">
+          <h3 className="settings-card-legend">QQ / NapCat 配置</h3>
           <div className="bridge-config-grid">
             <label>
               <SettingLabel>Napcat WebSocket Server 地址</SettingLabel>
@@ -213,7 +192,7 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
               />
             </label>
 
-            <label>
+            <label className="settings-inline-field">
               <SettingLabel>权限模式</SettingLabel>
               <SettingSelect
                 value={settingsDraft.bridge.qq.permissionMode}
@@ -237,7 +216,12 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
               />
             </label>
           </div>
-        ) : (
+        </section>
+      )}
+
+      {settingsDraft.bridge.telegram.enabled && (
+        <section className="settings-row-card bridge-config-card">
+          <h3 className="settings-card-legend">Telegram 配置</h3>
           <div className="bridge-config-grid">
             <label>
               <SettingLabel>Telegram 机器人 Token</SettingLabel>
@@ -301,7 +285,7 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
               />
             </label>
 
-            <label>
+            <label className="settings-inline-field">
               <SettingLabel>Telegram 权限模式</SettingLabel>
               <SettingSelect
                 value={settingsDraft.bridge.telegram.permissionMode}
@@ -325,8 +309,8 @@ export function BridgeTab({ settingsDraft, setSettingsDraft }: BridgeTabProps) {
               />
             </label>
           </div>
-        )}
-      </section>
+        </section>
+      )}
     </div>
   );
 }
@@ -335,22 +319,24 @@ function BridgeConnectorRow({
   icon: Icon,
   title,
   description,
-  active,
   enabled,
-  onSelect,
   onToggle,
 }: {
   icon: LucideIcon;
   title: string;
   description: string;
-  active: boolean;
   enabled: boolean;
-  onSelect: () => void;
   onToggle: () => void;
 }) {
   return (
-    <div className={cn('bridge-connector-row', active && 'active', enabled && 'enabled')}>
-      <button type="button" className="bridge-connector-main" onClick={onSelect}>
+    <button
+      type="button"
+      role="switch"
+      aria-checked={enabled}
+      className={cn('bridge-connector-row', enabled && 'enabled')}
+      onClick={onToggle}
+    >
+      <span className="bridge-connector-main">
         <span className="bridge-connector-icon">
           <Icon className="h-4 w-4" />
         </span>
@@ -358,19 +344,10 @@ function BridgeConnectorRow({
           <span>{title}</span>
           <small>{description}</small>
         </span>
-      </button>
+      </span>
       <span className={cn('bridge-connector-status', enabled && 'enabled')}>
         {enabled ? '已启用' : '未启用'}
       </span>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={enabled}
-        className={cn('bridge-connector-switch', enabled && 'enabled')}
-        onClick={onToggle}
-      >
-        <span />
-      </button>
-    </div>
+    </button>
   );
 }

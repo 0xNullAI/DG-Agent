@@ -14,7 +14,7 @@ export function SettingToggle({
   description,
 }: SettingToggleProps) {
   return (
-    <label className="!flex items-center justify-between gap-3 py-1 cursor-pointer">
+    <label className="setting-toggle-row !flex items-center justify-between gap-3 py-1 cursor-pointer">
       <div className="min-w-0">
         <SettingLabel>{label}</SettingLabel>
         {description && (

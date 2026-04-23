@@ -8,12 +8,31 @@ import { SettingSelect } from './SettingSelect.js';
 import { SettingSegmented } from './SettingSegmented.js';
 import { SettingToggle } from './SettingToggle.js';
 
+const VOICE_LANGUAGE_OPTIONS = [
+  { value: 'zh-CN', label: '中文（普通话）' },
+  { value: 'zh-HK', label: '中文（粤语 / 香港）' },
+  { value: 'zh-TW', label: '中文（台湾）' },
+  { value: 'en-US', label: '英语（美国）' },
+  { value: 'en-GB', label: '英语（英国）' },
+  { value: 'ja-JP', label: '日语' },
+  { value: 'ko-KR', label: '韩语' },
+];
+
 interface VoiceTabProps {
   settingsDraft: BrowserAppSettings;
   setSettingsDraft: Dispatch<SetStateAction<BrowserAppSettings>>;
 }
 
 export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
+  const voiceLanguageOptions = VOICE_LANGUAGE_OPTIONS.some(
+    (option) => option.value === settingsDraft.voiceLanguage,
+  )
+    ? VOICE_LANGUAGE_OPTIONS
+    : [
+        ...VOICE_LANGUAGE_OPTIONS,
+        { value: settingsDraft.voiceLanguage, label: `当前：${settingsDraft.voiceLanguage}` },
+      ];
+
   function updateVoiceSettings<K extends keyof BrowserAppSettings['voice']>(
     key: K,
     value: BrowserAppSettings['voice'][K],
@@ -73,17 +92,17 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
           </div>
         )}
 
-        <label>
+        <label className="settings-inline-field">
           <SettingLabel>语音语言</SettingLabel>
-          <Input
+          <SettingSelect
             value={settingsDraft.voiceLanguage}
-            onChange={(event) =>
+            onValueChange={(value) =>
               setSettingsDraft((current) => ({
                 ...current,
-                voiceLanguage: event.target.value,
+                voiceLanguage: value,
               }))
             }
-            placeholder="zh-CN"
+            options={voiceLanguageOptions}
           />
         </label>
 

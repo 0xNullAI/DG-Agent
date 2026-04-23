@@ -77,7 +77,7 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
           : settingsDraft.provider[field.key];
 
       return (
-        <label key={field.key} htmlFor={fieldId}>
+        <label key={field.key} htmlFor={fieldId} className="settings-inline-field">
           <SettingLabel>{field.label}</SettingLabel>
           <SettingSelect
             value={value}
@@ -108,7 +108,7 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
     }
 
     return (
-      <label key={field.key} htmlFor={fieldId}>
+      <label key={field.key} htmlFor={fieldId} className="settings-inline-field">
         <SettingLabel>{field.label}</SettingLabel>
         <Input
           id={fieldId}

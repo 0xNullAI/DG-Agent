@@ -923,6 +923,39 @@
   row-gap: 0.85rem;
 }
 
+.settings-inline-field {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.32fr) minmax(280px, 0.68fr);
+  align-items: center;
+  column-gap: clamp(1.25rem, 5vw, 5.5rem);
+}
+
+.settings-workspace
+  .settings-row-card
+  > label:not(.checkbox-row):not(.custom-checkbox):not(.setting-toggle-row),
+.settings-workspace .bridge-config-grid > label {
+  display: grid;
+  grid-template-columns: minmax(160px, 0.32fr) minmax(280px, 0.68fr);
+  align-items: center;
+  column-gap: clamp(1.25rem, 5vw, 5.5rem);
+}
+
+.settings-inline-field > :last-child {
+  justify-self: end;
+  max-width: 440px;
+  width: 100%;
+}
+
+.settings-workspace
+  .settings-row-card
+  > label:not(.checkbox-row):not(.custom-checkbox):not(.setting-toggle-row)
+  > :last-child,
+.settings-workspace .bridge-config-grid > label > :last-child {
+  justify-self: end;
+  max-width: 440px;
+  width: 100%;
+}
+
 .settings-row-card .text-sm,
 .settings-row-card label > span {
   font-size: 0.8125rem;
@@ -1123,8 +1156,6 @@
   height: 2rem;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--surface-border);
-  border-radius: 8px;
   color: var(--text-faint);
 }
 
@@ -1325,6 +1356,34 @@
 
   .settings-workspace .settings-row-card.grid-cols-\[1fr_auto\] {
     grid-template-columns: 1fr;
+  }
+
+  .settings-inline-field {
+    grid-template-columns: 1fr;
+    gap: 0.48rem;
+  }
+
+  .settings-workspace
+    .settings-row-card
+    > label:not(.checkbox-row):not(.custom-checkbox):not(.setting-toggle-row),
+  .settings-workspace .bridge-config-grid > label {
+    grid-template-columns: 1fr;
+    gap: 0.48rem;
+  }
+
+  .settings-inline-field > :last-child,
+  .settings-workspace
+    .settings-row-card
+    > label:not(.checkbox-row):not(.custom-checkbox):not(.setting-toggle-row)
+    > :last-child,
+  .settings-workspace .bridge-config-grid > label > :last-child {
+    justify-self: stretch;
+    max-width: none;
+  }
+
+  .settings-workspace .settings-compact-control {
+    justify-self: stretch;
+    width: 100% !important;
   }
 
   .bridge-connector-row {
