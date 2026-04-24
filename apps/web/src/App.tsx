@@ -13,6 +13,7 @@ import {
   Bot,
   Brain,
   RotateCcw,
+  ScrollText,
   Settings2,
   ShieldCheck,
   Volume2,
@@ -29,6 +30,7 @@ import { WaveformsPanel } from './components/WaveformsPanel.js';
 import { GeneralTab } from './components/settings/GeneralTab.js';
 import { SafetyTab } from './components/settings/SafetyTab.js';
 import { BridgeTab } from './components/settings/BridgeTab.js';
+import { BridgeLogsTab, ModelToolLogsTab } from './components/settings/LogsTab.js';
 import { VoiceTab } from './components/settings/VoiceTab.js';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -69,7 +71,15 @@ import {
 } from './utils/ui-formatters.js';
 import { buildTraceFeed } from './utils/trace-feed.js';
 
-type SettingsModalTab = 'general' | 'preset' | 'safety' | 'waveforms' | 'bridge' | 'voice';
+type SettingsModalTab =
+  | 'general'
+  | 'preset'
+  | 'safety'
+  | 'waveforms'
+  | 'bridge'
+  | 'voice'
+  | 'bridge-logs'
+  | 'model-tool-logs';
 
 const SETTINGS_NAV_ITEMS: Array<{
   value: SettingsModalTab;
@@ -134,6 +144,20 @@ const SETTINGS_NAV_ITEMS: Array<{
       语音: '配置输入识别、回复朗读和语音后端。',
     },
   },
+  {
+    value: 'model-tool-logs',
+    label: '模型日志',
+    description: '模型输出、工具调用和运行事件',
+    icon: ScrollText,
+    sections: {},
+  },
+  {
+    value: 'bridge-logs',
+    label: '桥接日志',
+    description: 'QQ / Telegram 桥接状态和运行日志',
+    icon: ScrollText,
+    sections: {},
+  },
 ];
 
 const SETTINGS_NAV_GROUPS: Array<{
@@ -142,6 +166,7 @@ const SETTINGS_NAV_GROUPS: Array<{
 }> = [
   { label: '配置', values: ['general', 'preset', 'safety', 'waveforms'] },
   { label: '扩展', values: ['bridge', 'voice'] },
+  { label: '日志', values: ['model-tool-logs', 'bridge-logs'] },
 ];
 
 function formatVoiceStateLabel(voiceState: 'idle' | 'listening' | 'speaking'): string {
@@ -185,8 +210,8 @@ export function App() {
   } = useSettingsManager();
 
   const [pendingPermission, setPendingPermission] = useState<PendingPermissionRequest | null>(null);
-  const [_bridgeLogs, setBridgeLogs] = useState<BridgeLogEntry[]>([]);
-  const [_bridgeStatus, setBridgeStatus] = useState<BridgeManagerStatus | null>(null);
+  const [bridgeLogs, setBridgeLogs] = useState<BridgeLogEntry[]>([]);
+  const [bridgeStatus, setBridgeStatus] = useState<BridgeManagerStatus | null>(null);
   const [pendingSend, setPendingSend] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
@@ -652,6 +677,24 @@ export function App() {
         return <BridgeTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
       case 'voice':
         return <VoiceTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
+      case 'bridge-logs':
+        return (
+          <BridgeLogsTab
+            bridgeLogs={bridgeLogs}
+            bridgeStatus={bridgeStatus}
+            settings={settings}
+            events={events}
+          />
+        );
+      case 'model-tool-logs':
+        return (
+          <ModelToolLogsTab
+            bridgeLogs={bridgeLogs}
+            bridgeStatus={bridgeStatus}
+            events={events}
+            settings={settings}
+          />
+        );
       default:
         return null;
     }

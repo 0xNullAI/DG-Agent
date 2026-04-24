@@ -1227,6 +1227,37 @@
   gap: 0.85rem;
 }
 
+.settings-log-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.settings-log-list {
+  display: grid;
+  gap: 0.65rem;
+  max-height: min(42vh, 360px);
+  overflow-y: auto;
+}
+
+.settings-log-empty {
+  color: var(--text-faint);
+  font-size: 0.85rem;
+}
+
+.settings-log-entry {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--surface-border);
+  border-radius: 8px;
+  background: transparent;
+  padding: 0.75rem 0.85rem;
+  color: var(--text-soft);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
 .settings .saved-prompt-item {
   border-radius: var(--radius-sm);
 }
