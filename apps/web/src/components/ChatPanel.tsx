@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { DeviceState, SessionSnapshot } from '@dg-agent/core';
 import type { PromptPreset, SavedPromptPreset } from '@dg-agent/prompts-basic';
 import {
@@ -70,9 +70,9 @@ const MESSAGE_BATCH_SIZE = 120;
 const DEVICE_STRENGTH_CAP = 200;
 
 const BUBBLE_BASE =
-  'max-w-[min(92%,560px)] overflow-hidden break-words whitespace-pre-wrap px-4 py-3 text-[14.5px] leading-[1.6]';
-const BUBBLE_ASSISTANT = `${BUBBLE_BASE} rounded-[14px] rounded-bl-[4px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] text-[var(--text)]`;
-const BUBBLE_USER = `${BUBBLE_BASE} rounded-[14px] rounded-br-[4px] bg-[var(--accent)] text-[var(--button-text)]`;
+  'max-w-[min(92%,560px)] overflow-hidden break-words px-4 py-3 text-[14.5px] leading-[1.6]';
+const BUBBLE_ASSISTANT = `${BUBBLE_BASE} whitespace-normal rounded-[14px] rounded-bl-[4px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] text-[var(--text)]`;
+const BUBBLE_USER = `${BUBBLE_BASE} whitespace-pre-wrap rounded-[14px] rounded-br-[4px] bg-[var(--accent)] text-[var(--button-text)]`;
 const ICON_BTN =
   'h-9 w-9 rounded-[10px] text-[var(--text-soft)] hover:bg-[var(--bg-soft)] hover:text-[var(--text)]';
 const SYSTEM_MSG =
@@ -144,7 +144,9 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const welcomeInputRef = useRef<HTMLInputElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const stickToBottomRef = useRef(true);
   const hasText = text.trim().length > 0;
   const messages = useMemo(() => session?.messages ?? [], [session?.messages]);
   const timelineItems = buildRenderableTimeline(messages, traceFeed);
@@ -178,8 +180,13 @@ export function ChatPanel({
     }
   }, [sceneDropdownOpen]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ block: 'end' });
+  useLayoutEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer || !stickToBottomRef.current) {
+      return;
+    }
+
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
   }, [messages, streamingAssistantText, busy, statusMessage]);
 
   /* eslint-disable react-hooks/set-state-in-effect */
@@ -212,6 +219,12 @@ export function ChatPanel({
       e.preventDefault();
       if (!busy && hasText) triggerSend();
     }
+  }
+
+  function handleMessagesScroll(e: React.UIEvent<HTMLDivElement>): void {
+    const element = e.currentTarget;
+    const distanceFromBottom = element.scrollHeight - element.scrollTop - element.clientHeight;
+    stickToBottomRef.current = distanceFromBottom < 48;
   }
 
   const showVoiceAsPrimary = !hasText && !busy;
@@ -421,7 +434,11 @@ export function ChatPanel({
       ) : (
         /* ===== Normal chat state ===== */
         <>
-          <div className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 [scrollbar-gutter:stable] sm:px-6">
+          <div
+            ref={scrollContainerRef}
+            className="min-h-0 flex-1 overflow-y-auto px-3 pt-3 [scrollbar-gutter:stable] sm:px-6"
+            onScroll={handleMessagesScroll}
+          >
             <div className="mx-auto flex min-h-full w-full max-w-[800px] flex-col justify-end gap-4 pb-4">
               {timelineItems.length > renderedMessages.length && (
                 <div className="flex justify-center">
