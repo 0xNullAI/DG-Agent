@@ -304,7 +304,7 @@ export function ChatPanel({
       {isWelcome ? (
         /* ===== Welcome centered state ===== */
         <>
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-7 px-4">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-7 overflow-y-auto px-4 py-6 sm:py-8">
             <div className="text-center">
               <h2 className="text-xl font-semibold text-[var(--text)]">欢迎使用 DG-Agent</h2>
               <p className="mt-2 text-sm text-[var(--text-soft)]">
