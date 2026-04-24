@@ -107,7 +107,7 @@ export function PresetSelector({
                   <Input
                     value={editName}
                     onChange={(e) => setEditName(e.target.value)}
-                    placeholder="模式名称"
+                    placeholder="场景名称"
                     className="text-sm"
                   />
                   <Textarea
@@ -182,7 +182,7 @@ export function PresetSelector({
             <Input
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              placeholder="模式名称"
+              placeholder="场景名称"
               className="text-sm"
               autoFocus
             />
