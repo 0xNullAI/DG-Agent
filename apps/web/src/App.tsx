@@ -67,11 +67,7 @@ import { useVoiceController } from './hooks/use-voice-controller.js';
 import { useWaveformManager } from './hooks/use-waveform-manager.js';
 import { createSessionId, isReplyAbortError } from './utils/app-runtime-helpers.js';
 import { buildWarnings } from './utils/runtime-warnings.js';
-import {
-  formatUiErrorMessage,
-  getRecentToolActivities,
-  isBluetoothChooserCancelledError,
-} from './utils/ui-formatters.js';
+import { formatUiErrorMessage, isBluetoothChooserCancelledError } from './utils/ui-formatters.js';
 import { buildTraceFeed } from './utils/trace-feed.js';
 
 type SettingsModalTab =
@@ -300,7 +296,6 @@ export function App() {
   const busy = pendingSend || replyBusy;
   const deviceState = liveDeviceState ?? createEmptyDeviceState();
   const warnings = buildWarnings(settings, modes, speechCapabilities);
-  const toolActivities = getRecentToolActivities(events);
   const traceFeed = buildTraceFeed(sessionTrace);
 
   const { visibleErrorItems, visibleWarnings, visibleEventToasts, hasVisibleToasts } =
@@ -1186,7 +1181,6 @@ export function App() {
                 deviceState={deviceState}
                 maxStrengthA={settings.maxStrengthA}
                 maxStrengthB={settings.maxStrengthB}
-                toolActivities={toolActivities}
                 onConnect={() => void connect()}
                 onEmergencyStop={() => void stop()}
                 onOpenSidebar={() => setSidebarOpen(true)}

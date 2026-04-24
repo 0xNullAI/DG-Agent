@@ -23,11 +23,6 @@ import { cn } from '@/lib/utils';
 import { MarkdownText } from './MarkdownText.js';
 import type { TraceFeedItem } from '../utils/trace-feed.js';
 
-interface ToolActivity {
-  kind: 'proposed' | 'executed' | 'denied';
-  text: string;
-}
-
 interface ChatPanelProps {
   activeSessionId: string | null;
   text: string;
@@ -47,7 +42,6 @@ interface ChatPanelProps {
   deviceState: DeviceState;
   maxStrengthA: number;
   maxStrengthB: number;
-  toolActivities: ToolActivity[];
   onConnect: () => void;
   onEmergencyStop: () => void;
   onOpenSidebar: () => void;
@@ -132,7 +126,6 @@ export function ChatPanel({
   deviceState,
   maxStrengthA,
   maxStrengthB,
-  toolActivities,
   onConnect,
   onEmergencyStop,
   onOpenSidebar,
@@ -494,36 +487,6 @@ export function ChatPanel({
                   </div>
                 );
               })}
-
-              {toolActivities.length > 0 && (
-                <div className="flex flex-col items-center gap-1">
-                  {toolActivities.map((activity, index) => (
-                    <div
-                      key={index}
-                      className={cn(
-                        'inline-flex max-w-[85%] items-center gap-1.5 rounded-full px-3 py-1 text-[12px] leading-[1.4]',
-                        activity.kind === 'executed'
-                          ? 'bg-[var(--success-soft)] text-[var(--success)]'
-                          : activity.kind === 'denied'
-                            ? 'bg-[var(--danger-soft)] text-[var(--danger)]'
-                            : 'bg-[var(--bg-soft)] text-[var(--text-soft)]',
-                      )}
-                    >
-                      <span
-                        className={cn(
-                          'inline-block h-1.5 w-1.5 shrink-0 rounded-full',
-                          activity.kind === 'executed'
-                            ? 'bg-[var(--success)]'
-                            : activity.kind === 'denied'
-                              ? 'bg-[var(--danger)]'
-                              : 'bg-[var(--text-faint)]',
-                        )}
-                      />
-                      {activity.text}
-                    </div>
-                  ))}
-                </div>
-              )}
 
               {streamingAssistantText && (
                 <div className="flex justify-start">
