@@ -54,6 +54,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
 import {
   useBrowserAppServices,
   type PendingPermissionRequest,
@@ -180,6 +181,15 @@ function formatVoiceStateLabel(voiceState: 'idle' | 'listening' | 'speaking'): s
     default:
       return '空闲';
   }
+}
+
+function getToastMotionClass(phase: 'entering' | 'visible' | 'exiting'): string {
+  return cn(
+    'pointer-events-auto flex justify-center transition-all duration-200 ease-out will-change-transform',
+    phase === 'entering' && 'translate-y-[-8px] scale-[0.98] opacity-0',
+    phase === 'visible' && 'translate-y-0 scale-100 opacity-100',
+    phase === 'exiting' && 'translate-y-[-8px] scale-[0.98] opacity-0',
+  );
 }
 
 export function App() {
@@ -860,7 +870,7 @@ export function App() {
           )}
 
           {visibleErrorItems.map((item) => (
-            <div key={item.key} className="pointer-events-auto flex justify-center">
+            <div key={item.key} className={getToastMotionClass(item.phase)}>
               <Alert
                 variant={item.variant}
                 className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]"
@@ -872,7 +882,7 @@ export function App() {
             </div>
           ))}
           {visibleWarnings.map((item) => (
-            <div key={item.key} className="pointer-events-auto flex justify-center">
+            <div key={item.key} className={getToastMotionClass(item.phase)}>
               <Alert
                 variant={item.variant}
                 className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]"
@@ -884,7 +894,7 @@ export function App() {
             </div>
           ))}
           {visibleEventToasts.map((item) => (
-            <div key={item.key} className="pointer-events-auto flex justify-center">
+            <div key={item.key} className={getToastMotionClass(item.phase)}>
               <Alert
                 variant={item.variant}
                 className="w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] text-center shadow-[var(--shadow)]"
