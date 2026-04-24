@@ -288,12 +288,12 @@ export function ChatPanel({
           <Button
             variant="destructive"
             size="sm"
-            className="h-7 shrink-0 rounded-[8px] px-2 text-[12px] font-medium shadow-none sm:px-2.5"
+            className="ml-5 mr-3 h-7 shrink-0 rounded-[8px] px-2 text-[12px] font-medium shadow-none sm:px-2.5"
             onClick={onEmergencyStop}
             aria-label="紧急停止"
           >
             <CircleStop className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">停止</span>
+            <span className="hidden sm:inline text-xs">停止</span>
           </Button>
         </div>
       )}
