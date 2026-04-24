@@ -1236,8 +1236,6 @@
 .settings-log-list {
   display: grid;
   gap: 0.65rem;
-  max-height: min(42vh, 360px);
-  overflow-y: auto;
 }
 
 .settings-log-empty {
