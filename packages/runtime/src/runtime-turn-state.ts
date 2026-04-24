@@ -1,5 +1,6 @@
 import type { LlmConversationItem } from '@dg-agent/contracts';
 import type { ModelContextStrategy, SessionSnapshot, ToolCall } from '@dg-agent/core';
+import { REPLY_ABORTED_NOTE, TOOL_LOOP_EXHAUSTED_MESSAGE } from './runtime-errors.js';
 import type { ToolCallConfig } from './tool-call-config.js';
 
 export interface TurnState {
@@ -160,14 +161,15 @@ function shouldSkipModelContextMessage(message: SessionSnapshot['messages'][numb
     return true;
   }
 
-  if (content === '✋ 已手动中止') return true;
+  if (content === REPLY_ABORTED_NOTE) return true;
+  if (content === TOOL_LOOP_EXHAUSTED_MESSAGE) return true;
   if (content.startsWith('出错了：')) return true;
 
   return [
     '网络连接失败，请检查网络、代理或服务状态后重试',
     '还没有配置 API Key，请先在设置里填写',
     'API Key 无效或已过期，请检查设置',
-    '当前接口访问被拒绝，请检查账号权限、地区限制或代理',
+    '当前接口访问被拒绝，请检查账户权限、地区限制或代理',
     '请求过于频繁，已被限流，请稍后再试',
     '请求被服务端拒绝，请检查模型、参数或接口兼容性',
     'AI 服务暂时不可用，请稍后重试',

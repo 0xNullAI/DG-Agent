@@ -4,6 +4,12 @@ import {
   normalizeProviderSettings,
   type ProviderId,
 } from '@dg-agent/providers-catalog';
+import {
+  createDefaultToolCallConfig,
+  DEFAULT_MAX_ADJUST_STEP,
+  DEFAULT_MAX_BURST_DURATION_MS,
+  DEFAULT_MAX_COLD_START_STRENGTH,
+} from '@dg-agent/runtime';
 import type {
   BrowserAppEnvLike,
   BrowserAppSettings,
@@ -31,6 +37,7 @@ export function normalizeVoiceSettings(
 }
 
 export function defaultBrowserAppSettings(env: BrowserAppEnvLike = {}): BrowserAppSettings {
+  const toolCallConfig = createDefaultToolCallConfig();
   const provider = normalizeProviderSettings({
     ...createDefaultProviderSettings(),
     providerId: (env.VITE_PROVIDER_ID ?? 'free') as ProviderId,
@@ -52,6 +59,14 @@ export function defaultBrowserAppSettings(env: BrowserAppEnvLike = {}): BrowserA
     backgroundBehavior: 'stop',
     maxStrengthA: 50,
     maxStrengthB: 50,
+    maxColdStartStrength: DEFAULT_MAX_COLD_START_STRENGTH,
+    maxToolIterations: toolCallConfig.maxToolIterations,
+    maxToolCallsPerTurn: toolCallConfig.maxToolCallsPerTurn,
+    maxAdjustStrengthCallsPerTurn: toolCallConfig.maxAdjustStrengthCallsPerTurn,
+    maxAdjustStrengthStep: DEFAULT_MAX_ADJUST_STEP,
+    maxBurstCallsPerTurn: toolCallConfig.maxBurstCallsPerTurn,
+    maxBurstDurationMs: DEFAULT_MAX_BURST_DURATION_MS,
+    burstRequiresActiveChannel: toolCallConfig.burstRequiresActiveChannel,
     safetyStopOnLeave: true,
     rememberApiKey: false,
     voiceInputEnabled: false,

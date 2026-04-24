@@ -13,7 +13,11 @@ import { getWebBluetoothAvailability } from '@dg-agent/device-webbluetooth';
 import { BrowserPermissionService } from '@dg-agent/permissions-browser';
 import { resolveProviderRuntimeSettings } from '@dg-agent/providers-catalog';
 import { OpenAiHttpLlmClient } from '@dg-agent/providers-openai-http';
-import { PolicyEngine, createDefaultPolicyRules } from '@dg-agent/runtime';
+import {
+  PolicyEngine,
+  createDefaultPolicyRules,
+  createDefaultToolRegistryWithDeps,
+} from '@dg-agent/runtime';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { createBuildBrowserInstructions } from './build-browser-instructions.js';
 
@@ -57,6 +61,14 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
   return createEmbeddedAgentClient({
     device: options.device,
     llm,
+    toolRegistry: createDefaultToolRegistryWithDeps({
+      waveformLibrary: options.waveformLibrary,
+      toolDefinitionHints: {
+        maxColdStartStrength: settings.maxColdStartStrength,
+        maxAdjustStrengthStep: settings.maxAdjustStrengthStep,
+        maxBurstDurationMs: settings.maxBurstDurationMs,
+      },
+    }),
     permission:
       options.permissionService ??
       new BrowserPermissionService({
@@ -66,6 +78,9 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
       createDefaultPolicyRules({
         maxStrengthA: settings.maxStrengthA,
         maxStrengthB: settings.maxStrengthB,
+        maxColdStartStrength: settings.maxColdStartStrength,
+        maxAdjustStep: settings.maxAdjustStrengthStep,
+        maxBurstDurationMs: settings.maxBurstDurationMs,
       }),
     ),
     buildInstructions: createBuildBrowserInstructions({
@@ -74,7 +89,16 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
       savedPromptPresets: settings.savedPromptPresets,
       maxStrengthA: settings.maxStrengthA,
       maxStrengthB: settings.maxStrengthB,
+      maxAdjustStrengthCallsPerTurn: settings.maxAdjustStrengthCallsPerTurn,
+      maxAdjustStrengthStep: settings.maxAdjustStrengthStep,
     }),
+    toolCallConfig: {
+      maxToolIterations: settings.maxToolIterations,
+      maxToolCallsPerTurn: settings.maxToolCallsPerTurn,
+      maxAdjustStrengthCallsPerTurn: settings.maxAdjustStrengthCallsPerTurn,
+      maxBurstCallsPerTurn: settings.maxBurstCallsPerTurn,
+      burstRequiresActiveChannel: settings.burstRequiresActiveChannel,
+    },
     modelContextStrategy: settings.modelContextStrategy,
     sessionStore: options.sessionStore,
     sessionTraceStore: options.sessionTraceStore,

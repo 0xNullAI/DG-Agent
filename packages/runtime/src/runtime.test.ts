@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { DeviceClient, LlmClient, PermissionService, SessionStore } from '@dg-agent/contracts';
 import { AgentRuntime } from './agent-runtime.js';
+import { createDefaultPolicyRules } from './default-policies.js';
+import { PolicyEngine } from './policy-engine.js';
 import {
   createMessage,
   createEmptyDeviceState,
@@ -245,6 +247,41 @@ class RepeatedAdjustLlm implements LlmClient {
   }
 }
 
+class LargeAdjustLlm implements LlmClient {
+  async runTurn() {
+    return {
+      assistantMessage: '澶у箙璋冩暣寮哄害',
+      toolCalls: [
+        {
+          id: 'tool-large-adjust',
+          name: 'adjust_strength',
+          args: { channel: 'A', delta: 25 },
+        },
+      ],
+    };
+  }
+}
+
+class LargeStartLlm implements LlmClient {
+  async runTurn() {
+    return {
+      assistantMessage: '灏濊瘯鍐峰惎鍔ㄩ珮寮哄害',
+      toolCalls: [
+        {
+          id: 'tool-large-start',
+          name: 'start',
+          args: {
+            channel: 'A',
+            strength: 30,
+            waveformId: 'pulse_mid',
+            loop: true,
+          },
+        },
+      ],
+    };
+  }
+}
+
 class BurstOnlyLlm implements LlmClient {
   async runTurn() {
     return {
@@ -254,6 +291,21 @@ class BurstOnlyLlm implements LlmClient {
           id: 'tool-1',
           name: 'burst',
           args: { channel: 'A', strength: 40, durationMs: 1000 },
+        },
+      ],
+    };
+  }
+}
+
+class LongBurstLlm implements LlmClient {
+  async runTurn() {
+    return {
+      assistantMessage: '尝试长时间 burst',
+      toolCalls: [
+        {
+          id: 'tool-long-burst',
+          name: 'burst',
+          args: { channel: 'A', strength: 40, durationMs: 3000 },
         },
       ],
     };
@@ -844,6 +896,66 @@ describe('AgentRuntime', () => {
     expect(denied[0] && 'reason' in denied[0] ? denied[0].reason : '').toContain('adjust_strength');
   });
 
+  it('applies a configurable single-step adjust_strength cap', async () => {
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ strengthA: 10, waveActiveA: true, currentWaveA: 'pulse_mid' }),
+      llm: new LargeAdjustLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      policyEngine: new PolicyEngine(
+        createDefaultPolicyRules({
+          maxAdjustStep: 15,
+        }),
+      ),
+      toolCallConfig: {
+        maxToolIterations: 1,
+      },
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'test',
+      text: '鍔犲ぇ涓€鐐?',
+      context: {
+        sessionId: 'test',
+        sourceType: 'cli',
+        traceId: 'trace-adjust-step-cap',
+      },
+    });
+
+    const session = await runtime.getSessionSnapshot('test');
+    expect(session.deviceState.strengthA).toBe(25);
+  });
+
+  it('applies a configurable cold-start strength cap to start', async () => {
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      llm: new LargeStartLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      policyEngine: new PolicyEngine(
+        createDefaultPolicyRules({
+          maxColdStartStrength: 12,
+        }),
+      ),
+      toolCallConfig: {
+        maxToolIterations: 1,
+      },
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'test',
+      text: '鍚姩 A',
+      context: {
+        sessionId: 'test',
+        sourceType: 'cli',
+        traceId: 'trace-cold-start-cap',
+      },
+    });
+
+    const session = await runtime.getSessionSnapshot('test');
+    expect(session.deviceState.strengthA).toBe(12);
+  });
+
   it('blocks burst on inactive channels when configured', async () => {
     const runtime = new AgentRuntime({
       device: new TestDevice(),
@@ -901,6 +1013,42 @@ describe('AgentRuntime', () => {
 
     const session = await runtime.getSessionSnapshot('test');
     expect(session.deviceState.strengthA).toBe(40);
+  });
+
+  it('applies a configurable burst duration cap', async () => {
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ strengthA: 10, waveActiveA: true, currentWaveA: 'pulse_mid' }),
+      llm: new LongBurstLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      policyEngine: new PolicyEngine(
+        createDefaultPolicyRules({
+          maxBurstDurationMs: 1200,
+        }),
+      ),
+      toolCallConfig: {
+        maxToolIterations: 1,
+        burstRequiresActiveChannel: false,
+      },
+    });
+
+    const events: RuntimeEvent[] = [];
+    runtime.subscribe((event) => events.push(event));
+
+    await runtime.sendUserMessage({
+      sessionId: 'test',
+      text: 'burst 久一点',
+      context: {
+        sessionId: 'test',
+        sourceType: 'cli',
+        traceId: 'trace-burst-duration-cap',
+      },
+    });
+
+    const executed = events.find(
+      (event) => event.type === 'device-command-executed' && event.command.type === 'burst',
+    );
+    expect(executed && 'command' in executed ? executed.command.durationMs : null).toBe(1200);
   });
 
   it('uses ephemeral timer triggers, keeps them out of history, and disables tools on system turns', async () => {

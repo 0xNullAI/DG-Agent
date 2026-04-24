@@ -1,6 +1,6 @@
 export const REPLY_ABORTED_ERROR_MESSAGE = '已停止当前回复';
 export const REPLY_ABORTED_NOTE = '✋ 已手动中止';
-export const TOOL_LOOP_EXHAUSTED_MESSAGE = '我这边有点绕进去了，可以换个说法再问一次吗？';
+export const TOOL_LOOP_EXHAUSTED_MESSAGE = '🛑 单轮对话交互轮数已达上限';
 
 export function isAbortError(error: unknown): boolean {
   if (!error) return false;

@@ -34,6 +34,14 @@ export interface BrowserAppSettings {
   backgroundBehavior: 'stop' | 'keep';
   maxStrengthA: number;
   maxStrengthB: number;
+  maxColdStartStrength: number;
+  maxToolIterations: number;
+  maxToolCallsPerTurn: number;
+  maxAdjustStrengthCallsPerTurn: number;
+  maxAdjustStrengthStep: number;
+  maxBurstCallsPerTurn: number;
+  maxBurstDurationMs: number;
+  burstRequiresActiveChannel: boolean;
   safetyStopOnLeave: boolean;
   rememberApiKey: boolean;
   voiceInputEnabled: boolean;

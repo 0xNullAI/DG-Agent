@@ -1,14 +1,19 @@
 import type { DeviceCommand } from '@dg-agent/core';
 import type { PolicyRule } from './policy-engine.js';
 
-const MAX_COLD_START_STRENGTH = 10;
-const MAX_ADJUST_STEP = 10;
-const MAX_BURST_DURATION_MS = 5_000;
+export const DEFAULT_MAX_COLD_START_STRENGTH = 10;
+export const DEFAULT_MAX_ADJUST_STEP = 10;
+export const DEFAULT_MAX_BURST_DURATION_MS = 5_000;
+const MAX_ADJUST_STEP_LIMIT = 200;
+const MAX_BURST_DURATION_LIMIT_MS = 20_000;
 const DEFAULT_USER_MAX_STRENGTH = 50;
 
 export interface DefaultPolicyOptions {
   maxStrengthA?: number;
   maxStrengthB?: number;
+  maxColdStartStrength?: number;
+  maxAdjustStep?: number;
+  maxBurstDurationMs?: number;
 }
 
 function requiresConfirmation(command: DeviceCommand): boolean {
@@ -18,6 +23,9 @@ function requiresConfirmation(command: DeviceCommand): boolean {
 export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): PolicyRule[] {
   const maxStrengthA = normalizeStrengthLimit(options.maxStrengthA);
   const maxStrengthB = normalizeStrengthLimit(options.maxStrengthB);
+  const maxColdStartStrength = normalizeColdStartStrengthLimit(options.maxColdStartStrength);
+  const maxAdjustStep = normalizeAdjustStepLimit(options.maxAdjustStep);
+  const maxBurstDurationMs = normalizeBurstDurationLimit(options.maxBurstDurationMs);
 
   return [
     {
@@ -36,12 +44,12 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
 
         const current = command.channel === 'A' ? deviceState.strengthA : deviceState.strengthB;
         if (current > 0) return null;
-        if (command.strength <= MAX_COLD_START_STRENGTH) return null;
+        if (command.strength <= maxColdStartStrength) return null;
 
         return {
           type: 'clamp',
-          command: { ...command, strength: MAX_COLD_START_STRENGTH },
-          reason: `冷启动强度上限为 ${MAX_COLD_START_STRENGTH}`,
+          command: { ...command, strength: maxColdStartStrength },
+          reason: `冷启动强度上限为 ${maxColdStartStrength}`,
         };
       },
     },
@@ -97,15 +105,15 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
       name: 'step-adjust',
       evaluate({ command }) {
         if (command.type !== 'adjustStrength') return null;
-        if (Math.abs(command.delta) <= MAX_ADJUST_STEP) return null;
+        if (Math.abs(command.delta) <= maxAdjustStep) return null;
 
         return {
           type: 'clamp',
           command: {
             ...command,
-            delta: Math.sign(command.delta || 1) * MAX_ADJUST_STEP,
+            delta: Math.sign(command.delta || 1) * maxAdjustStep,
           },
-          reason: `单次调节幅度上限为 ±${MAX_ADJUST_STEP}`,
+          reason: `单次调节幅度上限为 ±${maxAdjustStep}`,
         };
       },
     },
@@ -113,15 +121,15 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
       name: 'burst-duration',
       evaluate({ command }) {
         if (command.type !== 'burst') return null;
-        if (command.durationMs <= MAX_BURST_DURATION_MS) return null;
+        if (command.durationMs <= maxBurstDurationMs) return null;
 
         return {
           type: 'clamp',
           command: {
             ...command,
-            durationMs: MAX_BURST_DURATION_MS,
+            durationMs: maxBurstDurationMs,
           },
-          reason: `Burst 时长上限为 ${MAX_BURST_DURATION_MS}ms`,
+          reason: `Burst 时长上限为 ${maxBurstDurationMs}ms`,
         };
       },
     },
@@ -141,6 +149,21 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
 function normalizeStrengthLimit(value: number | undefined): number {
   const raw = typeof value === 'number' ? value : DEFAULT_USER_MAX_STRENGTH;
   return clamp(raw, 0, 200);
+}
+
+function normalizeColdStartStrengthLimit(value: number | undefined): number {
+  const raw = typeof value === 'number' ? value : DEFAULT_MAX_COLD_START_STRENGTH;
+  return clamp(raw, 0, 200);
+}
+
+function normalizeAdjustStepLimit(value: number | undefined): number {
+  const raw = typeof value === 'number' ? value : DEFAULT_MAX_ADJUST_STEP;
+  return clamp(raw, 1, MAX_ADJUST_STEP_LIMIT);
+}
+
+function normalizeBurstDurationLimit(value: number | undefined): number {
+  const raw = typeof value === 'number' ? value : DEFAULT_MAX_BURST_DURATION_MS;
+  return clamp(raw, 100, MAX_BURST_DURATION_LIMIT_MS);
 }
 
 function getEffectiveLimit(

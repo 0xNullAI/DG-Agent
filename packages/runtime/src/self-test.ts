@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import type { DeviceClient, LlmClient, PermissionService, SessionStore } from '@dg-agent/contracts';
+import { createDefaultPolicyRules } from './default-policies.js';
 import {
   createEmptyDeviceState,
   getBridgeOriginMetadata,
@@ -11,6 +12,7 @@ import {
   type RuntimeEvent,
 } from '@dg-agent/core';
 import { AgentRuntime } from './agent-runtime.js';
+import { PolicyEngine } from './policy-engine.js';
 import { createBasicWaveformLibrary } from '@dg-agent/waveforms-basic';
 
 class TestDevice implements DeviceClient {
@@ -204,6 +206,41 @@ class RepeatedAdjustLlm implements LlmClient {
   }
 }
 
+class LargeAdjustLlm implements LlmClient {
+  async runTurn() {
+    return {
+      assistantMessage: '澶у箙璋冩暣寮哄害',
+      toolCalls: [
+        {
+          id: 'tool-large-adjust',
+          name: 'adjust_strength',
+          args: { channel: 'A', delta: 25 },
+        },
+      ],
+    };
+  }
+}
+
+class LargeStartLlm implements LlmClient {
+  async runTurn() {
+    return {
+      assistantMessage: '灏濊瘯鍐峰惎鍔ㄩ珮寮哄害',
+      toolCalls: [
+        {
+          id: 'tool-large-start',
+          name: 'start',
+          args: {
+            channel: 'A',
+            strength: 30,
+            waveformId: 'pulse_mid',
+            loop: true,
+          },
+        },
+      ],
+    };
+  }
+}
+
 class BurstOnlyLlm implements LlmClient {
   async runTurn() {
     return {
@@ -213,6 +250,21 @@ class BurstOnlyLlm implements LlmClient {
           id: 'tool-1',
           name: 'burst',
           args: { channel: 'A', strength: 40, durationMs: 1000 },
+        },
+      ],
+    };
+  }
+}
+
+class LongBurstLlm implements LlmClient {
+  async runTurn() {
+    return {
+      assistantMessage: '尝试长时间 burst',
+      toolCalls: [
+        {
+          id: 'tool-long-burst',
+          name: 'burst',
+          args: { channel: 'A', strength: 40, durationMs: 3000 },
         },
       ],
     };
@@ -505,6 +557,58 @@ async function main(): Promise<void> {
   });
   assert.equal(quotaEvents.filter((event) => event.type === 'tool-call-denied').length, 1);
 
+  const adjustStepRuntime = new AgentRuntime({
+    device: new TestDevice({ strengthA: 10, waveActiveA: true, currentWaveA: 'pulse_mid' }),
+    llm: new LargeAdjustLlm(),
+    permission: new TestPermission(),
+    waveformLibrary: createBasicWaveformLibrary(),
+    policyEngine: new PolicyEngine(
+      createDefaultPolicyRules({
+        maxAdjustStep: 15,
+      }),
+    ),
+    toolCallConfig: {
+      maxToolIterations: 1,
+    },
+  });
+  await adjustStepRuntime.sendUserMessage({
+    sessionId: 'adjust-step',
+    text: '鍔犲ぇ涓€鐐?',
+    context: {
+      sessionId: 'adjust-step',
+      sourceType: 'cli',
+      traceId: 'trace-adjust-step',
+    },
+  });
+  const adjustStepSession = await adjustStepRuntime.getSessionSnapshot('adjust-step');
+  assert.equal(adjustStepSession.deviceState.strengthA, 25);
+
+  const coldStartRuntime = new AgentRuntime({
+    device: new TestDevice(),
+    llm: new LargeStartLlm(),
+    permission: new TestPermission(),
+    waveformLibrary: createBasicWaveformLibrary(),
+    policyEngine: new PolicyEngine(
+      createDefaultPolicyRules({
+        maxColdStartStrength: 12,
+      }),
+    ),
+    toolCallConfig: {
+      maxToolIterations: 1,
+    },
+  });
+  await coldStartRuntime.sendUserMessage({
+    sessionId: 'cold-start',
+    text: '鍚姩 A',
+    context: {
+      sessionId: 'cold-start',
+      sourceType: 'cli',
+      traceId: 'trace-cold-start',
+    },
+  });
+  const coldStartSession = await coldStartRuntime.getSessionSnapshot('cold-start');
+  assert.equal(coldStartSession.deviceState.strengthA, 12);
+
   const burstDeniedEvents: RuntimeEvent[] = [];
   const burstDeniedRuntime = new AgentRuntime({
     device: new TestDevice(),
@@ -556,6 +660,44 @@ async function main(): Promise<void> {
   });
   const burstAllowedSession = await burstAllowedRuntime.getSessionSnapshot('burst-allowed');
   assert.equal(burstAllowedSession.deviceState.strengthA, 40);
+
+  const burstDurationEvents: RuntimeEvent[] = [];
+  const burstDurationRuntime = new AgentRuntime({
+    device: new TestDevice({ strengthA: 10, waveActiveA: true, currentWaveA: 'pulse_mid' }),
+    llm: new LongBurstLlm(),
+    permission: new TestPermission(),
+    waveformLibrary: createBasicWaveformLibrary(),
+    policyEngine: new PolicyEngine(
+      createDefaultPolicyRules({
+        maxBurstDurationMs: 1200,
+      }),
+    ),
+    toolCallConfig: {
+      maxToolIterations: 1,
+      burstRequiresActiveChannel: false,
+    },
+  });
+  burstDurationRuntime.subscribe((event) => {
+    burstDurationEvents.push(event);
+  });
+  await burstDurationRuntime.sendUserMessage({
+    sessionId: 'burst-duration',
+    text: 'burst 久一点',
+    context: {
+      sessionId: 'burst-duration',
+      sourceType: 'cli',
+      traceId: 'trace-burst-duration',
+    },
+  });
+  const burstDurationEvent = burstDurationEvents.find(
+    (event) => event.type === 'device-command-executed' && event.command.type === 'burst',
+  );
+  assert.equal(
+    burstDurationEvent && 'command' in burstDurationEvent
+      ? burstDurationEvent.command.durationMs
+      : null,
+    1200,
+  );
 
   const legacyStartRuntime = new AgentRuntime({
     device: new TestDevice(),

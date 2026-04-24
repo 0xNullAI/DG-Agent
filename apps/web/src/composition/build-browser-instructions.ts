@@ -1,6 +1,6 @@
 import type { ActionContext, SessionSnapshot } from '@dg-agent/core';
 import { getAnyPromptPresetById, type SavedPromptPreset } from '@dg-agent/prompts-basic';
-import { createDefaultToolCallConfig, type TurnToolCallSummary } from '@dg-agent/runtime';
+import type { TurnToolCallSummary } from '@dg-agent/runtime';
 
 export interface BrowserInstructionSettings {
   promptPresetId: string;
@@ -8,9 +8,10 @@ export interface BrowserInstructionSettings {
   savedPromptPresets: SavedPromptPreset[];
   maxStrengthA: number;
   maxStrengthB: number;
+  maxAdjustStrengthCallsPerTurn: number;
+  maxAdjustStrengthStep: number;
 }
 
-const DEFAULT_TOOL_CALL_CONFIG = createDefaultToolCallConfig();
 const INSTRUCTION_SEPARATOR = '\n\n──────────────────────────\n';
 
 export function createBuildBrowserInstructions(settings: BrowserInstructionSettings) {
@@ -31,7 +32,7 @@ export function createBuildBrowserInstructions(settings: BrowserInstructionSetti
       buildDeviceBlock(),
       buildDeviceStatusBlock(input.session, settings),
       buildTurnToolUsageBlock(input.turnToolCalls),
-      buildBehaviorRulesBlock(),
+      buildBehaviorRulesBlock(settings),
       input.context.sourceType === 'system' ? buildSystemTurnBlock() : '',
       input.isFirstIteration ? buildFirstIterationStrategyBlock() : '',
       !input.isFirstIteration ? buildFollowUpIterationBlock() : '',
@@ -49,12 +50,17 @@ function buildDeviceBlock(): string {
   ].join('\n');
 }
 
-function buildBehaviorRulesBlock(): string {
+function buildBehaviorRulesBlock(
+  settings: Pick<
+    BrowserInstructionSettings,
+    'maxAdjustStrengthCallsPerTurn' | 'maxAdjustStrengthStep'
+  >,
+): string {
   return [
     '[行为规则]',
     '1. 需要操作设备时，先调用对应工具，再根据工具结果回复用户。',
     '2. 回复设备状态时，只引用 [当前设备状态] 和本回合工具返回的事实，不要臆测。',
-    `3. adjust_strength 本回合最多调用 ${DEFAULT_TOOL_CALL_CONFIG.maxAdjustStrengthCallsPerTurn} 次；单步变化尽量小，优先 +2、+3、-2、-3 这类细微调整。`,
+    `3. adjust_strength 本回合最多调用 ${settings.maxAdjustStrengthCallsPerTurn} 次；单步变化尽量小，优先 +2、+3、-2、-3 这类细微调整。`,
     '4. 一次回合里只推进一步主要动作。完成一次 start / adjust_strength / change_wave / burst 后，优先停下来告诉用户实际结果并询问感受，不要自己连续叠加强度。',
     '5. 工具报错、被拒绝、权限未通过时，要如实告知用户，不要假装成功，也不要立刻重复同一个工具调用。',
     '6. timer 只是安排未来提醒，不代表用户已经反馈；到期后的系统回合只能简短跟进，不能自动继续操作设备。',

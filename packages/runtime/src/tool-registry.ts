@@ -66,10 +66,32 @@ export function createDefaultToolRegistry(): ToolRegistry {
 
 export interface DefaultToolRegistryDeps {
   waveformLibrary?: WaveformLibrary;
+  toolDefinitionHints?: ToolDefinitionHints;
+}
+
+export interface ToolDefinitionHints {
+  maxColdStartStrength?: number;
+  maxAdjustStrengthStep?: number;
+  maxBurstDurationMs?: number;
 }
 
 export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps): ToolRegistry {
   const registry = new ToolRegistry();
+  const maxColdStartStrengthHint = normalizeToolDefinitionHint(
+    deps.toolDefinitionHints?.maxColdStartStrength,
+    MAX_START_STRENGTH_HINT,
+    0,
+  );
+  const maxAdjustStrengthStepHint = normalizeToolDefinitionHint(
+    deps.toolDefinitionHints?.maxAdjustStrengthStep,
+    MAX_ADJUST_STEP_HINT,
+    1,
+  );
+  const maxBurstDurationMsHint = normalizeToolDefinitionHint(
+    deps.toolDefinitionHints?.maxBurstDurationMs,
+    MAX_BURST_DURATION_HINT_MS,
+    100,
+  );
 
   registry.register({
     name: 'start',
@@ -85,7 +107,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
         description: [
           '【启动工具】启动一个通道，同时设置初始强度和波形。',
           '只在该通道当前处于停止状态、需要从零开始时使用。',
-          `软启动规则：启动强度应控制在 0-${MAX_START_STRENGTH_HINT}；更高值会被策略层压低。`,
+          `冷启动建议：启动强度尽量控制在 0-${maxColdStartStrengthHint}；如果当前安全设置中的冷启动上限更低，会被策略层进一步压低。`,
           '如果通道已经在运行，只想继续加一点请用 adjust_strength；只想切换波形请用 change_wave；想结束请用 stop。',
           '完成一次 start 后，通常应该先描述结果并询问用户感受，不要在同一轮里马上连续追加多次强度。',
           waveformDescription ? `可用波形：${waveformDescription}` : '',
@@ -99,8 +121,8 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
             strength: {
               type: 'integer',
               minimum: 0,
-              maximum: MAX_START_STRENGTH_HINT,
-              description: '启动时的初始强度（建议从 5-8 起步，再根据反馈小步推进）',
+              maximum: maxColdStartStrengthHint,
+              description: '启动时的初始强度（建议从 5-8 起步；实际冷启动上限受当前安全设置约束）',
             },
             waveformId: await buildWaveformIdParameter(deps.waveformLibrary),
             loop: {
@@ -203,9 +225,9 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
           channel: channelParameter,
           delta: {
             type: 'integer',
-            minimum: -MAX_ADJUST_STEP_HINT,
-            maximum: MAX_ADJUST_STEP_HINT,
-            description: `本次变化量（正数增加，负数降低；建议保持在 ±${MAX_ADJUST_STEP_HINT} 以内）`,
+            minimum: -maxAdjustStrengthStepHint,
+            maximum: maxAdjustStrengthStepHint,
+            description: `本次变化量（正数增加，负数降低；建议保持在 ±${maxAdjustStrengthStepHint} 以内）`,
           },
         },
         required: ['channel', 'delta'],
@@ -305,7 +327,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
         '【短时脉冲工具】把一个正在运行的通道短暂拉到目标强度，持续一小段时间后自动回落。',
         '只适合制造短促峰值，不能拿来绕过 start 的软启动限制。',
         '这个工具要求通道已经在运行；如果当前还是停止状态，应先用 start。',
-        `durationMs 建议控制在 100-${MAX_BURST_DURATION_HINT_MS}ms。做完 burst 后通常应该先停下来观察反馈。`,
+        `durationMs 建议控制在 100-${maxBurstDurationMsHint}ms。做完 burst 后通常应该先停下来观察反馈。`,
       ].join(' '),
       parameters: {
         type: 'object',
@@ -320,8 +342,8 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
           durationMs: {
             type: 'integer',
             minimum: 100,
-            maximum: MAX_BURST_DURATION_HINT_MS,
-            description: `脉冲持续时间（毫秒）（建议保持在 100-${MAX_BURST_DURATION_HINT_MS}ms 内）`,
+            maximum: maxBurstDurationMsHint,
+            description: `脉冲持续时间（毫秒）（建议保持在 100-${maxBurstDurationMsHint}ms 内）`,
           },
         },
         required: ['channel', 'strength', 'durationMs'],
@@ -486,4 +508,14 @@ async function resolveWaveform(waveformLibrary: WaveformLibrary | undefined, wav
   }
 
   return waveform;
+}
+
+function normalizeToolDefinitionHint(
+  value: number | undefined,
+  fallback: number,
+  min: number,
+): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.round(parsed));
 }
