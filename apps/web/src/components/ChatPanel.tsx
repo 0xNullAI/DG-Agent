@@ -564,7 +564,9 @@ export function ChatPanel({
                   busy ? '停止回复' : hasText ? '发送' : voiceModeAvailable ? '语音识别' : '发送'
                 }
               >
-                {showVoiceAsPrimary && voiceModeAvailable ? (
+                {busy ? (
+                  <CircleStop className="h-4 w-4" />
+                ) : showVoiceAsPrimary && voiceModeAvailable ? (
                   <AudioLines className="h-4 w-4" />
                 ) : (
                   <ArrowUp className="h-4 w-4" />

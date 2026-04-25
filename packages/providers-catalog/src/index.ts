@@ -83,7 +83,7 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
     browserSupported: true,
     fields: [
       { key: 'apiKey', label: 'API 密钥', type: 'password', placeholder: 'sk-...' },
-      { key: 'model', label: '模型', type: 'text', placeholder: 'deepseek-v4-flash' },
+      { key: 'model', label: '模型', type: 'text', placeholder: 'deepseek-v4-pro' },
     ],
   },
   {
@@ -170,7 +170,7 @@ export function normalizeProviderSettings(input: ProviderSettings): ProviderSett
       break;
     case 'deepseek':
       normalized.baseUrl = normalized.baseUrl || 'https://api.deepseek.com';
-      normalized.model = normalized.model || 'deepseek-v4-flash';
+      normalized.model = normalized.model || 'deepseek-v4-pro';
       normalized.endpoint = 'chat/completions';
       normalized.useStrict = true;
       break;
