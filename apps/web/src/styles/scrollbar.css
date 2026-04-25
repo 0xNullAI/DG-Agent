@@ -54,3 +54,29 @@
 .app-scrollbar-thumb:hover {
   background: var(--scrollbar-thumb-hover);
 }
+
+.select-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scrollbar-thumb) transparent;
+}
+
+.select-scrollbar::-webkit-scrollbar {
+  display: block;
+  width: 10px;
+}
+
+.select-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.select-scrollbar::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: var(--scrollbar-thumb);
+  background-clip: padding-box;
+}
+
+.select-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--scrollbar-thumb-hover);
+  background-clip: padding-box;
+}
