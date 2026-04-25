@@ -1,6 +1,7 @@
 /// <reference types="node" />
 
 import assert from 'node:assert/strict';
+import { it } from 'vitest';
 import type { DeviceClient, LlmClient, PermissionService, SessionStore } from '@dg-agent/core';
 import { createDefaultPolicyRules } from './default-policies.js';
 import {
@@ -370,7 +371,7 @@ function createScriptedMessages(
   return entries.map(([role, content], index) => createMessage(role, content, startedAt + index));
 }
 
-async function main(): Promise<void> {
+it('runtime self-test scenarios', async () => {
   const runtime = new AgentRuntime({
     device: new TestDevice(),
     llm: new TestLlm(),
@@ -740,8 +741,4 @@ async function main(): Promise<void> {
   });
   const legacyBurstSession = await legacyBurstRuntime.getSessionSnapshot('legacy-burst');
   assert.equal(legacyBurstSession.deviceState.strengthA, 35);
-
-  console.log('runtime self-test passed');
-}
-
-void main();
+});

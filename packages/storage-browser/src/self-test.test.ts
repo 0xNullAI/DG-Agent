@@ -1,6 +1,7 @@
 /// <reference types="node" />
 
 import assert from 'node:assert/strict';
+import { it } from 'vitest';
 import { createProviderSettings } from '@dg-agent/providers-catalog';
 import { BrowserAppSettingsStore } from './index.js';
 
@@ -207,11 +208,10 @@ function testLegacySpeechSettingsFallback(): void {
   assert.equal(loaded.speechSynthesisLanguage, 'en-US');
 }
 
-testMemoryOnlyKeys();
-testModelContextStrategyPersistence();
-testLegacyBridgeAccessTokenFallback();
-testAllowAllOverride();
-testLegacyApiKeyFallback();
-testRememberedKeys();
-testLegacySpeechSettingsFallback();
-console.log('storage-browser self-test passed');
+it('memory-only keys are not persisted to localStorage', testMemoryOnlyKeys);
+it('persists model context strategy', testModelContextStrategyPersistence);
+it('falls back to legacy bridge access token', testLegacyBridgeAccessTokenFallback);
+it('honors allow-all override', testAllowAllOverride);
+it('falls back to legacy api key shape', testLegacyApiKeyFallback);
+it('remembers user keys across reloads', testRememberedKeys);
+it('falls back to legacy speech settings', testLegacySpeechSettingsFallback);

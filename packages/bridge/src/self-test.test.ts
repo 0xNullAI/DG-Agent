@@ -1,6 +1,7 @@
 /// <reference types="node" />
 
 import assert from 'node:assert/strict';
+import { it } from 'vitest';
 import type { AgentClient } from '@dg-agent/client';
 import type { PermissionRequest } from '@dg-agent/core';
 import {
@@ -454,14 +455,22 @@ async function testBridgeManagerDoesNotRelayWebRepliesFromBridgeBoundSessions():
   assert.equal(adapter.sentMessages.length, 0);
 }
 
-await testMessageQueue();
-await testFallbackPermission();
-await testScopedRemotePermissionCaching();
-await testBridgeManagerRoundTrip();
-await testBridgeManagerRestartDoesNotDuplicateIncomingMessages();
-await testRegistryIgnoresStaleUnregister();
-await testBridgeManagerUsesResolvedActiveSession();
-await testBridgeManagerCoalescesStartStopStartWhileStarting();
-await testBridgeManagerRecoversPersistedReplyTarget();
-await testBridgeManagerDoesNotRelayWebRepliesFromBridgeBoundSessions();
-console.log('bridge-core self-test passed');
+it('message queue delivers in order', testMessageQueue);
+it('falls back to local permission when bridge offline', testFallbackPermission);
+it('caches scoped remote permission grants', testScopedRemotePermissionCaching);
+it('bridge manager round-trips messages', testBridgeManagerRoundTrip);
+it(
+  'restart does not duplicate incoming messages',
+  testBridgeManagerRestartDoesNotDuplicateIncomingMessages,
+);
+it('registry ignores stale unregister', testRegistryIgnoresStaleUnregister);
+it('uses resolved active session', testBridgeManagerUsesResolvedActiveSession);
+it(
+  'coalesces start/stop/start while starting',
+  testBridgeManagerCoalescesStartStopStartWhileStarting,
+);
+it('recovers persisted reply target', testBridgeManagerRecoversPersistedReplyTarget);
+it(
+  'does not relay web replies from bridge-bound sessions',
+  testBridgeManagerDoesNotRelayWebRepliesFromBridgeBoundSessions,
+);

@@ -13,9 +13,7 @@ The codebase is a **monorepo** using npm workspaces with a contract/adapter arch
 - `npm run dev` — Start local dev server (Vite, apps/web)
 - `npm run build` — Build all workspaces (type-check + vite build)
 - `npm run typecheck` — Type-check all workspaces
-- `npm run test` — Run tests across all workspaces
-- Self-tests: `node packages/<name>/dist/self-test.js` (bridge-core, providers-catalog, runtime, storage-browser)
-
+- `npm run test` — Run vitest across all workspaces (every package uses `vitest run`; no separate self-test entry points)
 - `npm run lint` — ESLint with zero warnings allowed
 - `npm run lint:fix` — Auto-fix lint issues
 - `npm run format` — Format with Prettier
