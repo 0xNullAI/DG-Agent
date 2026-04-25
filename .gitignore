@@ -1,15 +1,12 @@
-
+.claude
+.superpowers
 .npm-cache
 .playwright-browsers
 .playwright-mcp
 .vite
 .tmp
-
 node_modules
 dist
-
 coverage
-
 *.tsbuildinfo
-
 /*.png
