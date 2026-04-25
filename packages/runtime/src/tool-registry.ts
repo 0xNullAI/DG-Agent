@@ -141,7 +141,11 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
           strength: z.coerce.number().int().min(0).max(200),
           waveformId: z.string().min(1).optional(),
           waveform: z.string().min(1).optional(),
-          loop: z.boolean().optional().default(true),
+          loop: z.preprocess((v) => {
+            if (v === 'true') return true;
+            if (v === 'false') return false;
+            return v;
+          }, z.boolean().optional().default(true)),
         })
         .parse(args);
 
@@ -291,7 +295,11 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
           channel: channelSchema,
           waveformId: z.string().min(1).optional(),
           waveform: z.string().min(1).optional(),
-          loop: z.boolean().optional().default(true),
+          loop: z.preprocess((v) => {
+            if (v === 'true') return true;
+            if (v === 'false') return false;
+            return v;
+          }, z.boolean().optional().default(true)),
         })
         .parse(args);
 
