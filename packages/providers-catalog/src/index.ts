@@ -193,7 +193,7 @@ export function normalizeProviderSettings(input: ProviderSettings): ProviderSett
       break;
     case 'free':
       normalized.baseUrl = FREE_TRIAL_PROXY_URL + '/v1';
-      normalized.model = 'deepseek-chat';
+      normalized.model = 'deepseek-v4-flash';
       normalized.endpoint = 'chat/completions';
       normalized.useStrict = false;
       break;
