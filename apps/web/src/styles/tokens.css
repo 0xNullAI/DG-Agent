@@ -21,6 +21,8 @@
   --accent-hover: rgba(88, 200, 242, 0.16);
   --highlight: #3ab5e6;
   --danger: #f0a2b2;
+  --danger-button: #dc2626;
+  --danger-button-hover: #b91c1c;
   --danger-soft: rgba(240, 162, 178, 0.12);
   --danger-surface: #fef2f5;
   --danger-border: #f0c8d2;
@@ -64,6 +66,8 @@
   --accent-hover: rgba(255, 233, 157, 0.18);
   --highlight: #ffb800;
   --danger: #dc2626;
+  --danger-button: #ef4444;
+  --danger-button-hover: #dc2626;
   --danger-soft: rgba(220, 38, 38, 0.14);
   --danger-surface: #1f0a0a;
   --danger-border: #4b1515;
