@@ -17,6 +17,7 @@ export type BrowserVoiceMode = 'browser' | 'dashscope-proxy';
 export interface BrowserVoiceSettings {
   mode: BrowserVoiceMode;
   speaker: string;
+  browserVoiceUri: string;
   apiKey: string;
   proxyUrl: string;
   autoStopEnabled: boolean;
@@ -44,9 +45,10 @@ export interface BrowserAppSettings {
   burstRequiresActiveChannel: boolean;
   safetyStopOnLeave: boolean;
   rememberApiKey: boolean;
-  voiceInputEnabled: boolean;
-  ttsEnabled: boolean;
-  voiceLanguage: string;
+  speechRecognitionEnabled: boolean;
+  speechSynthesisEnabled: boolean;
+  speechRecognitionLanguage: string;
+  speechSynthesisLanguage: string;
   bridge: BridgeSettings;
   promptPresetId: string;
   customPrompt: string;

@@ -605,7 +605,7 @@ class DashscopeProxySpeechSynthesisSession implements SpeechSynthesisSession {
   private async openStream(): Promise<void> {
     if (this.aborted || this.ws) return;
     if (!isDashscopeProxySynthesisSupported()) {
-      throw new Error('当前浏览器不支持 DashScope 代理语音播报');
+      throw new Error('当前浏览器不支持 DashScope 代理语音合成');
     }
 
     const AudioContextCtor = getAudioContextCtor();
@@ -681,7 +681,7 @@ class DashscopeProxySpeechSynthesisSession implements SpeechSynthesisSession {
 
         if (eventName === 'task-failed') {
           const errorMessage =
-            message.payload?.message ?? message.header?.error_message ?? '语音播报失败';
+            message.payload?.message ?? message.header?.error_message ?? '语音合成失败';
           this.rejectAndCleanup(new Error(errorMessage));
         }
       } catch {
@@ -690,7 +690,7 @@ class DashscopeProxySpeechSynthesisSession implements SpeechSynthesisSession {
     };
 
     activeWs.onerror = () => {
-      this.rejectAndCleanup(new Error('语音播报 WebSocket 连接失败'));
+      this.rejectAndCleanup(new Error('语音合成 WebSocket 连接失败'));
     };
 
     activeWs.onclose = () => {

@@ -137,10 +137,10 @@ const SETTINGS_NAV_ITEMS: Array<{
   {
     value: 'voice',
     label: '语音',
-    description: '语音识别和朗读配置',
+    description: '语音识别和语音合成配置',
     icon: Volume2,
     sections: {
-      语音: '配置输入识别、回复朗读和语音后端。',
+      语音: '配置语音识别、语音合成和相关后端。',
     },
   },
   {
@@ -173,7 +173,7 @@ function formatVoiceStateLabel(voiceState: 'idle' | 'listening' | 'speaking'): s
     case 'listening':
       return '录音中';
     case 'speaking':
-      return '朗读中';
+      return '语音合成中';
     case 'idle':
     default:
       return '空闲';
@@ -257,7 +257,7 @@ export function App() {
   const voice = useVoiceController({
     speechRecognition,
     speechSynthesizer,
-    ttsEnabled: settings.ttsEnabled,
+    speechSynthesisEnabled: settings.speechSynthesisEnabled,
     setText,
     setErrorMessage,
     setStatusMessage,
@@ -857,10 +857,10 @@ export function App() {
           {voiceMode && (
             <section className="pointer-events-auto mx-auto w-fit max-w-[calc(100%-1rem)] sm:max-w-[60%] rounded-[12px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] px-4 py-3 text-center shadow-[var(--shadow)]">
               <div className="text-sm font-medium text-[var(--text)]">
-                语音状态：{formatVoiceStateLabel(voiceState)}
+                语音会话状态：{formatVoiceStateLabel(voiceState)}
               </div>
               <div className="mt-1 whitespace-normal break-words text-sm text-[var(--text-soft)]">
-                {voiceTranscript || '正在等待你的语音输入…'}
+                {voiceTranscript || '正在等待语音识别输入…'}
               </div>
             </section>
           )}
@@ -1067,7 +1067,7 @@ export function App() {
             <DialogHeader className="gap-1 pr-10">
               <DialogTitle className="text-base font-semibold">恢复默认设置？</DialogTitle>
               <DialogDescription className="text-[13px] leading-5">
-                这会重置当前模型、提示词、安全、桥接和语音配置。确认后会立即生效。
+                这会重置当前模型、提示词、安全、桥接和语音识别/合成配置。确认后会立即生效。
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="mt-5 gap-2">
@@ -1171,7 +1171,7 @@ export function App() {
                 onToggleVoiceMode={() => void toggleVoiceMode()}
                 onSend={() => void send()}
                 busy={busy}
-                voiceEnabled={settings.voiceInputEnabled}
+                speechRecognitionEnabled={settings.speechRecognitionEnabled}
                 voiceMode={voiceMode}
                 voiceState={voiceState}
                 speechRecognitionSupported={speechCapabilities.recognitionSupported}

@@ -26,6 +26,11 @@ export const settingsSchema = z.object({
   burstRequiresActiveChannel: z.boolean().optional(),
   safetyStopOnLeave: z.boolean().optional(),
   rememberApiKey: z.boolean().optional(),
+  speechRecognitionEnabled: z.boolean().optional(),
+  speechSynthesisEnabled: z.boolean().optional(),
+  speechRecognitionLanguage: z.string().min(2).optional(),
+  speechSynthesisLanguage: z.string().min(2).optional(),
+  speechLanguage: z.string().min(2).optional(),
   voiceInputEnabled: z.boolean().optional(),
   ttsEnabled: z.boolean().optional(),
   voiceLanguage: z.string().min(2).optional(),
@@ -33,6 +38,7 @@ export const settingsSchema = z.object({
     .object({
       mode: z.enum(['browser', 'dashscope-proxy']).optional(),
       speaker: z.string().optional(),
+      browserVoiceUri: z.string().optional(),
       proxyUrl: z.string().optional(),
       autoStopEnabled: z.boolean().optional(),
     })

@@ -17,7 +17,7 @@ import { isSpeechAbortError, isSpeechSynthesisAbortError } from '../utils/app-ru
 export interface UseVoiceControllerOptions {
   speechRecognition: SpeechRecognitionController;
   speechSynthesizer: SpeechSynthesizer;
-  ttsEnabled: boolean;
+  speechSynthesisEnabled: boolean;
   setText: Dispatch<SetStateAction<string>>;
   setErrorMessage: Dispatch<SetStateAction<string | null>>;
   setStatusMessage: Dispatch<SetStateAction<string | null>>;
@@ -27,7 +27,7 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
   const {
     speechRecognition,
     speechSynthesizer,
-    ttsEnabled,
+    speechSynthesisEnabled,
     setText,
     setErrorMessage,
     setStatusMessage,
@@ -40,7 +40,7 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
   const recognitionRequestIdRef = useRef(0);
   const voiceModeRef = useRef(voiceMode);
   const voiceTranscriptRef = useRef(voiceTranscript);
-  const ttsEnabledRef = useRef(ttsEnabled);
+  const speechSynthesisEnabledRef = useRef(speechSynthesisEnabled);
 
   useEffect(() => {
     voiceModeRef.current = voiceMode;
@@ -51,8 +51,8 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
   }, [voiceTranscript]);
 
   useEffect(() => {
-    ttsEnabledRef.current = ttsEnabled;
-  }, [ttsEnabled]);
+    speechSynthesisEnabledRef.current = speechSynthesisEnabled;
+  }, [speechSynthesisEnabled]);
 
   const updateVoiceTranscript = useCallback((transcript: string): void => {
     voiceTranscriptRef.current = transcript;
@@ -98,7 +98,7 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
       }
 
       setText((current) => (current ? `${current}\n${normalized}` : normalized));
-      setStatusMessage('语音内容已填入输入框，请确认后再发送');
+      setStatusMessage('语音识别结果已填入输入框，请确认后再发送');
     },
     [resetVoiceCaptureState, setStatusMessage, setText],
   );
@@ -145,7 +145,7 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
     recognitionRequestIdRef.current += 1;
     speechRecognition.abort();
     resetVoiceCaptureState();
-    setStatusMessage('语音录制已停止');
+    setStatusMessage('语音识别已停止');
   }, [resetVoiceCaptureState, setStatusMessage, speechRecognition]);
 
   const stopAllVoiceActivity = useCallback(
@@ -173,7 +173,7 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
     }
 
     resetVoiceCaptureState();
-    setStatusMessage('语音录制已停止');
+    setStatusMessage('语音识别已停止');
   }, [finishVoiceModeWithTranscript, resetVoiceCaptureState, setStatusMessage, speechRecognition]);
 
   const toggleVoiceMode = useCallback(async (): Promise<void> => {
@@ -189,7 +189,7 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
 
   const handleRuntimeEvent = useCallback(
     (event: RuntimeEvent): void => {
-      if (event.type === 'assistant-message-delta' && ttsEnabledRef.current) {
+      if (event.type === 'assistant-message-delta' && speechSynthesisEnabledRef.current) {
         ensureSpeechSession().pushAccumulatedText(event.content);
         return;
       }
@@ -203,7 +203,7 @@ export function useVoiceController(options: UseVoiceControllerOptions) {
 
       if (event.type !== 'assistant-message-completed') return;
 
-      if (ttsEnabledRef.current && event.message.content.trim()) {
+      if (speechSynthesisEnabledRef.current && event.message.content.trim()) {
         setVoiceState('speaking');
         void finalizeSpeechSession(event.message.content)
           .catch((error) => {

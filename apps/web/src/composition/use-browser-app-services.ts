@@ -66,7 +66,7 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
   const speechRecognition = useMemo(
     () =>
       createSpeechRecognitionController({
-        lang: settings.voiceLanguage,
+        lang: settings.speechRecognitionLanguage,
         mode: settings.voice.mode,
         proxyUrl: settings.voice.proxyUrl,
         apiKey: settings.voice.apiKey,
@@ -77,24 +77,26 @@ export function useBrowserAppServices(options: UseBrowserAppServicesOptions) {
       settings.voice.autoStopEnabled,
       settings.voice.mode,
       settings.voice.proxyUrl,
-      settings.voiceLanguage,
+      settings.speechRecognitionLanguage,
     ],
   );
   const speechSynthesizer = useMemo(
     () =>
       createSpeechSynthesizer({
-        lang: settings.voiceLanguage,
+        lang: settings.speechSynthesisLanguage,
         mode: settings.voice.mode,
         proxyUrl: settings.voice.proxyUrl,
         apiKey: settings.voice.apiKey,
         speaker: settings.voice.speaker,
+        browserVoiceUri: settings.voice.browserVoiceUri,
       }),
     [
       settings.voice.apiKey,
+      settings.voice.browserVoiceUri,
       settings.voice.mode,
       settings.voice.proxyUrl,
       settings.voice.speaker,
-      settings.voiceLanguage,
+      settings.speechSynthesisLanguage,
     ],
   );
   const speechCapabilities = useMemo(

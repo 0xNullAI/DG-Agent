@@ -52,12 +52,12 @@ export function RuntimeStatusPanel({
   ];
 
   const voiceLines = [
-    `语音输入：${settings.voiceInputEnabled ? '开启' : '关闭'}`,
-    `TTS 播报：${settings.ttsEnabled ? '开启' : '关闭'}`,
-    `语音后端：${settings.voice.mode}`,
-    `语音识别：${speechCapabilities.recognitionSupported ? '可用' : '不可用'}`,
-    `语音播报：${speechCapabilities.synthesisSupported ? '可用' : '不可用'}`,
-    `当前语音状态：${voiceMode ? voiceState : '关闭'}`,
+    `语音识别：${settings.speechRecognitionEnabled ? '开启' : '关闭'}`,
+    `语音合成：${settings.speechSynthesisEnabled ? '开启' : '关闭'}`,
+    `语音识别 / 合成后端：${settings.voice.mode}`,
+    `语音识别状态：${speechCapabilities.recognitionSupported ? '可用' : '不可用'}`,
+    `语音合成状态：${speechCapabilities.synthesisSupported ? '可用' : '不可用'}`,
+    `当前语音会话状态：${voiceMode ? voiceState : '关闭'}`,
   ];
 
   const bridgeLines = [
@@ -72,9 +72,7 @@ export function RuntimeStatusPanel({
     <Card>
       <CardHeader className="px-4 pb-3">
         <CardTitle>运行概览</CardTitle>
-        <CardDescription>
-          把设备、模型、语音和桥接分开看，避免所有东西都堆在设备下面
-        </CardDescription>
+        <CardDescription>概览设备、模型、语音和桥接当前的状态和相关信息。</CardDescription>
       </CardHeader>
 
       <CardContent className="px-4 pt-0">
@@ -90,7 +88,7 @@ export function RuntimeStatusPanel({
             <div className="mt-1 text-lg font-semibold">{deviceState.battery ?? 0}%</div>
           </div>
           <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4">
-            <div className="text-sm text-[var(--text-faint)]">语音识别</div>
+            <div className="text-sm text-[var(--text-faint)]">当前语音状态</div>
             <div className="mt-1 text-lg font-semibold">{voiceMode ? voiceState : '关闭'}</div>
           </div>
           <div className="rounded-xl border border-[var(--surface-border)] bg-[var(--bg-strong)] px-5 py-4">

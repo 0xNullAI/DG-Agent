@@ -189,4 +189,26 @@ describe('BrowserAppSettingsStore', () => {
     expect(sessionStorageRef.getItem(API_KEYS_SESSION)).toBeNull();
     expect(sessionStorageRef.getItem(VOICE_API_KEY_SESSION)).toBeNull();
   });
+
+  it('loads legacy shared speech language into the split language fields', () => {
+    const localStorageRef = new MemoryStorage();
+    const sessionStorageRef = new MemoryStorage();
+    localStorageRef.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({
+        version: 1,
+        voiceInputEnabled: true,
+        ttsEnabled: true,
+        voiceLanguage: 'en-US',
+      }),
+    );
+
+    const store = new BrowserAppSettingsStore({ localStorageRef, sessionStorageRef });
+    const loaded = store.load();
+
+    expect(loaded.speechRecognitionEnabled).toBe(true);
+    expect(loaded.speechSynthesisEnabled).toBe(true);
+    expect(loaded.speechRecognitionLanguage).toBe('en-US');
+    expect(loaded.speechSynthesisLanguage).toBe('en-US');
+  });
 });

@@ -186,10 +186,32 @@ function testRememberedKeys(): void {
   assert.equal(sessionStorageRef.getItem(VOICE_API_KEY_SESSION), null);
 }
 
+function testLegacySpeechSettingsFallback(): void {
+  const localStorageRef = new MemoryStorage();
+  const sessionStorageRef = new MemoryStorage();
+  localStorageRef.setItem(
+    SETTINGS_KEY,
+    JSON.stringify({
+      version: 1,
+      voiceInputEnabled: true,
+      ttsEnabled: true,
+      voiceLanguage: 'en-US',
+    }),
+  );
+
+  const store = new BrowserAppSettingsStore({ localStorageRef, sessionStorageRef });
+  const loaded = store.load();
+  assert.equal(loaded.speechRecognitionEnabled, true);
+  assert.equal(loaded.speechSynthesisEnabled, true);
+  assert.equal(loaded.speechRecognitionLanguage, 'en-US');
+  assert.equal(loaded.speechSynthesisLanguage, 'en-US');
+}
+
 testMemoryOnlyKeys();
 testModelContextStrategyPersistence();
 testLegacyBridgeAccessTokenFallback();
 testAllowAllOverride();
 testLegacyApiKeyFallback();
 testRememberedKeys();
+testLegacySpeechSettingsFallback();
 console.log('storage-browser self-test passed');

@@ -69,19 +69,19 @@ export function buildWarnings(
     warnings.push('已启用 Telegram 桥接，但还没有配置允许的用户');
   }
 
-  if (settings.voiceInputEnabled && !speechCapabilities.recognitionSupported) {
+  if (settings.speechRecognitionEnabled && !speechCapabilities.recognitionSupported) {
     warnings.push(
       settings.voice.mode === 'dashscope-proxy'
-        ? '已启用语音输入，但当前浏览器无法使用 DashScope 代理识别链路'
-        : '已启用语音输入，但当前浏览器不支持语音识别',
+        ? '已启用语音识别，但当前浏览器无法使用 DashScope 代理识别链路'
+        : '已启用语音识别，但当前浏览器不支持语音识别',
     );
   }
 
-  if (settings.ttsEnabled && !speechCapabilities.synthesisSupported) {
+  if (settings.speechSynthesisEnabled && !speechCapabilities.synthesisSupported) {
     warnings.push(
       settings.voice.mode === 'dashscope-proxy'
-        ? '已启用 TTS，但当前浏览器无法使用 DashScope 代理播报链路'
-        : '已启用 TTS，但当前浏览器不支持语音播报',
+        ? '已启用语音合成，但当前浏览器无法使用 DashScope 代理合成链路'
+        : '已启用语音合成，但当前浏览器不支持语音合成',
     );
   }
 
@@ -91,7 +91,7 @@ export function buildWarnings(
     !settings.voice.apiKey.trim()
   ) {
     warnings.push(
-      '已设置自定义语音代理地址，但没有填写 DashScope API Key；请确认代理会自行注入鉴权',
+      '已设置自定义语音服务代理地址，但没有填写 DashScope API Key；请确认代理会自行注入鉴权',
     );
   }
 

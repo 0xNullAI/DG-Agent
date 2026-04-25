@@ -33,7 +33,7 @@ interface ChatPanelProps {
   onToggleVoiceMode: () => void;
   onSend: () => void;
   busy: boolean;
-  voiceEnabled: boolean;
+  speechRecognitionEnabled: boolean;
   voiceMode: boolean;
   voiceState: 'idle' | 'listening' | 'ready' | 'sending' | 'speaking';
   speechRecognitionSupported: boolean;
@@ -117,7 +117,7 @@ export function ChatPanel({
   onToggleVoiceMode,
   onSend,
   busy,
-  voiceEnabled,
+  speechRecognitionEnabled,
   voiceMode,
   voiceState: _voiceState,
   speechRecognitionSupported,
@@ -146,7 +146,7 @@ export function ChatPanel({
   const timelineItems = buildRenderableTimeline(messages, traceFeed);
   const [visibleMessageCount, setVisibleMessageCount] = useState(MESSAGE_BATCH_SIZE);
   const renderedMessages = timelineItems.slice(-visibleMessageCount);
-  const voiceModeAvailable = voiceEnabled && speechRecognitionSupported;
+  const voiceModeAvailable = speechRecognitionEnabled && speechRecognitionSupported;
   const [sceneDropdownOpen, setSceneDropdownOpen] = useState(false);
   const sceneDropdownRef = useRef<HTMLDivElement>(null);
   const [leaving, setLeaving] = useState(false);

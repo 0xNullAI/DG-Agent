@@ -33,7 +33,7 @@
 
 - `apps/web`
   - 只负责组合依赖、展示状态、采集输入
-  - 通过 hooks 组织会话、语音、波形等前端流程
+  - 通过 hooks 组织会话、语音识别/合成、波形等前端流程
 - `packages/client`
   - 提供 `AgentClient` 抽象
   - 隔离页面与 runtime / future transport
@@ -136,7 +136,7 @@ apps/
 
 packages/
   api-contracts/           API DTO 与路由契约
-  audio-browser/           浏览器语音输入 / TTS 适配
+  audio-browser/           浏览器语音识别 / 语音合成适配
   bridge-browser/          浏览器侧桥接适配器
   bridge-core/             桥接核心逻辑
   client/                  AgentClient 抽象

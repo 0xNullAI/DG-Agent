@@ -117,9 +117,10 @@ export class BrowserAppSettingsStore {
       burstRequiresActiveChannel: settings.burstRequiresActiveChannel,
       safetyStopOnLeave: settings.safetyStopOnLeave,
       rememberApiKey: settings.rememberApiKey,
-      voiceInputEnabled: settings.voiceInputEnabled,
-      ttsEnabled: settings.ttsEnabled,
-      voiceLanguage: settings.voiceLanguage,
+      speechRecognitionEnabled: settings.speechRecognitionEnabled,
+      speechSynthesisEnabled: settings.speechSynthesisEnabled,
+      speechRecognitionLanguage: settings.speechRecognitionLanguage,
+      speechSynthesisLanguage: settings.speechSynthesisLanguage,
       bridge: settings.bridge,
       promptPresetId: settings.promptPresetId,
       customPrompt: settings.customPrompt,
@@ -146,6 +147,7 @@ export class BrowserAppSettingsStore {
       voice: {
         mode: settings.voice.mode,
         speaker: settings.voice.speaker,
+        browserVoiceUri: settings.voice.browserVoiceUri,
         proxyUrl: settings.voice.proxyUrl,
         autoStopEnabled: settings.voice.autoStopEnabled,
       },
@@ -194,6 +196,12 @@ export class BrowserAppSettingsStore {
       ...persisted,
       deviceMode: persisted.deviceMode === 'fake' ? 'web-bluetooth' : persisted.deviceMode,
       llmMode: persisted.llmMode === 'fake' ? 'provider-http' : persisted.llmMode,
+      speechRecognitionEnabled: persisted.speechRecognitionEnabled ?? persisted.voiceInputEnabled,
+      speechSynthesisEnabled: persisted.speechSynthesisEnabled ?? persisted.ttsEnabled,
+      speechRecognitionLanguage:
+        persisted.speechRecognitionLanguage ?? persisted.speechLanguage ?? persisted.voiceLanguage,
+      speechSynthesisLanguage:
+        persisted.speechSynthesisLanguage ?? persisted.speechLanguage ?? persisted.voiceLanguage,
     };
   }
 

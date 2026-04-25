@@ -9,6 +9,7 @@ import type {
   BrowserSpeechCapabilities,
   BrowserSpeechRecognitionOptions,
   BrowserSpeechSynthesisOptions,
+  BrowserSpeechSynthesisVoiceOption,
   SpeechCapabilityOptions,
   SpeechRecognitionController,
   SpeechRecognitionRequest,
@@ -23,6 +24,7 @@ export {
   type BrowserSpeechCapabilities,
   type BrowserSpeechRecognitionOptions,
   type BrowserSpeechSynthesisOptions,
+  type BrowserSpeechSynthesisVoiceOption,
   type SpeechCapabilityOptions,
   type SpeechRecognitionController,
   type SpeechRecognitionRequest,
@@ -63,6 +65,14 @@ interface BrowserSpeechWindowLike extends Window {
   webkitSpeechRecognition?: new () => SpeechRecognitionLike;
 }
 
+interface SpeechSynthesisVoiceLike {
+  voiceURI: string;
+  name: string;
+  lang: string;
+  default: boolean;
+  localService: boolean;
+}
+
 function getSpeechWindow(): BrowserSpeechWindowLike | undefined {
   return typeof window === 'undefined' ? undefined : (window as BrowserSpeechWindowLike);
 }
@@ -70,6 +80,88 @@ function getSpeechWindow(): BrowserSpeechWindowLike | undefined {
 function getNativeRecognitionCtor(): (new () => SpeechRecognitionLike) | undefined {
   const browserWindow = getSpeechWindow();
   return browserWindow?.SpeechRecognition ?? browserWindow?.webkitSpeechRecognition;
+}
+
+function getNativeSynthesisVoices(): SpeechSynthesisVoiceLike[] {
+  if (typeof speechSynthesis === 'undefined') return [];
+  return speechSynthesis.getVoices() as SpeechSynthesisVoiceLike[];
+}
+
+function toBrowserVoiceOption(voice: SpeechSynthesisVoiceLike): BrowserSpeechSynthesisVoiceOption {
+  return {
+    voiceURI: voice.voiceURI,
+    name: voice.name,
+    lang: voice.lang,
+    default: voice.default,
+    localService: voice.localService,
+  };
+}
+
+function compareBrowserVoiceOptions(
+  left: BrowserSpeechSynthesisVoiceOption,
+  right: BrowserSpeechSynthesisVoiceOption,
+): number {
+  if (left.default !== right.default) return left.default ? -1 : 1;
+  return left.name.localeCompare(right.name);
+}
+
+function matchesSpeechLanguage(voiceLang: string, targetLang?: string): boolean {
+  const normalizedVoiceLang = voiceLang.trim().toLowerCase();
+  const normalizedTargetLang = targetLang?.trim().toLowerCase();
+  if (!normalizedTargetLang) return true;
+  if (normalizedVoiceLang === normalizedTargetLang) return true;
+
+  const voiceBase = normalizedVoiceLang.split('-')[0] ?? normalizedVoiceLang;
+  const targetBase = normalizedTargetLang.split('-')[0] ?? normalizedTargetLang;
+  return Boolean(voiceBase && targetBase && voiceBase === targetBase);
+}
+
+function resolveBrowserSpeechVoice(
+  browserVoiceUri?: string,
+  lang?: string,
+): SpeechSynthesisVoiceLike | undefined {
+  const normalizedVoiceUri = browserVoiceUri?.trim();
+  if (!normalizedVoiceUri) return undefined;
+
+  return getNativeSynthesisVoices().find(
+    (voice) => voice.voiceURI === normalizedVoiceUri && matchesSpeechLanguage(voice.lang, lang),
+  );
+}
+
+export function getBrowserSpeechSynthesisVoices(): BrowserSpeechSynthesisVoiceOption[] {
+  return getNativeSynthesisVoices().map(toBrowserVoiceOption).sort(compareBrowserVoiceOptions);
+}
+
+function formatSpeechSynthesisError(errorCode?: string): string {
+  const normalizedCode = errorCode?.trim().toLowerCase();
+  switch (normalizedCode) {
+    case 'canceled':
+      return '已取消';
+    case 'interrupted':
+      return '已中断';
+    case 'audio-busy':
+      return '音频设备正忙';
+    case 'audio-hardware':
+      return '音频设备不可用';
+    case 'network':
+      return '网络异常';
+    case 'synthesis-unavailable':
+      return '当前浏览器不支持语音合成';
+    case 'synthesis-failed':
+      return '语音合成失败';
+    case 'language-unavailable':
+      return '不支持所选语言';
+    case 'voice-unavailable':
+      return '不支持所选声音';
+    case 'text-too-long':
+      return '内容过长';
+    case 'invalid-argument':
+      return '参数无效';
+    case 'not-allowed':
+      return '浏览器已阻止语音合成';
+    default:
+      return '语音合成失败';
+  }
 }
 
 export function getBrowserSpeechCapabilities(
@@ -179,14 +271,21 @@ export class BrowserSpeechSynthesizer implements SpeechSynthesizer {
 
   speak(text: string): Promise<void> {
     if (typeof speechSynthesis === 'undefined' || typeof SpeechSynthesisUtterance === 'undefined') {
-      return Promise.reject(new Error('当前浏览器不支持语音播报'));
+      return Promise.reject(new Error('当前浏览器不支持语音合成'));
     }
 
     return new Promise<void>((resolve, reject) => {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = this.options.lang ?? 'zh-CN';
+      const selectedVoice = resolveBrowserSpeechVoice(this.options.browserVoiceUri, utterance.lang);
+      if (selectedVoice) {
+        utterance.voice = selectedVoice as SpeechSynthesisVoice;
+      }
       utterance.onend = () => resolve();
-      utterance.onerror = () => reject(new Error('语音播报失败'));
+      utterance.onerror = (event) => {
+        const errorCode = (event as Event & { error?: string }).error?.trim();
+        reject(new Error(formatSpeechSynthesisError(errorCode)));
+      };
       speechSynthesis.cancel();
       speechSynthesis.speak(utterance);
     });
