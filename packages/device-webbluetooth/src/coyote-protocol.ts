@@ -442,27 +442,25 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     this.state.strengthA = strengthA;
     this.state.strengthB = strengthB;
 
-    // Per protocol docs: PWM_B34 (v2WaveBChar, 0x1506) carries A-channel wave data;
-    // PWM_A34 (v2WaveAChar, 0x1505) carries B-channel wave data — names are intentionally reversed.
-    if (this.v2WaveBChar) {
-      const next = this.advanceWave('A');
-      if (next.int[3] >= 101) {
-        await this.v2WaveBChar.writeValueWithoutResponse(this.encodeV2Wave(0, 0, 0));
-      } else {
-        const params = this.waveFrameToV2(next.freq[0] ?? 0, next.int[0] ?? 0);
-        await this.v2WaveBChar.writeValueWithoutResponse(
-          this.encodeV2Wave(params.x, params.y, params.z),
-        );
-      }
-    }
-
     if (this.v2WaveAChar) {
-      const next = this.advanceWave('B');
+      const next = this.advanceWave('A');
       if (next.int[3] >= 101) {
         await this.v2WaveAChar.writeValueWithoutResponse(this.encodeV2Wave(0, 0, 0));
       } else {
         const params = this.waveFrameToV2(next.freq[0] ?? 0, next.int[0] ?? 0);
         await this.v2WaveAChar.writeValueWithoutResponse(
+          this.encodeV2Wave(params.x, params.y, params.z),
+        );
+      }
+    }
+
+    if (this.v2WaveBChar) {
+      const next = this.advanceWave('B');
+      if (next.int[3] >= 101) {
+        await this.v2WaveBChar.writeValueWithoutResponse(this.encodeV2Wave(0, 0, 0));
+      } else {
+        const params = this.waveFrameToV2(next.freq[0] ?? 0, next.int[0] ?? 0);
+        await this.v2WaveBChar.writeValueWithoutResponse(
           this.encodeV2Wave(params.x, params.y, params.z),
         );
       }
