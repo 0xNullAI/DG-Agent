@@ -64,7 +64,6 @@ export const settingsSchema = z.object({
     })
     .optional(),
   promptPresetId: z.string().min(1).optional(),
-  customPrompt: z.string().optional(),
   savedPromptPresets: z
     .array(
       z.object({

@@ -51,7 +51,6 @@ export interface BrowserAppSettings {
   speechSynthesisLanguage: string;
   bridge: BridgeSettings;
   promptPresetId: string;
-  customPrompt: string;
   savedPromptPresets: SavedPromptPreset[];
   provider: ProviderSettings;
   providerConfigs: ProviderConfigMap;

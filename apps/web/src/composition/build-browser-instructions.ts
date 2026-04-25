@@ -4,7 +4,6 @@ import type { TurnToolCallSummary } from '@dg-agent/runtime';
 
 export interface BrowserInstructionSettings {
   promptPresetId: string;
-  customPrompt: string;
   savedPromptPresets: SavedPromptPreset[];
   maxStrengthA: number;
   maxStrengthB: number;
@@ -25,10 +24,8 @@ export function createBuildBrowserInstructions(settings: BrowserInstructionSetti
       settings.promptPresetId,
       settings.savedPromptPresets,
     );
-    const customPrompt = settings.customPrompt.trim();
     const blocks = [
       selectedPreset?.prompt ?? '你是一个友好的助手。',
-      customPrompt ? `[额外要求]\n${customPrompt}` : '',
       buildDeviceBlock(),
       buildDeviceStatusBlock(input.session, settings),
       buildTurnToolUsageBlock(input.turnToolCalls),

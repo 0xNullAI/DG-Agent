@@ -120,7 +120,6 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
     ),
     buildInstructions: createBuildBrowserInstructions({
       promptPresetId: settings.promptPresetId,
-      customPrompt: settings.customPrompt,
       savedPromptPresets: settings.savedPromptPresets,
       maxStrengthA: settings.maxStrengthA,
       maxStrengthB: settings.maxStrengthB,

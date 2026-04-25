@@ -77,7 +77,6 @@ export function defaultBrowserAppSettings(env: BrowserAppEnvLike = {}): BrowserA
     speechSynthesisLanguage: 'zh-CN',
     bridge: DEFAULT_BRIDGE_SETTINGS,
     promptPresetId: 'gentle',
-    customPrompt: '',
     savedPromptPresets: [],
     provider,
     providerConfigs: {

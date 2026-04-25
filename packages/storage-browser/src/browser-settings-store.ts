@@ -123,7 +123,6 @@ export class BrowserAppSettingsStore {
       speechSynthesisLanguage: settings.speechSynthesisLanguage,
       bridge: settings.bridge,
       promptPresetId: settings.promptPresetId,
-      customPrompt: settings.customPrompt,
       savedPromptPresets: settings.savedPromptPresets,
       provider: {
         providerId: settings.provider.providerId,

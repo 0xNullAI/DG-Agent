@@ -100,11 +100,11 @@ const SETTINGS_NAV_ITEMS: Array<{
   {
     value: 'preset',
     label: '场景',
-    description: '提示词预设和自定义场景',
+    description: '内置场景和自定义场景',
     icon: LayoutTemplate,
     sections: {
       内置场景: '选择内置互动风格。',
-      自定义场景: '管理你自己的提示词预设。',
+      自定义场景: '管理你自己的场景预设。',
     },
   },
   {
@@ -205,13 +205,7 @@ export function App() {
     settings,
     setSettings,
     settingsStore,
-    savePromptDialogOpen,
-    setSavePromptDialogOpen,
-    promptPresetName,
-    setPromptPresetName,
     resetSettings: resetSettingsManager,
-    saveCurrentPromptPreset: _saveCurrentPromptPresetManager,
-    confirmSaveCurrentPromptPreset: confirmSaveCurrentPromptPresetManager,
     deleteSavedPromptPreset: deleteSavedPromptPresetManager,
     flushSettingsDraft,
     clearSessionPermissionOverride,
@@ -633,10 +627,6 @@ export function App() {
     });
   }
 
-  function confirmSaveCurrentPromptPreset(): void {
-    confirmSaveCurrentPromptPresetManager(setErrorMessage, setStatusMessage);
-  }
-
   function deleteSavedPromptPreset(presetId: string): void {
     deleteSavedPromptPresetManager(presetId, setStatusMessage);
   }
@@ -946,57 +936,6 @@ export function App() {
           />
         )}
 
-        {/* Save prompt dialog */}
-        <Dialog
-          open={savePromptDialogOpen}
-          onOpenChange={(open) => {
-            setSavePromptDialogOpen(open);
-            if (!open) {
-              setPromptPresetName('');
-            }
-          }}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>保存提示词</DialogTitle>
-              <DialogDescription>
-                给当前这组自定义提示词起一个名称，之后可以在设置里快速复用
-              </DialogDescription>
-            </DialogHeader>
-
-            <form
-              className="mt-4 flex flex-col gap-4"
-              onSubmit={(event) => {
-                event.preventDefault();
-                confirmSaveCurrentPromptPreset();
-              }}
-            >
-              <label className="flex flex-col gap-2">
-                <span className="text-sm text-[var(--text-soft)]">提示词名称</span>
-                <Input
-                  value={promptPresetName}
-                  onChange={(event) => setPromptPresetName(event.target.value)}
-                  placeholder="例如：温柔引导 / 强刺激谨慎版"
-                  autoFocus
-                />
-              </label>
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setSavePromptDialogOpen(false)}
-                >
-                  取消
-                </Button>
-                <Button type="submit" disabled={!promptPresetName.trim()}>
-                  保存
-                </Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-
         {/* Waveform editor dialog */}
         <Dialog
           open={Boolean(editingWaveform)}
@@ -1068,7 +1007,7 @@ export function App() {
             <DialogHeader className="gap-1 pr-10">
               <DialogTitle className="text-base font-semibold">恢复默认设置？</DialogTitle>
               <DialogDescription className="text-[13px] leading-5">
-                这会重置当前模型、提示词、安全、桥接和语音识别/合成配置。确认后会立即生效。
+                这会重置当前模型、场景、安全、桥接和语音识别/合成配置。确认后会立即生效。
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="mt-5 gap-2">
