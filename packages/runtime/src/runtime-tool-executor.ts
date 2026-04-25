@@ -265,12 +265,14 @@ export class RuntimeToolExecutor {
       return this.denyToolCall(session, toolCall, decision.reason, context);
     }
 
+    let clampReason: string | undefined;
     if (decision.type === 'clamp') {
       this.options.logger.warn('Command clamped by policy.', {
         sessionId: session.id,
         toolName: toolCall.name,
         reason: decision.reason,
       });
+      clampReason = decision.reason;
       command = decision.command;
     }
 
@@ -292,6 +294,8 @@ export class RuntimeToolExecutor {
         command,
         state: result.state,
         notes: result.notes ?? [],
+        ...(clampReason ? { _clamped: clampReason } : {}),
+        _hint: '以上 state 是设备当前真实状态，请根据此状态回复用户。',
       });
       await this.options.traceStore.append(session.id, {
         kind: 'tool-result',

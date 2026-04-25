@@ -87,20 +87,20 @@ export function consumeTurnQuota(
   toolArgs?: Record<string, unknown>,
 ): string | null {
   if (turnState.totalToolCalls >= config.maxToolCallsPerTurn) {
-    return `本轮工具调用次数上限为 ${config.maxToolCallsPerTurn}，请直接回复用户，不要继续调用工具`;
+    return `本回合工具调用总数已达上限 (${config.maxToolCallsPerTurn})，本次调用被拒绝。请直接回复用户，不要再发起工具调用。`;
   }
 
   if (
     toolName === 'adjust_strength' &&
     turnState.adjustStrengthCalls >= config.maxAdjustStrengthCallsPerTurn
   ) {
-    return `本轮 adjust_strength 最多只能调用 ${config.maxAdjustStrengthCallsPerTurn} 次`;
+    return `adjust_strength 本回合调用已达上限 (${config.maxAdjustStrengthCallsPerTurn} 次)，本次调用被拒绝。本回合已经调整过足够多次了，请直接回复用户，不要再继续爬升强度。`;
   }
 
   if (toolName === 'burst') {
     const channel = normalizeBurstChannel(toolArgs);
     if (turnState.burstCallsByChannel[channel] >= config.maxBurstCallsPerTurn) {
-      return `本轮 burst 通道 ${channel} 最多只能调用 ${config.maxBurstCallsPerTurn} 次`;
+      return `burst 通道 ${channel} 本回合调用已达上限 (${config.maxBurstCallsPerTurn} 次)，本次调用被拒绝。同一通道的短时突增每回合只允许一次，请直接回复用户，不要重复触发。`;
     }
   }
 

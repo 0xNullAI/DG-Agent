@@ -61,7 +61,11 @@ export class BrowserPermissionService implements PermissionService {
       : this.confirmFn(formatPermissionMessage(input));
     const decision = normalizeDecision(result);
     if (decision.type === 'deny') {
-      return { type: 'deny', reason: '用户在浏览器确认框中拒绝了这次工具调用' };
+      return {
+        type: 'deny',
+        reason:
+          '用户拒绝了本次工具调用。请不要立即用相同参数重试，也不要在回复里声称已经执行。改为询问用户是否愿意改用别的方式，或直接给出文字建议。',
+      };
     }
 
     if (this.options.mode === 'timed') {
