@@ -82,7 +82,7 @@ describe('CoyoteProtocolAdapter', () => {
 
     expect(writes).toHaveLength(2);
     expect(writes[0]?.slice(0, 4)).toEqual([0xb0, 0x00, 42, 0]);
-    expect(writes[1]?.slice(0, 4)).toEqual([0xb0, 0x33, 0, 0]);
+    expect(writes[1]?.slice(0, 4)).toEqual([0xb0, 0x0f, 0, 0]);
     expect(protocol.getState().strengthA).toBe(0);
     expect(protocol.getState().strengthB).toBe(0);
   });

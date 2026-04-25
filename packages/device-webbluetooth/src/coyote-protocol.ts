@@ -536,7 +536,7 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
   private buildImmediateAbsoluteStrengthPacket(strengthA: number, strengthB: number): Uint8Array {
     const buffer = new Uint8Array(20);
     buffer[0] = 0xb0;
-    buffer[1] = 0x33;
+    buffer[1] = 0x0f;
     buffer[2] = this.clamp(strengthA, 0, 200);
     buffer[3] = this.clamp(strengthB, 0, 200);
     buffer.set(INACTIVE_FREQ, 4);
