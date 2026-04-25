@@ -69,6 +69,7 @@ export const settingsSchema = z.object({
       z.object({
         id: z.string().min(1),
         name: z.string().min(1),
+        icon: z.string().optional(),
         prompt: z.string().min(1),
       }),
     )

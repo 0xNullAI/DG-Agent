@@ -9,6 +9,7 @@ export interface PromptPreset {
 export interface SavedPromptPreset {
   id: string;
   name: string;
+  icon?: string;
   prompt: string;
 }
 

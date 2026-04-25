@@ -1,4 +1,4 @@
-import { useState, type Dispatch, type SetStateAction } from 'react';
+import { useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { BUILTIN_PROMPT_PRESETS, type SavedPromptPreset } from '@dg-agent/prompts-basic';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
@@ -6,6 +6,41 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+
+const DEFAULT_CUSTOM_ICON = '📝';
+
+const EMOJI_OPTIONS = [
+  '📝',
+  '💕',
+  '💖',
+  '❤️',
+  '🔥',
+  '✨',
+  '👑',
+  '🌙',
+  '⭐',
+  '🎭',
+  '💎',
+  '⚡',
+  '🌊',
+  '🎵',
+  '🌸',
+  '🦋',
+  '🌹',
+  '🍓',
+  '🎯',
+  '💫',
+  '🌟',
+  '🐱',
+  '🐰',
+  '🎀',
+  '🧸',
+  '🌺',
+  '🍷',
+  '🗝️',
+  '🌈',
+  '🎪',
+];
 
 interface PresetSelectorProps {
   settingsDraft: BrowserAppSettings;
@@ -20,9 +55,11 @@ export function PresetSelector({
 }: PresetSelectorProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
+  const [editIcon, setEditIcon] = useState(DEFAULT_CUSTOM_ICON);
   const [editPrompt, setEditPrompt] = useState('');
   const [creating, setCreating] = useState(false);
   const [newName, setNewName] = useState('');
+  const [newIcon, setNewIcon] = useState(DEFAULT_CUSTOM_ICON);
   const [newPrompt, setNewPrompt] = useState('');
 
   function selectPreset(id: string) {
@@ -32,6 +69,7 @@ export function PresetSelector({
   function startEdit(preset: SavedPromptPreset) {
     setEditingId(preset.id);
     setEditName(preset.name);
+    setEditIcon(preset.icon ?? DEFAULT_CUSTOM_ICON);
     setEditPrompt(preset.prompt);
     setCreating(false);
   }
@@ -41,7 +79,9 @@ export function PresetSelector({
     setSettingsDraft((current) => ({
       ...current,
       savedPromptPresets: current.savedPromptPresets.map((p) =>
-        p.id === editingId ? { ...p, name: editName.trim(), prompt: editPrompt } : p,
+        p.id === editingId
+          ? { ...p, name: editName.trim(), icon: editIcon, prompt: editPrompt }
+          : p,
       ),
     }));
     setEditingId(null);
@@ -51,6 +91,7 @@ export function PresetSelector({
     setCreating(true);
     setEditingId(null);
     setNewName('');
+    setNewIcon(DEFAULT_CUSTOM_ICON);
     setNewPrompt('');
   }
 
@@ -62,11 +103,12 @@ export function PresetSelector({
       promptPresetId: id,
       savedPromptPresets: [
         ...current.savedPromptPresets,
-        { id, name: newName.trim(), prompt: newPrompt },
+        { id, name: newName.trim(), icon: newIcon, prompt: newPrompt },
       ],
     }));
     setCreating(false);
     setNewName('');
+    setNewIcon(DEFAULT_CUSTOM_ICON);
     setNewPrompt('');
   }
 
@@ -104,12 +146,15 @@ export function PresetSelector({
                   key={preset.id}
                   className="space-y-2 rounded-[12px] border border-[var(--accent)] bg-[var(--bg-strong)] p-3"
                 >
-                  <Input
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="场景名称"
-                    className="text-sm"
-                  />
+                  <div className="flex gap-2">
+                    <EmojiPicker value={editIcon} onChange={setEditIcon} />
+                    <Input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="场景名称"
+                      className="text-sm"
+                    />
+                  </div>
                   <Textarea
                     value={editPrompt}
                     onChange={(e) => setEditPrompt(e.target.value)}
@@ -146,7 +191,7 @@ export function PresetSelector({
                   className="flex min-w-0 flex-1 items-center gap-3 text-left"
                   onClick={() => selectPreset(preset.id)}
                 >
-                  <span className="shrink-0 text-lg">📝</span>
+                  <span className="shrink-0 text-lg">{preset.icon ?? DEFAULT_CUSTOM_ICON}</span>
                   <div className="min-w-0 flex-1">
                     <div className={cn('text-sm', active && 'font-medium')}>{preset.name}</div>
                   </div>
@@ -179,13 +224,16 @@ export function PresetSelector({
 
         {creating ? (
           <div className="space-y-2 rounded-[12px] border border-[var(--surface-border)] bg-[var(--bg-strong)] p-3">
-            <Input
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="场景名称"
-              className="text-sm"
-              autoFocus
-            />
+            <div className="flex gap-2">
+              <EmojiPicker value={newIcon} onChange={setNewIcon} />
+              <Input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="场景名称"
+                className="text-sm"
+                autoFocus
+              />
+            </div>
             <Textarea
               value={newPrompt}
               onChange={(e) => setNewPrompt(e.target.value)}
@@ -209,10 +257,48 @@ export function PresetSelector({
             onClick={startCreate}
           >
             <Plus className="h-4 w-4" />
-            <span className="text-sm -mt-[0.1em]">新建场景</span>
+            <span className="-mt-[0.1em] text-sm">新建场景</span>
           </Button>
         )}
       </section>
+    </div>
+  );
+}
+
+function EmojiPicker({ value, onChange }: { value: string; onChange: (emoji: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <div ref={containerRef} className="relative shrink-0">
+      <button
+        type="button"
+        className="flex h-9 w-9 items-center justify-center rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg)] text-lg transition-colors hover:border-[var(--accent)]"
+        onClick={() => setOpen((prev) => !prev)}
+        aria-label="选择图标"
+      >
+        {value}
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-50 mt-1 grid w-[188px] grid-cols-6 gap-0.5 rounded-[12px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] p-1.5 shadow-[var(--shadow-panel)]">
+          {EMOJI_OPTIONS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              className={cn(
+                'flex h-7 w-7 items-center justify-center rounded-[6px] text-base transition-colors hover:bg-[var(--bg-soft)]',
+                value === emoji && 'bg-[var(--accent-soft)]',
+              )}
+              onClick={() => {
+                onChange(emoji);
+                setOpen(false);
+              }}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
