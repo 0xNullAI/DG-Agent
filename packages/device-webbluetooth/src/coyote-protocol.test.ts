@@ -117,4 +117,59 @@ describe('CoyoteProtocolAdapter', () => {
     expect(protocol.getState().strengthA).toBe(0);
     expect(protocol.getState().strengthB).toBe(0);
   });
+
+  it('packs four sequential V3 wave frames into each B0 packet and pads the tail with silence', async () => {
+    const writes: number[][] = [];
+    const characteristic = new MockCharacteristic(async (value) => {
+      writes.push(Array.from(value));
+    });
+
+    const protocol = new CoyoteProtocolAdapter();
+    const protocolInternal = protocol as unknown as {
+      state: ReturnType<typeof createEmptyDeviceState>;
+      deviceVersion: 2 | 3;
+      writeChar: MockCharacteristic | null;
+      waveState: {
+        A: { frames: [number, number][] | null; index: number; loop: boolean; active: boolean };
+        B: { frames: [number, number][] | null; index: number; loop: boolean; active: boolean };
+      };
+      onTick(): Promise<void>;
+    };
+
+    protocolInternal.state = {
+      ...createEmptyDeviceState(),
+      connected: true,
+    };
+    protocolInternal.deviceVersion = 3;
+    protocolInternal.writeChar = characteristic;
+    protocolInternal.waveState.A = {
+      frames: [
+        [11, 10],
+        [22, 20],
+        [33, 30],
+        [44, 40],
+        [55, 50],
+      ],
+      index: 0,
+      loop: false,
+      active: true,
+    };
+    protocolInternal.waveState.B = {
+      frames: null,
+      index: 0,
+      loop: false,
+      active: false,
+    };
+
+    await protocolInternal.onTick();
+    await protocolInternal.onTick();
+
+    expect(writes).toHaveLength(2);
+    expect(writes[0]?.slice(4, 8)).toEqual([11, 22, 33, 44]);
+    expect(writes[0]?.slice(8, 12)).toEqual([10, 20, 30, 40]);
+    expect(writes[1]?.slice(4, 8)).toEqual([55, 10, 10, 10]);
+    expect(writes[1]?.slice(8, 12)).toEqual([50, 0, 0, 0]);
+    expect(writes[1]?.slice(12, 20)).toEqual([0, 0, 0, 0, 0, 0, 0, 101]);
+    expect(protocol.getState().waveActiveA).toBe(false);
+  });
 });

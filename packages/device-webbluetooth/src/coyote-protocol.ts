@@ -37,9 +37,11 @@ interface ChannelWaveState {
 }
 
 type Quad = [number, number, number, number];
+type WaveStep = { freq: number; int: number };
 
 const INACTIVE_FREQ: Quad = [0, 0, 0, 0];
 const INACTIVE_INT: Quad = [0, 0, 0, 101];
+const SILENT_WAVE_STEP: WaveStep = { freq: 10, int: 0 };
 
 export interface WebBluetoothAvailability {
   supported: boolean;
@@ -443,11 +445,11 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     this.state.strengthB = strengthB;
 
     if (this.v2WaveAChar) {
-      const next = this.advanceWave('A');
-      if (next.int[3] >= 101) {
+      const next = this.advanceWaveStep('A');
+      if (!next) {
         await this.v2WaveAChar.writeValueWithoutResponse(this.encodeV2Wave(0, 0, 0));
       } else {
-        const params = this.waveFrameToV2(next.freq[0] ?? 0, next.int[0] ?? 0);
+        const params = this.waveFrameToV2(next.freq, next.int);
         await this.v2WaveAChar.writeValueWithoutResponse(
           this.encodeV2Wave(params.x, params.y, params.z),
         );
@@ -455,11 +457,11 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     }
 
     if (this.v2WaveBChar) {
-      const next = this.advanceWave('B');
-      if (next.int[3] >= 101) {
+      const next = this.advanceWaveStep('B');
+      if (!next) {
         await this.v2WaveBChar.writeValueWithoutResponse(this.encodeV2Wave(0, 0, 0));
       } else {
-        const params = this.waveFrameToV2(next.freq[0] ?? 0, next.int[0] ?? 0);
+        const params = this.waveFrameToV2(next.freq, next.int);
         await this.v2WaveBChar.writeValueWithoutResponse(
           this.encodeV2Wave(params.x, params.y, params.z),
         );
@@ -467,10 +469,10 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     }
   }
 
-  private advanceWave(channel: Channel): { freq: Quad; int: Quad } {
+  private advanceWaveStep(channel: Channel): WaveStep | null {
     const current = this.waveState[channel];
     if (!current.active || !current.frames || current.frames.length === 0) {
-      return { freq: [...INACTIVE_FREQ] as Quad, int: [...INACTIVE_INT] as Quad };
+      return null;
     }
 
     const length = current.frames.length;
@@ -479,14 +481,14 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
         current.index = 0;
       } else {
         current.active = false;
-        return { freq: [...INACTIVE_FREQ] as Quad, int: [...INACTIVE_INT] as Quad };
+        return null;
       }
     }
 
     const frame = current.frames[current.index];
     if (!frame) {
       current.active = false;
-      return { freq: [...INACTIVE_FREQ] as Quad, int: [...INACTIVE_INT] as Quad };
+      return null;
     }
 
     current.index += 1;
@@ -495,11 +497,32 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     }
 
     const [rawFreq, rawInt] = frame;
-    const frequency = this.clamp(rawFreq, 10, 240);
+    const frequency = this.clamp(rawFreq, SILENT_WAVE_STEP.freq, 240);
     const intensity = this.clamp(rawInt, 0, 100);
+    return { freq: frequency, int: intensity };
+  }
+
+  private advanceWavePacket(channel: Channel): { freq: Quad; int: Quad } {
+    const first = this.advanceWaveStep(channel);
+    if (!first) {
+      return { freq: [...INACTIVE_FREQ] as Quad, int: [...INACTIVE_INT] as Quad };
+    }
+
+    const freq = [first.freq, SILENT_WAVE_STEP.freq, SILENT_WAVE_STEP.freq, SILENT_WAVE_STEP.freq];
+    const int = [first.int, SILENT_WAVE_STEP.int, SILENT_WAVE_STEP.int, SILENT_WAVE_STEP.int];
+
+    for (let index = 1; index < 4; index++) {
+      const next = this.advanceWaveStep(channel);
+      if (!next) {
+        break;
+      }
+      freq[index] = next.freq;
+      int[index] = next.int;
+    }
+
     return {
-      freq: [frequency, frequency, frequency, frequency],
-      int: [intensity, intensity, intensity, intensity],
+      freq: freq as Quad,
+      int: int as Quad,
     };
   }
 
@@ -522,8 +545,8 @@ export class CoyoteProtocolAdapter implements WebBluetoothProtocolAdapter {
     buffer[2] = this.clamp(strengthA, 0, 200);
     buffer[3] = this.clamp(strengthB, 0, 200);
 
-    const channelA = this.advanceWave('A');
-    const channelB = this.advanceWave('B');
+    const channelA = this.advanceWavePacket('A');
+    const channelB = this.advanceWavePacket('B');
 
     buffer.set(channelA.freq, 4);
     buffer.set(channelA.int, 8);
