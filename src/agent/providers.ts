@@ -28,7 +28,7 @@ export const PROVIDERS: ProviderDef[] = [
   {
     id: 'deepseek',
     name: 'DeepSeek',
-    hint: 'DeepSeek 官方 Chat Completions API。默认使用 deepseek-reasoner 模型。',
+    hint: '⚠️ 当前版本不兼容 DeepSeek V4 思考模式，使用后会出现 400 错误。建议切换至 Dev 版本（支持完整修复）。',
     fields: [
       { key: 'apiKey', label: 'API Key', type: 'password', placeholder: 'sk-...' },
       { key: 'model', label: '模型', type: 'text', placeholder: 'deepseek-reasoner' },
