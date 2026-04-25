@@ -243,6 +243,7 @@ export function App() {
     client,
     modes,
     bridgeManager,
+    serviceInitWarnings,
     resetPermissionGrants,
   } = useBrowserAppServices({
     resolveBridgeSessionId,
@@ -295,7 +296,7 @@ export function App() {
 
   const busy = pendingSend || replyBusy;
   const deviceState = liveDeviceState ?? createEmptyDeviceState();
-  const warnings = buildWarnings(settings, modes, speechCapabilities);
+  const warnings = [...buildWarnings(settings, modes, speechCapabilities), ...serviceInitWarnings];
   const traceFeed = buildTraceFeed(sessionTrace);
 
   const { visibleErrorItems, visibleWarnings, visibleEventToasts, hasVisibleToasts } =

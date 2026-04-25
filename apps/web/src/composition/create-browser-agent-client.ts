@@ -29,6 +29,29 @@ class UnavailableLlmClient implements LlmClient {
   }
 }
 
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+function formatProviderConfigError(error: unknown, providerId: string): string {
+  const providerLabel = `当前服务提供方“${providerId}”`;
+
+  if (error instanceof Error && /baseUrl/i.test(error.message)) {
+    return `${providerLabel}配置无效：接口地址不是有效的 URL`;
+  }
+
+  if (error instanceof Error) {
+    return `${providerLabel}配置无效：${error.message}`;
+  }
+
+  return `${providerLabel}配置无效，请在设置里检查模型参数`;
+}
+
 export interface CreateBrowserAgentClientOptions {
   settings: BrowserAppSettings;
   device: DeviceClient;
@@ -43,20 +66,32 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
   const config = settings;
   const provider = resolveProviderRuntimeSettings(config.provider);
 
-  const llm =
-    provider.browserSupported && provider.apiKey
-      ? new OpenAiHttpLlmClient({
-          apiKey: provider.apiKey,
-          baseUrl: provider.baseUrl,
-          model: provider.model,
-          endpoint: provider.endpoint,
-          useStrict: provider.useStrict,
-        })
-      : new UnavailableLlmClient(
-          provider.browserSupported
-            ? '当前模型服务还没有配置完成，请先在设置里选择服务提供方并补全凭证'
-            : `当前服务提供方“${config.provider.providerId}”不支持浏览器直连，请改用可在浏览器运行的服务`,
-        );
+  let llm: LlmClient;
+  if (!provider.browserSupported) {
+    llm = new UnavailableLlmClient(
+      `当前服务提供方“${config.provider.providerId}”不支持浏览器直连，请改用可在浏览器运行的服务`,
+    );
+  } else if (!provider.apiKey) {
+    llm = new UnavailableLlmClient(
+      '当前模型服务还没有配置完成，请先在设置里选择服务提供方并补全凭证',
+    );
+  } else if (!isValidHttpUrl(provider.baseUrl)) {
+    llm = new UnavailableLlmClient(
+      `当前服务提供方“${config.provider.providerId}”配置无效：接口地址不是有效的 URL`,
+    );
+  } else {
+    try {
+      llm = new OpenAiHttpLlmClient({
+        apiKey: provider.apiKey,
+        baseUrl: provider.baseUrl,
+        model: provider.model,
+        endpoint: provider.endpoint,
+        useStrict: provider.useStrict,
+      });
+    } catch (error) {
+      llm = new UnavailableLlmClient(formatProviderConfigError(error, config.provider.providerId));
+    }
+  }
 
   return createEmbeddedAgentClient({
     device: options.device,

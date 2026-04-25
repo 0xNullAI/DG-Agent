@@ -3,6 +3,15 @@ import { isProviderUsableInBrowser, providerRequiresUserApiKey } from '@dg-agent
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import type { describeBrowserModes } from '../composition/create-browser-agent-client.js';
 
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 export function buildWarnings(
   settings: BrowserAppSettings,
   modes: ReturnType<typeof describeBrowserModes>,
@@ -24,6 +33,15 @@ export function buildWarnings(
 
   if (settings.llmMode === 'provider-http' && !isProviderUsableInBrowser(settings.provider)) {
     warnings.push(`当前服务提供方「${settings.provider.providerId}」不支持浏览器直连`);
+  }
+
+  if (
+    settings.llmMode === 'provider-http' &&
+    isProviderUsableInBrowser(settings.provider) &&
+    settings.provider.apiKey.trim() &&
+    !isValidHttpUrl(settings.provider.baseUrl)
+  ) {
+    warnings.push('当前模型接口地址无效，请在设置里检查接口地址');
   }
 
   if (
