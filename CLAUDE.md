@@ -26,43 +26,54 @@ The codebase is a **monorepo** using npm workspaces with a contract/adapter arch
 ### Monorepo Structure
 
 ```
-apps/web/          — React 18 SPA (shadcn/ui + Tailwind CSS v4)
+apps/web/          — React 18 SPA (pure UI shell: components, hooks, browser-only services)
 packages/
-  core/            — Shared types (DeviceState, SessionSnapshot, etc.)
-  contracts/       — Contract interfaces (DeviceClient, LlmClient, PermissionService, etc.)
-  api-contracts/   — REST route definitions and request/response types
-  client/          — AgentClient abstraction (embedded or HTTP)
-  runtime/         — Agent loop, policy engine, tool executor, turn state
-  device-webbluetooth/ — Web Bluetooth adapter for Coyote v2/v3
-  providers-catalog/   — Provider registry (free proxy, Qwen, DeepSeek, etc.)
+  core/                  — Shared types AND contract interfaces
+                           (DeviceState, SessionSnapshot, DeviceClient, LlmClient, ...)
+  runtime/               — Agent loop, policy engine, tool executor, turn state, prompt presets
+  client/                — AgentClient abstraction (embedded / HTTP) + REST route definitions
+  agent-browser/         — Browser-side agent composition layer (no React deps);
+                           exports createBrowserServices() factory
+  device-webbluetooth/   — Web Bluetooth adapter for Coyote v2/v3
   providers-openai-http/ — OpenAI-compatible HTTP/SSE transport
-  bridge-core/     — Bridge manager, message queue, permission service
-  bridge-browser/  — QQ (OneBot/NapCat) and Telegram adapters
-  permissions-basic/   — Basic permission gate
-  permissions-browser/ — Browser permission gate with timed grants
-  prompts-basic/   — System prompt builder
-  audio-browser/   — DashScope ASR/TTS proxy
-  safety-browser/  — Visibility/leave safety guard
-  storage-browser/ — IndexedDB session store + localStorage settings
-  theme-browser/   — Theme application (dark/light/auto)
-  update-browser/  — Version update checker
-  waveforms-basic/ — Built-in waveform definitions
-  waveforms-browser/ — Waveform library with import/export
-  testkit/         — Fake device, LLM, permission for testing
-aliyun-fc/         — Aliyun FC serverless free proxy (CommonJS, separate)
+  providers-catalog/     — Provider registry (free proxy, Qwen, DeepSeek, etc.)
+  bridge/                — Bridge manager, message queue, permission service,
+                           QQ (OneBot/NapCat) and Telegram adapters
+  permissions/           — Permission services: BasicPermissionService (auto-allow)
+                           and BrowserPermissionService (timed grants + UI prompt)
+  waveforms/             — Built-in waveform definitions and BrowserWaveformLibrary
+                           (IndexedDB store, import/export)
+  storage-browser/       — IndexedDB session store + localStorage settings
+  audio-browser/         — DashScope ASR/TTS, browser SpeechRecognition/Synthesis
+  testkit/               — Fake device, LLM, permission for testing
+aliyun-fc/               — Aliyun FC serverless free proxy (CommonJS, separate)
 ```
 
 ### Core Data Flow
 
 ```
-Web UI → AgentClient(embedded) → Runtime → DeviceClient / LlmClient / PermissionService
+apps/web (React UI)
+  → @dg-agent/agent-browser (createBrowserServices factory)
+    → AgentClient (embedded) → Runtime
+      → DeviceClient / LlmClient / PermissionService
 ```
 
 The runtime's `runTurn()` loops: build instructions → call LLM → if tool calls, execute them (with permission gate + per-turn caps) → loop until text-only reply.
 
 ### Key Patterns
 
-- **Contract/Adapter**: `@dg-agent/contracts` defines interfaces, implementations in `*-browser` / `*-basic` packages.
+- **UI / Agent separation**: `apps/web` is a pure React shell. All browser-side
+  agent composition (LLM client, device, bridge, speech, permissions, etc.)
+  lives in `@dg-agent/agent-browser`'s `createBrowserServices()` factory,
+  which is plain TS with no React dependency. `apps/web` only adds React
+  lifecycle wrapping (useMemo) and UI-only services (theme, safety guard,
+  update checker in `apps/web/src/services/`).
+- **Contract/Adapter**: `@dg-agent/core` defines interfaces, concrete
+  implementations live in adapter packages (`device-webbluetooth`,
+  `providers-openai-http`, `permissions`, `waveforms`, etc.). For future
+  Node.js builds, add new adapters (`device-*-node`, `storage-node`,
+  `bridge-node`) and an `agent-node` composition package alongside the
+  existing browser-side ones — `core`/`runtime`/`client` are reusable as-is.
 - **Per-channel burst quota**: Burst calls are tracked per channel (A/B), not globally.
 - **Policy engine**: Hard-coded safety caps the LLM cannot bypass (max iterations, strength limits, cold-start clamp).
 - **Model context strategy**: `last-user-turn` / `last-five-user-turns` / `full-history`.
@@ -72,7 +83,7 @@ The runtime's `runTurn()` loops: build instructions → call LLM → if tool cal
 - Branch model: develop on `dev` or feature branches, PRs to `dev`. `main` is for releases only.
 - UI strings and error messages are in Chinese (Simplified).
 - The `aliyun-fc/` directory is a standalone CommonJS serverless function — not part of the TypeScript monorepo.
-- All packages use `"type": "module"` with TypeScript project references.
+- All packages use `"type": "module"` with the `Bundler` module resolution mode.
 - Use `import type` for type-only imports.
 - Unused vars must use `_` prefix pattern.
 

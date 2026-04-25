@@ -21,33 +21,45 @@
 
 如果用"层 + 职责"来描述当前仓库：
 
-- `apps/web`：组合层
-- `packages/client`：调用抽象层
-- `packages/runtime`：行为与安全核心
-- `packages/device-*`：设备适配层
-- `packages/providers-*`：模型适配层
+- `apps/web`：纯 React UI 壳（组件、hooks、UI-only services）
+- `packages/agent-browser`：浏览器端 Agent 组装层（无 React 依赖）
+- `packages/client`：调用抽象层（embedded / HTTP）
+- `packages/runtime`：行为与安全核心（包含 prompt 预设）
+- `packages/device-webbluetooth`：浏览器蓝牙设备适配
+- `packages/providers-openai-http`、`packages/providers-catalog`：模型适配层
+- `packages/bridge`：桥接核心 + QQ/Telegram 适配器
 - `packages/storage-browser`：浏览器状态持久化
-- `packages/bridge-*`：桥接平台接入与桥接核心
+- `packages/permissions`、`packages/waveforms`：权限/波形（含 basic + browser 两种实现）
 
 ### 主要分层
 
 - `apps/web`
-  - 只负责组合依赖、展示状态、采集输入
-  - 通过 hooks 组织会话、语音识别/合成、波形等前端流程
+  - 只负责渲染、用户输入、UI 状态管理、订阅 runtime 事件
+  - `apps/web/src/services/` 承载 UI-only 浏览器工具：theme、safety-guard、update-checker
+  - `apps/web/src/composition/use-browser-app-services.ts` 是薄壳 React Hook，
+    用 `useMemo` 包装 `agent-browser` 的工厂函数
+- `packages/agent-browser`
+  - 浏览器端 Agent 组装层，纯 TS，无 React 依赖
+  - 导出 `createBrowserServices()` 工厂：返回 client、device、bridgeManager、
+    waveformLibrary、speech\*、modes、resetPermissionGrants 等
+  - 同时导出 `createBrowserAgentClient()`、`createBuildBrowserInstructions()`
 - `packages/client`
-  - 提供 `AgentClient` 抽象
+  - 提供 `AgentClient` 抽象（embedded / HTTP）+ REST 路由定义（原 api-contracts）
   - 隔离页面与 runtime / future transport
 - `packages/runtime`
   - 负责会话编排、tool loop、策略执行、设备命令调度、运行时事件、session trace
-  - 当前已拆为 `agent-runtime`、`runtime-tool-executor`、`runtime-turn-state`、`runtime-errors`、`session-trace`
+  - 当前已拆为 `agent-runtime`、`runtime-tool-executor`、`runtime-turn-state`、
+    `runtime-errors`、`session-trace`、`prompts/`
 - `packages/storage-browser`
   - 负责浏览器设置、会话存储与独立 trace 存储
   - 当前已拆为 settings store、session store、session trace store
-- `packages/bridge-core`
-  - 负责桥接平台抽象、消息队列、远程权限、桥接管理器
-  - 当前已拆为 types / queue / permission / manager / utils
-- `packages/device-*` / `packages/providers-*`
+- `packages/bridge`
+  - 负责桥接平台抽象、消息队列、远程权限、桥接管理器、QQ/Telegram 适配器
+  - 当前已拆为 types / queue / permission / manager / utils / adapters
+- `packages/device-webbluetooth` / `packages/providers-*`
   - 分别承载平台设备适配与模型提供方适配
+- `packages/permissions` / `packages/waveforms`
+  - 各自包含 basic（Node 兼容默认实现）+ browser（带浏览器副作用的实现）
 
 ### 当前未交付，但保留边界
 
@@ -106,14 +118,17 @@
 
 主依赖方向：
 
-`apps/web -> packages/client -> packages/runtime -> packages/contracts -> packages/core`
+`apps/web -> packages/agent-browser -> packages/client -> packages/runtime -> packages/core`
+
+横向依赖（agent-browser 同层）：device-webbluetooth、providers-\*、bridge、permissions、waveforms、audio-browser、storage-browser
 
 禁止：
 
-- `runtime -> web`
+- `runtime -> web` / `runtime -> agent-browser`
 - `runtime -> react`
-- `core -> browser API`
+- `core -> browser API`（IndexedDB / window / document 等）
 - `web -> 直接操作设备协议`
+- `agent-browser -> react`（保持纯 TS，可在 Node 测试环境直接跑）
 
 ### 页面层职责
 
@@ -132,31 +147,29 @@
 
 ```text
 apps/
-  web/                     当前主产品
+  web/                     当前主产品（纯 React UI 壳）
+    src/services/          UI-only 浏览器工具：theme / safety-guard / update-checker
+    src/composition/       useBrowserAppServices 薄壳 hook
+    src/__tests__/         apps/web 维度的 vitest 测试
 
 packages/
-  api-contracts/           API DTO 与路由契约
+  agent-browser/           浏览器端 Agent 组装层（无 React 依赖）
+                           导出 createBrowserServices 工厂、
+                           createBrowserAgentClient、createBuildBrowserInstructions
   audio-browser/           浏览器语音识别 / 语音合成适配
-  bridge-browser/          浏览器侧桥接适配器
-  bridge-core/             桥接核心逻辑
-  client/                  AgentClient 抽象
-  contracts/               接口契约
-  core/                    领域模型与共享类型
+  bridge/                  桥接核心 + QQ/Telegram 适配器（合并自 bridge-core + bridge-browser）
+  client/                  AgentClient 抽象（embedded / HTTP）+ REST 路由契约
+  core/                    领域模型 + 共享类型 + 接口契约（合并自 contracts）
   device-webbluetooth/     浏览器蓝牙设备适配
-  permissions-basic/       基础权限策略适配
-  permissions-browser/     浏览器权限适配
-  prompts-basic/           基础提示词预设
+  permissions/             基础 + 浏览器权限服务（合并自 permissions-basic + permissions-browser）
   providers-catalog/       Provider 元数据与归一化
   providers-openai-http/   OpenAI / 兼容 HTTP Provider 适配
-  runtime/                 核心运行时
-  safety-browser/          浏览器安全守卫
+  runtime/                 核心运行时（含 prompt 预设，合并自 prompts-basic）
   storage-browser/         浏览器设置 / 会话存储
   testkit/                 Fake adapters / fixtures
-  theme-browser/           主题适配
-  update-browser/          浏览器更新检查
-  waveforms-basic/         内置波形库
-  waveforms-browser/       浏览器波形导入 / 存储
+  waveforms/               内置波形库 + 浏览器波形 IndexedDB 存储
+                           （合并自 waveforms-basic + waveforms-browser）
 
-aliyun-fc/                 阿里云 FC 免费代理函数
+aliyun-fc/                 阿里云 FC 免费代理函数（独立 CommonJS）
 docs/                      文档
 ```
