@@ -23,7 +23,7 @@ function run(): void {
 
   const runtime = resolveProviderRuntimeSettings(createProviderSettings('free'));
   assert.equal(runtime.apiKey, 'free');
-  assert.equal(runtime.model, 'deepseek-chat');
+  assert.equal(runtime.model, 'deepseek-v4-flash');
   assert.equal(runtime.baseUrl, FREE_TRIAL_PROXY_URL + '/v1');
   assert.equal(runtime.endpoint, 'chat/completions');
   assert.equal(runtime.useStrict, false);

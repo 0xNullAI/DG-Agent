@@ -85,6 +85,7 @@ export class OpenAiHttpLlmClient implements LlmClient {
       body: JSON.stringify({
         model: this.config.model,
         temperature: this.config.temperature,
+        thinking: isDeepSeekModel(this.config) ? { type: 'disabled' } : undefined,
         messages: toChatMessages(
           input.conversation ?? toConversationItems(input.session),
           input.instructions,
@@ -493,10 +494,14 @@ function normalizeOptionalContent(content: string | null | undefined): string | 
   return content ?? undefined;
 }
 
-function shouldIncludeReasoningContent(config: z.infer<typeof configSchema>): boolean {
+function isDeepSeekModel(config: z.infer<typeof configSchema>): boolean {
   const normalizedModel = config.model.trim().toLowerCase();
   const normalizedBaseUrl = config.baseUrl.trim().toLowerCase();
   return normalizedModel.includes('deepseek') || normalizedBaseUrl.includes('deepseek');
+}
+
+function shouldIncludeReasoningContent(config: z.infer<typeof configSchema>): boolean {
+  return isDeepSeekModel(config);
 }
 
 function serializeToolCallArgs(args: Record<string, unknown>): string {
