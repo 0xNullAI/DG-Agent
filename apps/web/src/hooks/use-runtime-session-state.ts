@@ -22,7 +22,8 @@ export function shouldClearStreamingForEvent(event: RuntimeEvent): boolean {
   return (
     event.type === 'session-updated' ||
     event.type === 'assistant-message-completed' ||
-    event.type === 'assistant-message-aborted'
+    event.type === 'assistant-message-aborted' ||
+    event.type === 'device-command-executed'
   );
 }
 
@@ -31,7 +32,8 @@ export function shouldRefreshSessionForEvent(event: RuntimeEvent): boolean {
     event.type === 'user-message-accepted' ||
     event.type === 'session-updated' ||
     event.type === 'assistant-message-completed' ||
-    event.type === 'assistant-message-aborted'
+    event.type === 'assistant-message-aborted' ||
+    event.type === 'device-command-executed'
   );
 }
 
