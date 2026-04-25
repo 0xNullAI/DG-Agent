@@ -9,7 +9,7 @@ import { BrowserSafetyGuard } from '@dg-agent/safety-browser';
 import { applyTheme, subscribeThemeChanges } from '@dg-agent/theme-browser';
 import type { UpdateCheckerStatus } from '@dg-agent/update-browser';
 import { X } from 'lucide-react';
-import { BUILTIN_PROMPT_PRESETS } from '@dg-agent/prompts-basic';
+import { BUILTIN_PROMPT_PRESETS } from '@dg-agent/runtime';
 import { ChatPanel } from './components/ChatPanel.js';
 import { PermissionModal } from './components/PermissionModal.js';
 import { SafetyNoticeModal } from './components/SafetyNoticeModal.js';

@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { DeviceState, SessionSnapshot } from '@dg-agent/core';
-import type { PromptPreset, SavedPromptPreset } from '@dg-agent/prompts-basic';
+import type { PromptPreset, SavedPromptPreset } from '@dg-agent/runtime';
 import {
   ArrowUp,
   AudioLines,

@@ -3,7 +3,7 @@ import {
   BUILTIN_PROMPT_PRESETS,
   getBuiltinPromptPresetById,
   getAnyPromptPresetById,
-} from './index.js';
+} from '@dg-agent/runtime';
 
 describe('BUILTIN_PROMPT_PRESETS', () => {
   it('is a non-empty array', () => {

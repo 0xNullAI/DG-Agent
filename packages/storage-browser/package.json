@@ -16,8 +16,8 @@
     "@dg-agent/bridge": "0.1.0",
     "@dg-agent/core": "0.1.0",
     "@dg-agent/permissions": "0.1.0",
-    "@dg-agent/prompts-basic": "0.1.0",
     "@dg-agent/providers-catalog": "0.1.0",
+    "@dg-agent/runtime": "0.1.0",
     "idb-keyval": "^6.2.1",
     "zod": "^3.23.8"
   },

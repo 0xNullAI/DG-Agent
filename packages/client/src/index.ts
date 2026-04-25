@@ -5,7 +5,9 @@ import {
   type SendMessageRequest,
   type SessionResponse,
   type SessionsResponse,
-} from '@dg-agent/api-contracts';
+} from './api-routes.js';
+
+export * from './api-routes.js';
 import type { RuntimeEvent, RuntimeTraceEntry, SessionSnapshot } from '@dg-agent/core';
 import {
   AgentRuntime,

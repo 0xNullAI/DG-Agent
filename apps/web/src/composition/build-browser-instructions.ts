@@ -1,5 +1,5 @@
 import type { ActionContext, SessionSnapshot } from '@dg-agent/core';
-import { getAnyPromptPresetById, type SavedPromptPreset } from '@dg-agent/prompts-basic';
+import { getAnyPromptPresetById, type SavedPromptPreset } from '@dg-agent/runtime';
 import type { TurnToolCallSummary } from '@dg-agent/runtime';
 
 export interface BrowserInstructionSettings {

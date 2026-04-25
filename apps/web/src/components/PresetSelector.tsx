@@ -1,5 +1,5 @@
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react';
-import { BUILTIN_PROMPT_PRESETS, type SavedPromptPreset } from '@dg-agent/prompts-basic';
+import { BUILTIN_PROMPT_PRESETS, type SavedPromptPreset } from '@dg-agent/runtime';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { Check, Pencil, Plus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';

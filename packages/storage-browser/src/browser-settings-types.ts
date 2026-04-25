@@ -1,7 +1,7 @@
 import type { BridgeSettings } from '@dg-agent/bridge';
 import type { ModelContextStrategy } from '@dg-agent/core';
 import type { BrowserPermissionMode } from '@dg-agent/permissions';
-import type { SavedPromptPreset } from '@dg-agent/prompts-basic';
+import type { SavedPromptPreset } from '@dg-agent/runtime';
 import type { ProviderId, ProviderSettings } from '@dg-agent/providers-catalog';
 import type { ThemeMode } from '@dg-agent/theme-browser';
 
