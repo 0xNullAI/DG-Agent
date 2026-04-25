@@ -238,6 +238,8 @@ export type RuntimeEvent =
       iteration: number;
       assistantMessage: string;
       toolCalls: ToolCall[];
+      rawRequest?: unknown;
+      rawResponse?: unknown;
     };
 
 export function createEmptyDeviceState(): DeviceState {

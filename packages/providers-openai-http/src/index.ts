@@ -98,6 +98,7 @@ export class OpenAiHttpLlmClient implements LlmClient {
       parallel_tool_calls: input.tools.length > 0 ? true : undefined,
       stream: streaming || undefined,
     };
+    input.onRawRequest?.(requestBody);
     const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
       method: 'POST',
       signal: input.abortSignal,
@@ -113,10 +114,20 @@ export class OpenAiHttpLlmClient implements LlmClient {
     }
 
     if (streaming && input.onTextDelta) {
-      return parseChatCompletionsStream(response, input.onTextDelta);
+      const result = await parseChatCompletionsStream(response, input.onTextDelta);
+      return {
+        ...result,
+        rawResponse: {
+          streamed: true,
+          assistantMessage: result.assistantMessage,
+          reasoningContent: result.reasoningContent,
+          toolCalls: result.toolCalls,
+        },
+      };
     }
 
-    const parsed = chatResponseSchema.parse(await response.json());
+    const rawJson: unknown = await response.json();
+    const parsed = chatResponseSchema.parse(rawJson);
     const firstChoice = parsed.choices[0];
     if (!firstChoice) {
       throw new Error('Chat Completions 响应中没有可用结果');
@@ -127,11 +138,27 @@ export class OpenAiHttpLlmClient implements LlmClient {
       assistantMessage: normalizeContent(message.content),
       reasoningContent: normalizeOptionalContent(message.reasoning_content),
       toolCalls: (message.tool_calls ?? []).map(toToolCall),
+      rawResponse: rawJson,
     };
   }
 
   private async runResponsesTurn(input: LlmTurnInput): Promise<LlmTurnResult> {
     const streaming = typeof input.onTextDelta === 'function';
+    const requestBody = {
+      model: this.config.model,
+      input: toResponsesInput(input.conversation ?? toConversationItems(input.session)),
+      instructions: input.instructions,
+      store: false,
+      temperature: this.config.temperature,
+      tools:
+        input.tools.length > 0
+          ? input.tools.map((tool) => toResponsesTool(tool, this.config.useStrict))
+          : undefined,
+      tool_choice: input.tools.length > 0 ? 'auto' : undefined,
+      parallel_tool_calls: input.tools.length > 0 ? true : undefined,
+      stream: streaming || undefined,
+    };
+    input.onRawRequest?.(requestBody);
     const response = await fetch(`${this.config.baseUrl}/responses`, {
       method: 'POST',
       signal: input.abortSignal,
@@ -139,20 +166,7 @@ export class OpenAiHttpLlmClient implements LlmClient {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.config.apiKey}`,
       },
-      body: JSON.stringify({
-        model: this.config.model,
-        input: toResponsesInput(input.conversation ?? toConversationItems(input.session)),
-        instructions: input.instructions,
-        store: false,
-        temperature: this.config.temperature,
-        tools:
-          input.tools.length > 0
-            ? input.tools.map((tool) => toResponsesTool(tool, this.config.useStrict))
-            : undefined,
-        tool_choice: input.tools.length > 0 ? 'auto' : undefined,
-        parallel_tool_calls: input.tools.length > 0 ? true : undefined,
-        stream: streaming || undefined,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {
@@ -160,10 +174,19 @@ export class OpenAiHttpLlmClient implements LlmClient {
     }
 
     if (streaming && input.onTextDelta) {
-      return parseResponsesStream(response, input.onTextDelta);
+      const result = await parseResponsesStream(response, input.onTextDelta);
+      return {
+        ...result,
+        rawResponse: {
+          streamed: true,
+          assistantMessage: result.assistantMessage,
+          toolCalls: result.toolCalls,
+        },
+      };
     }
 
-    const parsed = responsesSchema.parse(await response.json());
+    const rawJson: unknown = await response.json();
+    const parsed = responsesSchema.parse(rawJson);
     const toolCalls: ToolCall[] = [];
 
     for (const item of parsed.output) {
@@ -179,6 +202,7 @@ export class OpenAiHttpLlmClient implements LlmClient {
     return {
       assistantMessage: parsed.output_text,
       toolCalls,
+      rawResponse: rawJson,
     };
   }
 }

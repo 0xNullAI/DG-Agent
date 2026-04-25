@@ -1,4 +1,4 @@
-import type { RuntimeTraceEntry } from '@dg-agent/core';
+import type { RuntimeEvent, RuntimeTraceEntry } from '@dg-agent/core';
 
 export interface TraceFeedItem {
   id: string;
@@ -20,6 +20,56 @@ export function buildTraceFeed(entries: RuntimeTraceEntry[]): TraceFeedItem[] {
       ];
     })
     .sort((left, right) => left.createdAt - right.createdAt);
+}
+
+let liveTraceCounter = 0;
+
+export function buildLiveTraceFeedItemFromEvent(event: RuntimeEvent): TraceFeedItem | null {
+  const id = `live-${++liveTraceCounter}`;
+  const createdAt = Date.now();
+
+  switch (event.type) {
+    case 'device-command-executed': {
+      const cmd = event.command;
+      let text: string;
+      if (cmd.type === 'start') {
+        text = `已执行：启动 ${cmd.channel}，强度 ${cmd.strength}，波形 ${cmd.waveform.id}`;
+      } else if (cmd.type === 'stop') {
+        text = cmd.channel ? `已执行：停止 ${cmd.channel}` : '已执行：停止全部通道';
+      } else if (cmd.type === 'adjustStrength') {
+        text = `已执行：调整 ${cmd.channel} 强度 ${cmd.delta > 0 ? '+' : ''}${cmd.delta}`;
+      } else if (cmd.type === 'changeWave') {
+        text = `已执行：切换 ${cmd.channel} 波形为 ${cmd.waveform.id}`;
+      } else if (cmd.type === 'burst') {
+        text = `已执行：${cmd.channel} 通道脉冲到 ${cmd.strength}，持续 ${cmd.durationMs}ms`;
+      } else if (cmd.type === 'emergencyStop') {
+        text = '已执行：紧急停止';
+      } else {
+        return null;
+      }
+      return { id, text, createdAt };
+    }
+    case 'tool-call-denied':
+      return {
+        id,
+        text: `未执行：${event.toolCall.displayName ?? event.toolCall.name}。原因：${event.reason}`,
+        createdAt,
+      };
+    case 'tool-call-failed':
+      return {
+        id,
+        text: `执行失败：${event.toolCall.displayName ?? event.toolCall.name}。原因：${event.error}`,
+        createdAt,
+      };
+    case 'timer-scheduled':
+      return {
+        id,
+        text: `已设定定时：${event.label}（${Math.round((event.dueAt - Date.now()) / 1000)}s 后）`,
+        createdAt,
+      };
+    default:
+      return null;
+  }
 }
 
 function formatTraceEntry(entry: RuntimeTraceEntry): string | null {

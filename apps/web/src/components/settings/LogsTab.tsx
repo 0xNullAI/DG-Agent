@@ -49,53 +49,44 @@ export function BridgeLogsTab({ bridgeLogs, bridgeStatus, settings }: LogsTabPro
   );
 }
 
+interface LlmLogEntry {
+  label: string;
+  requestJson?: unknown;
+  responseJson?: unknown;
+  detail?: string;
+}
+
+function formatLlmTurnStartEntry(event: RuntimeEvent & { type: 'llm-turn-start' }): LlmLogEntry {
+  const tools = event.toolNames.length > 0 ? event.toolNames.join(', ') : '（无）';
+  return {
+    label: `▶ LLM 请求  iteration=${event.iteration}  消息×${event.messages.length}  工具：${tools}`,
+    requestJson: {
+      iteration: event.iteration,
+      instructions: event.instructions,
+      messages: event.messages,
+      toolNames: event.toolNames,
+    },
+  };
+}
+
+function formatLlmTurnCompleteEntry(
+  event: RuntimeEvent & { type: 'llm-turn-complete' },
+): LlmLogEntry {
+  return {
+    label: `◀ LLM 响应  iteration=${event.iteration}  工具×${event.toolCalls.length}`,
+    requestJson: event.rawRequest,
+    responseJson: event.rawResponse ?? {
+      assistantMessage: event.assistantMessage,
+      toolCalls: event.toolCalls,
+    },
+  };
+}
+
 function formatEvent(event: RuntimeEvent): { label: string; detail?: string } | null {
   switch (event.type) {
-    case 'llm-turn-start': {
-      const msgSummary = event.messages
-        .map((m) => {
-          const role =
-            m.role === 'tool_call' ? '→tool' : m.role === 'tool_result' ? '←tool' : m.role;
-          const preview = m.content.slice(0, 60).replace(/\n/g, ' ');
-          const suffix = m.content.length > 60 ? '…' : '';
-          return `  [${role}] ${preview}${suffix}`;
-        })
-        .join('\n');
-      const tools = event.toolNames.length > 0 ? event.toolNames.join(', ') : '（无）';
-      const detail = [
-        `迭代 ${event.iteration}，${event.messages.length} 条消息，工具：${tools}`,
-        '',
-        '── 系统指令 ──',
-        event.instructions.slice(0, 300) + (event.instructions.length > 300 ? '\n…（已截断）' : ''),
-        '',
-        '── 消息 ──',
-        msgSummary,
-      ].join('\n');
-      return { label: `▶ LLM 请求  iteration=${event.iteration}`, detail };
-    }
-
-    case 'llm-turn-complete': {
-      const toolSummary =
-        event.toolCalls.length > 0
-          ? event.toolCalls.map((tc) => `  ${tc.name}(${JSON.stringify(tc.args)})`).join('\n')
-          : '  （无工具调用）';
-      const textPreview = event.assistantMessage
-        ? event.assistantMessage.slice(0, 200) + (event.assistantMessage.length > 200 ? '…' : '')
-        : '（无文本）';
-      const detail = [
-        `迭代 ${event.iteration}，工具调用 ${event.toolCalls.length} 个`,
-        '',
-        '── 文本回复 ──',
-        textPreview,
-        '',
-        '── 工具调用 ──',
-        toolSummary,
-      ].join('\n');
-      return {
-        label: `◀ LLM 响应  iteration=${event.iteration}  工具×${event.toolCalls.length}`,
-        detail,
-      };
-    }
+    case 'llm-turn-start':
+    case 'llm-turn-complete':
+      return null; // handled separately as LlmLogEntry
 
     case 'device-command-executed': {
       const cmd = event.command;
@@ -149,6 +140,19 @@ function formatEvent(event: RuntimeEvent): { label: string; detail?: string } | 
   }
 }
 
+function CollapsibleJson({ label, data }: { label: string; data: unknown }) {
+  return (
+    <details className="mt-1">
+      <summary className="cursor-pointer select-none text-[11px] text-[var(--text-faint)] hover:text-[var(--text-soft)]">
+        {label}
+      </summary>
+      <pre className="mt-1 max-h-[300px] overflow-auto whitespace-pre-wrap break-all rounded-[6px] bg-[var(--bg-soft)] p-2 text-[10px] leading-relaxed text-[var(--text-soft)]">
+        {JSON.stringify(data, null, 2)}
+      </pre>
+    </details>
+  );
+}
+
 export function ModelToolLogsTab({ events }: LogsTabProps) {
   const visibleEvents = [...events].reverse().filter((e) => {
     return (
@@ -168,6 +172,31 @@ export function ModelToolLogsTab({ events }: LogsTabProps) {
             <div className="settings-log-empty">还没有模型或工具调用日志</div>
           )}
           {visibleEvents.map((event, index) => {
+            if (event.type === 'llm-turn-start') {
+              const entry = formatLlmTurnStartEntry(event);
+              return (
+                <div key={index} className="settings-log-entry flex flex-col gap-0.5">
+                  <span className="font-medium">{entry.label}</span>
+                  {entry.requestJson !== undefined && (
+                    <CollapsibleJson label="请求内容" data={entry.requestJson} />
+                  )}
+                </div>
+              );
+            }
+            if (event.type === 'llm-turn-complete') {
+              const entry = formatLlmTurnCompleteEntry(event);
+              return (
+                <div key={index} className="settings-log-entry flex flex-col gap-0.5">
+                  <span className="font-medium">{entry.label}</span>
+                  {entry.requestJson !== undefined && (
+                    <CollapsibleJson label="HTTP 请求" data={entry.requestJson} />
+                  )}
+                  {entry.responseJson !== undefined && (
+                    <CollapsibleJson label="HTTP 响应" data={entry.responseJson} />
+                  )}
+                </div>
+              );
+            }
             const formatted = formatEvent(event);
             if (!formatted) return null;
             return (

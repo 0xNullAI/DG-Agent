@@ -7,6 +7,7 @@ import {
   type RuntimeTraceEntry,
   type SessionSnapshot,
 } from '@dg-agent/core';
+import { buildLiveTraceFeedItemFromEvent, type TraceFeedItem } from '../utils/trace-feed.js';
 
 export interface UseRuntimeSessionStateOptions {
   client: AgentClient;
@@ -32,8 +33,7 @@ export function shouldRefreshSessionForEvent(event: RuntimeEvent): boolean {
     event.type === 'user-message-accepted' ||
     event.type === 'session-updated' ||
     event.type === 'assistant-message-completed' ||
-    event.type === 'assistant-message-aborted' ||
-    event.type === 'device-command-executed'
+    event.type === 'assistant-message-aborted'
   );
 }
 
@@ -47,6 +47,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
   const [liveDeviceState, setLiveDeviceState] = useState<DeviceState>(createEmptyDeviceState());
   const [replyBusy, setReplyBusy] = useState(false);
   const [streamingAssistantText, setStreamingAssistantText] = useState('');
+  const [liveTraceItems, setLiveTraceItems] = useState<TraceFeedItem[]>([]);
   const onRuntimeEventRef = useRef(onRuntimeEvent);
   const syncRequestIdRef = useRef(0);
 
@@ -142,6 +143,14 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
 
       if (isActiveSessionEvent && event.type === 'user-message-accepted') {
         setReplyBusy(true);
+        setLiveTraceItems([]);
+      }
+
+      if (isActiveSessionEvent) {
+        const liveItem = buildLiveTraceFeedItemFromEvent(event);
+        if (liveItem) {
+          setLiveTraceItems((current) => [...current, liveItem]);
+        }
       }
 
       if (event.type === 'assistant-message-delta') {
@@ -185,7 +194,12 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
 
       if (shouldRefreshSessionForEvent(event)) {
         if (isActiveSessionEvent) {
-          void syncCurrentSession();
+          const isTurnEnd =
+            event.type === 'assistant-message-completed' ||
+            event.type === 'assistant-message-aborted';
+          void syncCurrentSession().then(() => {
+            if (isTurnEnd) setLiveTraceItems([]);
+          });
         } else {
           void refreshSavedSessions();
         }
@@ -213,6 +227,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
     streamingAssistantText,
     clearStreamingAssistantText,
     setStreamingAssistantText,
+    liveTraceItems,
     refreshCurrentSession,
   };
 }

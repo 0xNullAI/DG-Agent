@@ -140,13 +140,18 @@ export function App() {
     replyBusy,
     streamingAssistantText,
     clearStreamingAssistantText,
+    liveTraceItems,
     refreshCurrentSession,
   } = runtimeSession;
 
   const busy = pendingSend || replyBusy;
   const deviceState = liveDeviceState ?? createEmptyDeviceState();
   const warnings = [...buildWarnings(settings, modes, speechCapabilities), ...serviceInitWarnings];
-  const traceFeed = buildTraceFeed(sessionTrace);
+  const historicalTraceFeed = buildTraceFeed(sessionTrace);
+  const traceFeed =
+    liveTraceItems.length > 0
+      ? [...historicalTraceFeed, ...liveTraceItems].sort((a, b) => a.createdAt - b.createdAt)
+      : historicalTraceFeed;
 
   const { visibleErrorItems, visibleWarnings, visibleEventToasts } = useToastManager({
     errorMessage,

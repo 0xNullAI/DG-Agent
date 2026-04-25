@@ -344,10 +344,10 @@ export class AgentRuntime {
   ): Promise<{ finalAssistantText: string }> {
     const turnState = createTurnState();
 
-    session.deviceState = await this.options.device.getState();
-
     for (let iteration = 0; iteration < this.toolCallConfig.maxToolIterations; iteration++) {
       throwIfAborted(abortSignal);
+
+      session.deviceState = await this.options.device.getState();
 
       const instructions =
         this.options.buildInstructions?.({
@@ -365,29 +365,33 @@ export class AgentRuntime {
         this.options.modelContextStrategy,
       );
 
+      const messageSummary = conversation.map((item) => ({
+        role:
+          item.kind === 'message'
+            ? item.role
+            : item.kind === 'function_call'
+              ? 'tool_call'
+              : 'tool_result',
+        content:
+          item.kind === 'message'
+            ? item.content
+            : item.kind === 'function_call'
+              ? `${item.name}(${item.argumentsJson})`
+              : item.output,
+        toolCallCount:
+          item.kind === 'message' && item.toolCalls?.length ? item.toolCalls.length : undefined,
+      }));
+
       this.events.emit({
         type: 'llm-turn-start',
         sessionId: session.id,
         iteration,
         instructions,
-        messages: conversation.map((item) => ({
-          role:
-            item.kind === 'message'
-              ? item.role
-              : item.kind === 'function_call'
-                ? 'tool_call'
-                : 'tool_result',
-          content:
-            item.kind === 'message'
-              ? item.content
-              : item.kind === 'function_call'
-                ? `${item.name}(${item.argumentsJson})`
-                : item.output,
-          toolCallCount:
-            item.kind === 'message' && item.toolCalls?.length ? item.toolCalls.length : undefined,
-        })),
+        messages: messageSummary,
         toolNames: tools.map((t) => t.name),
       });
+
+      let capturedRequest: unknown;
 
       const llmResult = await this.options.llm.runTurn({
         session,
@@ -404,6 +408,9 @@ export class AgentRuntime {
             content,
           });
         },
+        onRawRequest: (body) => {
+          capturedRequest = body;
+        },
       });
 
       this.events.emit({
@@ -412,6 +419,8 @@ export class AgentRuntime {
         iteration,
         assistantMessage: llmResult.assistantMessage,
         toolCalls: llmResult.toolCalls ?? [],
+        rawRequest: capturedRequest,
+        rawResponse: llmResult.rawResponse,
       });
 
       throwIfAborted(abortSignal);

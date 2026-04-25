@@ -30,6 +30,7 @@ export interface LlmTurnInput {
   instructions: string;
   tools: ToolDefinition[];
   onTextDelta?: (accumulated: string) => void;
+  onRawRequest?: (body: unknown) => void;
   abortSignal?: AbortSignal;
   conversation?: LlmConversationItem[];
 }
@@ -39,6 +40,7 @@ export interface LlmTurnResult {
   reasoningContent?: string;
   toolCalls?: ToolCall[];
   metadata?: Record<string, unknown>;
+  rawResponse?: unknown;
 }
 
 export interface DeviceClient {
