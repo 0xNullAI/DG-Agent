@@ -9,7 +9,9 @@ export interface RequestDeviceOptionsLike {
 
 export interface BluetoothRemoteGATTCharacteristicLike extends EventTarget {
   value: DataView | null;
-  writeValueWithoutResponse(value: ArrayBufferView | ArrayBuffer): Promise<void>;
+  writeValueWithoutResponse?(value: ArrayBufferView | ArrayBuffer): Promise<void>;
+  writeValueWithResponse?(value: ArrayBufferView | ArrayBuffer): Promise<void>;
+  writeValue?(value: ArrayBufferView | ArrayBuffer): Promise<void>;
   readValue(): Promise<DataView>;
   startNotifications(): Promise<BluetoothRemoteGATTCharacteristicLike>;
   stopNotifications(): Promise<BluetoothRemoteGATTCharacteristicLike>;
