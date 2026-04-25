@@ -43,7 +43,9 @@ export function buildConversationItems(
       role: message.role,
       content: message.content,
       reasoningContent: message.reasoningContent,
-      toolCalls: message.toolCalls,
+      // toolCalls intentionally omitted: tool results are not persisted to session.messages,
+      // so including tool_calls here would produce an assistant message with tool_calls
+      // but no following tool result messages, causing 400 on strict providers (e.g. DeepSeek).
     })),
     ...(currentInput ? [currentInput] : []),
     ...turnState.workingItems,
