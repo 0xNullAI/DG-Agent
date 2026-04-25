@@ -142,8 +142,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
           waveformId: z.string().min(1).optional(),
           waveform: z.string().min(1).optional(),
           loop: z.preprocess((v) => {
-            if (v === 'true') return true;
-            if (v === 'false') return false;
+            if (typeof v === 'string') return v.toLowerCase() !== 'false' && v !== '0' && v !== '';
             return v;
           }, z.boolean().optional().default(true)),
         })
@@ -296,8 +295,7 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
           waveformId: z.string().min(1).optional(),
           waveform: z.string().min(1).optional(),
           loop: z.preprocess((v) => {
-            if (v === 'true') return true;
-            if (v === 'false') return false;
+            if (typeof v === 'string') return v.toLowerCase() !== 'false' && v !== '0' && v !== '';
             return v;
           }, z.boolean().optional().default(true)),
         })
