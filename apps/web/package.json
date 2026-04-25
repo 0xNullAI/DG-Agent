@@ -12,8 +12,7 @@
   },
   "dependencies": {
     "@dg-agent/audio-browser": "0.1.0",
-    "@dg-agent/bridge-browser": "0.1.0",
-    "@dg-agent/bridge-core": "0.1.0",
+    "@dg-agent/bridge": "0.1.0",
     "@dg-agent/client": "0.1.0",
     "@dg-agent/core": "0.1.0",
     "@dg-agent/device-webbluetooth": "0.1.0",

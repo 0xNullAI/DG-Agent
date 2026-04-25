@@ -18,7 +18,6 @@ import {
   type ModelContextStrategy,
   type RuntimeTraceEntry,
   type SessionSnapshot,
-  type ToolCall,
 } from '@dg-agent/core';
 import { createDefaultPolicyRules } from './default-policies.js';
 import { DeviceCommandQueue } from './device-command-queue.js';
@@ -51,7 +50,6 @@ import {
   normalizeSessionHistory,
   appendAssistantMessage,
   appendSkippedToolOutputs,
-  isInternalSyntheticMessage,
 } from './session-history.js';
 import { createDefaultToolRegistryWithDeps } from './tool-registry.js';
 import type { ToolRegistry } from './tool-registry.js';

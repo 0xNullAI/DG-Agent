@@ -2,7 +2,6 @@ import { V2_DEVICE_NAME_PREFIX } from './constants.js';
 import type { DeviceCommand, DeviceCommandResult, DeviceState } from '@dg-agent/core';
 import {
   type StateListener,
-  type WebBluetoothAvailability,
   type WebBluetoothConnectionContext,
   type WebBluetoothProtocolAdapter,
 } from './coyote-protocol-base.js';

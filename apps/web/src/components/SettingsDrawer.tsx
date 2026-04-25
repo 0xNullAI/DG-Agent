@@ -1,5 +1,5 @@
 import React from 'react';
-import type { BridgeLogEntry, BridgeManagerStatus } from '@dg-agent/bridge-core';
+import type { BridgeLogEntry, BridgeManagerStatus } from '@dg-agent/bridge';
 import type { RuntimeEvent, WaveformDefinition } from '@dg-agent/core';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import {

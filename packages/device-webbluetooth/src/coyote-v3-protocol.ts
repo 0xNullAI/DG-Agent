@@ -10,7 +10,6 @@ import {
   BaseCoyoteProtocolAdapter,
   INACTIVE_FREQ,
   INACTIVE_INT,
-  type Quad,
   type WebBluetoothConnectionContext,
 } from './coyote-protocol-base.js';
 import type { BluetoothRemoteGATTCharacteristicLike } from './types.js';

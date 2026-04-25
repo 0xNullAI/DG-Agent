@@ -1,4 +1,4 @@
-import type { BridgePlatformMessage, BridgeSettings, PlatformAdapter } from '@dg-agent/bridge-core';
+import type { BridgePlatformMessage, BridgeSettings, PlatformAdapter } from './bridge-types.js';
 
 const GROUP_PREFIX = 'group:';
 

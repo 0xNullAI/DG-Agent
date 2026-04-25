@@ -1,4 +1,4 @@
-import type { BridgeManagerStatus } from '@dg-agent/bridge-core';
+import type { BridgeManagerStatus } from '@dg-agent/bridge';
 import type { DeviceState } from '@dg-agent/core';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import type { BrowserSpeechCapabilities } from '@dg-agent/audio-browser';

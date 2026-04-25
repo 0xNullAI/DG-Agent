@@ -4,13 +4,13 @@ import {
   createSpeechSynthesizer,
   getBrowserSpeechCapabilities,
 } from '@dg-agent/audio-browser';
-import { createBrowserBridgeAdapters } from '@dg-agent/bridge-browser';
+import { createBrowserBridgeAdapters } from '@dg-agent/bridge';
 import {
   BridgeAdapterRegistry,
   BridgeManager,
   BridgePermissionService,
   type MessageOrigin,
-} from '@dg-agent/bridge-core';
+} from '@dg-agent/bridge';
 import { CoyoteProtocolAdapter, WebBluetoothDeviceClient } from '@dg-agent/device-webbluetooth';
 import type {
   PermissionDecision,

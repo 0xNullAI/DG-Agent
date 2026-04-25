@@ -1,4 +1,4 @@
-import { DEFAULT_BRIDGE_SETTINGS } from '@dg-agent/bridge-core';
+import { DEFAULT_BRIDGE_SETTINGS } from '@dg-agent/bridge';
 import {
   createDefaultProviderSettings,
   normalizeProviderSettings,

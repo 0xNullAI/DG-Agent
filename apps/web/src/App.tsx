@@ -3,7 +3,7 @@ import {
   type BridgeLogEntry,
   type BridgeManagerStatus,
   type MessageOrigin,
-} from '@dg-agent/bridge-core';
+} from '@dg-agent/bridge';
 import { createEmptyDeviceState, type PermissionDecision } from '@dg-agent/core';
 import { BrowserSafetyGuard } from '@dg-agent/safety-browser';
 import { applyTheme, subscribeThemeChanges } from '@dg-agent/theme-browser';

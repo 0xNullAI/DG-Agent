@@ -1,4 +1,4 @@
-import type { BridgeLogEntry, BridgeManagerStatus } from '@dg-agent/bridge-core';
+import type { BridgeLogEntry, BridgeManagerStatus } from '@dg-agent/bridge';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatTimestamp } from '../utils/ui-formatters.js';

@@ -13,7 +13,7 @@
     }
   },
   "dependencies": {
-    "@dg-agent/bridge-core": "0.1.0",
+    "@dg-agent/bridge": "0.1.0",
     "@dg-agent/core": "0.1.0",
     "@dg-agent/permissions": "0.1.0",
     "@dg-agent/prompts-basic": "0.1.0",

@@ -1,4 +1,4 @@
-import type { BridgeLogEntry, BridgeManagerStatus } from '@dg-agent/bridge-core';
+import type { BridgeLogEntry, BridgeManagerStatus } from '@dg-agent/bridge';
 import type { RuntimeEvent } from '@dg-agent/core';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { Badge } from '@/components/ui/badge';
