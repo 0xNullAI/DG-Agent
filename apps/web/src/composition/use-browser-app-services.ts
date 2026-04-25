@@ -18,7 +18,7 @@ import type {
   RuntimeTraceEntry,
   SessionSnapshot,
 } from '@dg-agent/core';
-import { BrowserPermissionService } from '@dg-agent/permissions-browser';
+import { BrowserPermissionService } from '@dg-agent/permissions';
 import {
   BrowserSessionStore,
   BrowserSessionTraceStore,

@@ -10,7 +10,7 @@ import type {
   WaveformLibrary,
 } from '@dg-agent/core';
 import { getWebBluetoothAvailability } from '@dg-agent/device-webbluetooth';
-import { BrowserPermissionService } from '@dg-agent/permissions-browser';
+import { BrowserPermissionService } from '@dg-agent/permissions';
 import { resolveProviderRuntimeSettings } from '@dg-agent/providers-catalog';
 import { OpenAiHttpLlmClient } from '@dg-agent/providers-openai-http';
 import {
