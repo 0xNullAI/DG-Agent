@@ -1,0 +1,53 @@
+name: 🐛 Bug 报告
+description: 报告一个不符合预期的行为
+labels: ['type:fix']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢报告。请尽量补全下面信息以便复现。
+  - type: input
+    id: version
+    attributes:
+      label: 版本
+      placeholder: e.g. 1.0.0 / @dg-kit/protocol@1.0.0 / commit hash
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 实际行为
+      placeholder: 当前看到的现象
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望行为
+      placeholder: 你期望发生的事
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. 打开 ...
+        2. 点击 ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: 环境
+      placeholder: |
+        OS:
+        浏览器 / Node 版本:
+        郊狼版本（V2 / V3）:
+        其它相关信息:
+  - type: textarea
+    id: logs
+    attributes:
+      label: 日志 / 截图
+      placeholder: DevTools console、终端输出、截图等。日志请用代码块包裹。
