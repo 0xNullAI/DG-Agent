@@ -46,6 +46,12 @@ export class BrowserWaveformLibrary implements WaveformLibrary {
     await set(CUSTOM_WAVEFORMS_KEY, next, this.store);
   }
 
+  /** WaveformLibrary.save — alias of saveCustom so runtime tools can write
+   *  to the library without coupling to BrowserWaveformLibrary specifics. */
+  async save(waveform: WaveformDefinition): Promise<void> {
+    return this.saveCustom(waveform);
+  }
+
   async removeCustom(id: string): Promise<void> {
     const custom = await this.getCustomWaveforms();
     await set(

@@ -171,7 +171,8 @@ export interface TimerCommand {
 
 export type ToolExecutionPlan =
   | { type: 'device'; command: DeviceCommand }
-  | { type: 'timer'; command: TimerCommand };
+  | { type: 'timer'; command: TimerCommand }
+  | { type: 'inline'; output: string; summary?: string };
 
 export interface DeviceCommandResult {
   state: DeviceState;
@@ -360,6 +361,12 @@ export interface SessionTraceStore {
 export interface WaveformLibrary {
   getById(id: string): Promise<WaveformDefinition | null>;
   list(): Promise<WaveformDefinition[]>;
+  /**
+   * Persist a new or updated waveform. Optional because not every library
+   * implementation supports writing (e.g. a read-only Node bundle); design
+   * tools should branch on its presence.
+   */
+  save?(waveform: WaveformDefinition): Promise<void>;
 }
 
 export interface Logger {

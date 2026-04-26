@@ -1,5 +1,6 @@
 import type { WaveformLibrary } from '@dg-agent/core';
 import type { DeviceCommand, ToolCall, ToolDefinition, ToolExecutionPlan } from '@dg-agent/core';
+import { compileWaveformDesign, type DesignSegment } from '@dg-agent/waveforms';
 import { z } from 'zod';
 
 export interface ToolHandler {
@@ -434,6 +435,189 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
           seconds: parsed.seconds,
           label: parsed.label,
         },
+      };
+    },
+  });
+
+  registry.register({
+    name: 'design_wave',
+    displayName: '设计波形',
+    summarizeCommand(command) {
+      if (command.type === 'start') {
+        return `设计并启动波形 ${command.waveform.id} 到 ${command.channel} 通道`;
+      }
+      return '设计波形';
+    },
+    definition: {
+      name: 'design_wave',
+      description: [
+        '【设计波形】组合一组段落生成新的自定义波形，保存到波形库后可立即播放或留待后用。',
+        '触发：用户描述的体感无法用现有波形组合表达时使用（如 "先慢慢渐入再变成连续敲击"）。',
+        '不用：内置或已导入的波形够用 → 直接 start / change_wave；只想加减强度 → adjust_strength。',
+        '约束：单回合最多调用 1 次；总时长 100-30000ms（建议 1-10s）；保存的波形会出现在用户的自定义波形列表里。',
+        '段落原语：ramp（强度线性变化）、hold（恒定强度）、pulse（高低交替节拍）、silence（静默间隔）。',
+      ].join('\n'),
+      parameters: {
+        type: 'object',
+        properties: {
+          name: {
+            type: 'string',
+            description: '给波形起一个简短中文名（如"渐入潮汐"、"短促电击"）。',
+          },
+          description: {
+            type: 'string',
+            description: '一句体感说明（用户和后续的 AI 都靠这段决定是否选用此波形）。',
+          },
+          segments: {
+            type: 'array',
+            minItems: 1,
+            description: '段落列表，按顺序拼接成完整波形。',
+            items: {
+              oneOf: [
+                {
+                  type: 'object',
+                  properties: {
+                    type: { type: 'string', enum: ['ramp'] },
+                    from: { type: 'integer', minimum: 0, maximum: 100 },
+                    to: { type: 'integer', minimum: 0, maximum: 100 },
+                    durationMs: { type: 'integer', minimum: 100, maximum: 30_000 },
+                    frequencyMs: { type: 'integer', minimum: 10, maximum: 1000 },
+                  },
+                  required: ['type', 'from', 'to', 'durationMs'],
+                },
+                {
+                  type: 'object',
+                  properties: {
+                    type: { type: 'string', enum: ['hold'] },
+                    intensity: { type: 'integer', minimum: 0, maximum: 100 },
+                    durationMs: { type: 'integer', minimum: 100, maximum: 30_000 },
+                    frequencyMs: { type: 'integer', minimum: 10, maximum: 1000 },
+                  },
+                  required: ['type', 'intensity', 'durationMs'],
+                },
+                {
+                  type: 'object',
+                  properties: {
+                    type: { type: 'string', enum: ['pulse'] },
+                    intensity: { type: 'integer', minimum: 0, maximum: 100 },
+                    onMs: { type: 'integer', minimum: 50, maximum: 1000 },
+                    offMs: { type: 'integer', minimum: 50, maximum: 1000 },
+                    count: { type: 'integer', minimum: 1, maximum: 50 },
+                    frequencyMs: { type: 'integer', minimum: 10, maximum: 1000 },
+                  },
+                  required: ['type', 'intensity', 'onMs', 'offMs', 'count'],
+                },
+                {
+                  type: 'object',
+                  properties: {
+                    type: { type: 'string', enum: ['silence'] },
+                    durationMs: { type: 'integer', minimum: 100, maximum: 5000 },
+                  },
+                  required: ['type', 'durationMs'],
+                },
+              ],
+            },
+          },
+          playOnChannel: {
+            type: 'string',
+            enum: ['A', 'B'],
+            description: '可选：保存后立刻在该通道启动播放（需同时填 playOnStrength）。',
+          },
+          playOnStrength: {
+            type: 'integer',
+            minimum: 0,
+            maximum: 100,
+            description: '可选：立即播放时的初始强度（受冷启动上限约束）。',
+          },
+        },
+        required: ['name', 'description', 'segments'],
+      },
+    },
+    async toExecutionPlan(args) {
+      const segmentSchema = z.discriminatedUnion('type', [
+        z.object({
+          type: z.literal('ramp'),
+          from: z.coerce.number().int().min(0).max(100),
+          to: z.coerce.number().int().min(0).max(100),
+          durationMs: z.coerce.number().int().min(100).max(30_000),
+          frequencyMs: z.coerce.number().int().min(10).max(1000).optional(),
+        }),
+        z.object({
+          type: z.literal('hold'),
+          intensity: z.coerce.number().int().min(0).max(100),
+          durationMs: z.coerce.number().int().min(100).max(30_000),
+          frequencyMs: z.coerce.number().int().min(10).max(1000).optional(),
+        }),
+        z.object({
+          type: z.literal('pulse'),
+          intensity: z.coerce.number().int().min(0).max(100),
+          onMs: z.coerce.number().int().min(50).max(1000),
+          offMs: z.coerce.number().int().min(50).max(1000),
+          count: z.coerce.number().int().min(1).max(50),
+          frequencyMs: z.coerce.number().int().min(10).max(1000).optional(),
+        }),
+        z.object({
+          type: z.literal('silence'),
+          durationMs: z.coerce.number().int().min(100).max(5000),
+        }),
+      ]);
+      const parsed = z
+        .object({
+          name: z.string().min(1).max(40),
+          description: z.string().min(1).max(120),
+          segments: z.array(segmentSchema).min(1),
+          playOnChannel: z.enum(['A', 'B']).optional(),
+          playOnStrength: z.coerce.number().int().min(0).max(100).optional(),
+        })
+        .parse(args);
+
+      if (!deps.waveformLibrary?.save) {
+        throw new Error('当前环境的波形库不支持保存');
+      }
+
+      const compiled = compileWaveformDesign(parsed.segments as DesignSegment[]);
+      const idSeed =
+        parsed.name
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, '-')
+          .replace(/^-|-$/g, '') || 'designed';
+      const waveform = {
+        id: `ai-${idSeed}-${Date.now().toString(36)}`,
+        name: parsed.name,
+        description: parsed.description,
+        frames: compiled.frames,
+      };
+
+      await deps.waveformLibrary.save(waveform);
+
+      const summary = {
+        ok: true,
+        waveformId: waveform.id,
+        name: waveform.name,
+        description: waveform.description,
+        totalDurationMs: compiled.totalDurationMs,
+        frameCount: compiled.frames.length,
+      };
+
+      if (parsed.playOnChannel && typeof parsed.playOnStrength === 'number') {
+        return {
+          type: 'device',
+          command: {
+            type: 'start',
+            channel: parsed.playOnChannel,
+            strength: parsed.playOnStrength,
+            waveform,
+            loop: true,
+          },
+        };
+      }
+
+      return {
+        type: 'inline',
+        output: JSON.stringify({
+          ...summary,
+          _hint: '波形已保存。可在下一回合用 start / change_wave 引用此 waveformId 播放。',
+        }),
       };
     },
   });

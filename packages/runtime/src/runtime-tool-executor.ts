@@ -121,6 +121,15 @@ export class RuntimeToolExecutor {
       return this.scheduleTimer(session, planResult.plan.command, context);
     }
 
+    if (planResult.plan.type === 'inline') {
+      return this.recordInlineResult({
+        session,
+        toolCall: displayToolCall,
+        context,
+        plan: planResult.plan,
+      });
+    }
+
     return this.executeDeviceCommand({
       session,
       toolCall: displayToolCall,
@@ -128,6 +137,26 @@ export class RuntimeToolExecutor {
       command: planResult.plan.command,
       abortSignal,
     });
+  }
+
+  private async recordInlineResult(input: {
+    session: SessionSnapshot;
+    toolCall: ToolCall;
+    context: ActionContext;
+    plan: Extract<ToolExecutionPlan, { type: 'inline' }>;
+  }): Promise<string> {
+    const { session, toolCall, context, plan } = input;
+    await this.options.traceStore.append(session.id, {
+      kind: 'tool-result',
+      turnId: context.traceId,
+      sourceType: context.sourceType,
+      toolCallId: toolCall.id,
+      toolName: toolCall.name,
+      toolDisplayName: toolCall.displayName,
+      args: toolCall.args,
+      output: plan.output,
+    });
+    return plan.output;
   }
 
   cancelScheduledTimers(sessionId?: string): void {
