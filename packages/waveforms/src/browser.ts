@@ -99,10 +99,10 @@ export class BrowserWaveformLibrary implements WaveformLibrary {
 }
 
 function createImportedWaveform(fileName: string, parsed: ParsedPulse): WaveformDefinition {
-  const fallbackName = fileName.replace(/\.(pulse|zip)$/i, '');
-  // Prefer the descriptive name embedded in the .pulse file (often Chinese
-  // like "水滴" or "海浪"); fall back to the file name when missing.
-  const displayName = parsed.name || fallbackName;
+  // Always use the file name (basename, without extension) as the display
+  // name, ignoring any name embedded inside the .pulse file.
+  const basename = fileName.split('/').pop() ?? fileName;
+  const displayName = basename.replace(/\.(pulse|zip)$/i, '') || basename;
   const idSeed = displayName
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
