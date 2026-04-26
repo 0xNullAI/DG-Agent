@@ -138,8 +138,6 @@ function formatExecutedTrace(entry: RuntimeTraceEntry): string | null {
             : Number(entry.args?.durationMs ?? entry.args?.duration_ms ?? 0);
       return `已执行：${channel} 通道脉冲到 ${strength}，持续 ${durationMs}ms`;
     }
-    case 'emergency_stop':
-      return '已执行：紧急停止';
     default:
       return `已执行：${entry.toolDisplayName ?? entry.toolName}`;
   }

@@ -379,28 +379,6 @@ export function createDefaultToolRegistryWithDeps(deps: DefaultToolRegistryDeps)
   });
 
   registry.register({
-    name: 'emergency_stop',
-    displayName: '紧急停止',
-    summarizeCommand(command) {
-      return command.type === 'emergencyStop' ? '紧急停止' : '紧急停止';
-    },
-    definition: {
-      name: 'emergency_stop',
-      description: '立即停止全部输出（仅在需要紧急终止时使用）',
-      parameters: {
-        type: 'object',
-        properties: {},
-      },
-    },
-    toExecutionPlan() {
-      return {
-        type: 'device',
-        command: { type: 'emergencyStop' },
-      };
-    },
-  });
-
-  registry.register({
     name: 'timer',
     displayName: '设置定时器',
     definition: {

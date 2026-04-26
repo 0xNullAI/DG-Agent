@@ -261,8 +261,7 @@ export function isDeviceToolName(name: string): boolean {
     name === 'stop' ||
     name === 'adjust_strength' ||
     name === 'change_wave' ||
-    name === 'burst' ||
-    name === 'emergency_stop'
+    name === 'burst'
   );
 }
 
