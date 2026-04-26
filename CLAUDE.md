@@ -1,49 +1,89 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code when working with this repository.
+Guidance for Claude Code working in **DG-Agent** — the browser AI controller for DG-Lab Coyote 2.0 / 3.0.
 
 ## Project Overview
 
-DG-Agent is a browser-based AI controller for DG-Lab Coyote (2.0 & 3.0) pulse devices. Users chat with an AI in natural language, and the AI controls the device via Web Bluetooth. The app is a React 18 SPA built with Vite and deployed to GitHub Pages.
+DG-Agent is a React 18 SPA that lets users chat with an LLM in natural language; the LLM calls device tools (`start` / `stop` / `adjust_strength` / `change_wave` / `burst` / `design_wave` / `timer`) which the runtime translates into BLE writes via Web Bluetooth. Bundled with Vite, deployed to GitHub Pages.
 
-The codebase is a **monorepo** using npm workspaces with a contract/adapter architecture.
+The repo is a **monorepo** using npm workspaces, organized in a contract/adapter pattern. All shared code (BLE protocol, waveforms, tool definitions) is consumed from [`@dg-kit/*`](https://github.com/0xNullAI/DG-Kit) — DG-Agent's own packages are thin shims plus the React UI / runtime / bridge / providers / browser-only adapters.
+
+## Repo Layout
+
+```
+apps/
+  web/                      React 18 SPA shell
+packages/
+  agent-browser/            browser-side dependency wiring (no React deps)
+  client/                   AgentClient abstraction (embedded / HTTP)
+  runtime/                  agent loop, policy engine, tool executor, turn state
+  bridge/                   QQ (OneBot/NapCat) + Telegram adapters
+  device-webbluetooth/      shim re-exporting @dg-kit/protocol + @dg-kit/transport-webbluetooth
+  permissions-browser/      timed permission grants + UI prompt
+  providers-catalog/        provider registry (free proxy, Qwen, DeepSeek, etc.)
+  providers-openai-http/    OpenAI-compatible transport
+  storage-browser/          IndexedDB sessions + localStorage settings
+  audio-browser/            DashScope ASR/TTS + native SpeechRecognition
+  waveforms/                IndexedDB-backed library; basic/design/.pulse from @dg-kit/waveforms
+  core/                     re-export of @dg-kit/core + agent-only contracts (LlmClient, SessionStore, …)
+aliyun-fc/                  serverless free proxy (CommonJS, separate)
+```
+
+## Branch & PR Convention
+
+- `dev` — day-to-day development. **All PRs target `dev`**, never `main` directly.
+- `main` — releases only.
+- After merging into `dev`, a CI mirror pushes the dev tip to [`0xNullAI/DG-Agent-dev`](https://github.com/0xNullAI/DG-Agent-dev) `main` (`git push dev-repo dev:main`). Use that mirror for read-only browsing.
 
 ## Commands
 
-- `npm run dev` — Start local dev server (Vite, apps/web)
-- `npm run build` — Build all workspaces (type-check + vite build)
-- `npm run typecheck` — Type-check all workspaces
-- `npm run test` — Run vitest across all workspaces (every package uses `vitest run`; no separate self-test entry points)
-- `npm run lint` — ESLint with zero warnings allowed
-- `npm run lint:fix` — Auto-fix lint issues
-- `npm run format` — Format with Prettier
-- `npm run format:check` — Check formatting
+```bash
+npm install
+npm run dev          # Vite, apps/web
+npm run build        # typecheck + Vite build for all workspaces
+npm run typecheck    # tsc --noEmit across all packages
+npm run test         # vitest run across all workspaces
+npm run lint         # eslint, zero warnings
+npm run lint:fix
+npm run format
+npm run format:check
+```
 
-## Architecture
+## Test & Commit Workflow
 
-### Monorepo Structure
+Before every commit (covered by `lint-staged` on staged files, but verify the full repo):
+
+1. `npm run lint` — zero warnings policy
+2. `npm run typecheck`
+3. `npm run test` — currently 74 tests
+4. `npm run build`
+
+Commit message style — conventional commits:
 
 ```
-apps/web/          — React 18 SPA (pure UI shell: components, hooks, browser-only services)
-packages/
-  core/                  — Shared types AND contract interfaces
-                           (DeviceState, SessionSnapshot, DeviceClient, LlmClient, ...)
-  runtime/               — Agent loop, policy engine, tool executor, turn state, prompt presets
-  client/                — AgentClient abstraction (embedded / HTTP) + REST route definitions
-  agent-browser/         — Browser-side agent composition layer (no React deps);
-                           exports createBrowserServices() factory
-  device-webbluetooth/   — Web Bluetooth adapter for Coyote v2/v3
-  providers-openai-http/ — OpenAI-compatible HTTP/SSE transport
-  providers-catalog/     — Provider registry (free proxy, Qwen, DeepSeek, etc.)
-  bridge/                — Bridge manager, message queue, permission service,
-                           QQ (OneBot/NapCat) and Telegram adapters
-  permissions-browser/   — Browser permission service (timed grants + UI prompt)
-  waveforms/             — Built-in waveform definitions and browser waveform
-                           library (IndexedDB store, import/export)
-  storage-browser/       — IndexedDB session store + localStorage settings
-  audio-browser/         — DashScope ASR/TTS, browser SpeechRecognition/Synthesis
-aliyun-fc/               — Aliyun FC serverless free proxy (CommonJS, separate)
+type(scope): short imperative subject
+
+Optional body explaining the WHY. Wraps at 72 chars.
 ```
+
+`type` ∈ `feat | fix | refactor | docs | chore | test | perf | style`. `scope` is usually a package name (`runtime`, `web`, `bridge`, …) or a cross-cutting concern.
+
+PR description template:
+
+```
+## Summary
+1-2 sentences: what changed and why.
+
+## Test plan
+- [x] npm run typecheck
+- [x] npm run test
+- [x] npm run lint
+- [ ] Smoke test in browser (where applicable)
+```
+
+Squash-merge into `dev`. The squashed commit subject becomes the visible history.
+
+## Architecture Notes
 
 ### Core Data Flow
 
@@ -58,51 +98,25 @@ The runtime's `runTurn()` loops: build instructions → call LLM → if tool cal
 
 ### Key Patterns
 
-- **UI / Agent separation**: `apps/web` is a pure React shell. All browser-side
-  agent composition (LLM client, device, bridge, speech, permissions, etc.)
-  lives in `@dg-agent/agent-browser`'s `createBrowserServices()` factory,
-  which is plain TS with no React dependency. `apps/web` only adds React
-  lifecycle wrapping (useMemo) and UI-only services (theme, safety guard,
-  update checker in `apps/web/src/services/`).
-- **Contract/Adapter**: `@dg-agent/core` defines interfaces, concrete
-  implementations live in adapter packages (`device-webbluetooth`,
-  `providers-openai-http`, `permissions`, `waveforms`, etc.). For future
-  Node.js builds, add new adapters (`device-*-node`, `storage-node`,
-  `bridge-node`) and an `agent-node` composition package alongside the
-  existing browser-side ones — `core`/`runtime`/`client` are reusable as-is.
-- **Per-channel burst quota**: Burst calls are tracked per channel (A/B), not globally.
-- **Policy engine**: Hard-coded safety caps the LLM cannot bypass (max iterations, strength limits, cold-start clamp).
+- **UI / Agent separation**: `apps/web` is a pure React shell. All browser-side agent composition lives in `@dg-agent/agent-browser`'s `createBrowserServices()` factory (plain TS, no React). `apps/web` only wraps it with React lifecycle (useMemo) and UI-only services (theme, safety guard, update checker).
+- **Contract/Adapter**: `@dg-agent/core` re-exports `@dg-kit/core` and adds agent-only contracts. Concrete implementations live in adapter packages.
+- **Per-channel burst quota**: tracked per channel (A/B), not globally.
+- **Policy engine**: hard-coded safety caps the LLM cannot bypass (max iterations, strength limits, cold-start clamp).
 - **Model context strategy**: `last-user-turn` / `last-five-user-turns` / `full-history`.
 
-## Development Conventions
-
-- Branch model: develop on `dev` or feature branches, PRs to `dev`. `main` is for releases only.
-- UI strings and error messages are in Chinese (Simplified).
-- The `aliyun-fc/` directory is a standalone CommonJS serverless function — not part of the TypeScript monorepo.
-- All packages use `"type": "module"` with the `Bundler` module resolution mode.
-- Use `import type` for type-only imports.
-- Unused vars must use `_` prefix pattern.
-
-### Package naming convention
+### Package Naming
 
 Mixed by design — read the rule before adding a new package:
 
-- **No suffix** (`waveforms`, `bridge`): contains a runtime-agnostic core
-  (Node-friendly) alongside a browser adapter, both in the same package.
-  Top-level module load must stay free of DOM / IndexedDB references so
-  Node consumers can import the package without exploding.
-- **`-browser` / `-webbluetooth` suffix** (`agent-browser`, `audio-browser`,
-  `device-webbluetooth`, `permissions-browser`, `storage-browser`): pure
-  browser-runtime implementation; no counterpart in the same package.
-  Future Node.js alternatives ship as separate packages (`storage-node`,
-  `permissions-node`, `device-serial`, `agent-node`, etc.) rather than
-  being merged in.
-- **`-http` / `-catalog` suffix** (`providers-openai-http`,
-  `providers-catalog`): describes a transport or role rather than a
-  runtime; reusable across runtimes.
+- **No suffix** (`waveforms`, `bridge`): runtime-agnostic core (Node-friendly) alongside a browser adapter, both in the same package. Top-level module load must stay free of DOM / IndexedDB references so Node consumers can import without exploding.
+- **`-browser` / `-webbluetooth` suffix**: pure browser-runtime implementation. Future Node.js alternatives ship as separate packages (`storage-node`, `permissions-node`, `device-serial`, `agent-node`, etc.).
+- **`-http` / `-catalog` suffix**: describes a transport or role rather than a runtime; reusable across runtimes.
 
-When adding a new package, pick the suffix style that matches its
-category above. Do not introduce a third style.
+When adding a new package, pick the suffix matching its category. Do not introduce a third style.
+
+### Strings & i18n
+
+UI strings and error messages are in **Chinese (Simplified)**. The `aliyun-fc/` directory is a standalone CommonJS serverless function — not part of the TypeScript monorepo.
 
 ## UI Maintenance Notes
 
@@ -145,3 +159,20 @@ These behaviors have been confirmed by the user — do not change without explic
 - QQ/NapCat token passed via WebSocket URL query param `access_token`
 
 See `docs/architecture.md` for full architecture decisions and guardrails.
+
+## Sister Projects
+
+| Project                                        | Purpose                                              |
+| ---------------------------------------------- | ---------------------------------------------------- |
+| [DG-Kit](https://github.com/0xNullAI/DG-Kit)   | Shared TypeScript runtime (consumed by this project) |
+| [DG-Chat](https://github.com/0xNullAI/DG-Chat) | Multi-user P2P room with remote-control              |
+| [DG-MCP](https://github.com/0xNullAI/DG-MCP)   | MCP server for Claude Desktop                        |
+
+## Code Conventions
+
+- TypeScript with `strict: true`, `noUncheckedIndexedAccess: true`
+- ESM only (`"type": "module"`)
+- `import type` for type-only imports
+- Unused vars must be prefixed `_`
+- No emojis in code or comments unless explicitly requested
+- Comments explain WHY, not WHAT

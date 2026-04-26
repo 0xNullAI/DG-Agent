@@ -1,0 +1,88 @@
+name: Mirror dev → DG-Agent-dev/main
+
+# Mirrors every push on `dev` to the main branch of the public mirror repo
+# (https://github.com/0xNullAI/DG-Agent-dev). The mirror has its own
+# deploy.yml that builds and publishes to https://0xnullai.github.io/DG-Agent-dev/
+# so the dev branch effectively gets a live preview URL.
+#
+# This workflow strips a handful of files that should only live in the
+# canonical repo before mirroring (so the mirror doesn't grow its own
+# dependabot PRs / issue tracker / PR conventions diverging from
+# DG-Agent). The mirror gets a sanitized snapshot, not a verbatim copy.
+#
+# Requires repo secret `MIRROR_PAT`: a fine-grained Personal Access Token
+# with Contents: read+write AND Workflows: read+write on 0xNullAI/DG-Agent-dev.
+
+on:
+  push:
+    branches: [dev]
+
+concurrency:
+  group: mirror-dev
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Strip files that shouldn't live in the mirror
+        run: |
+          set -euo pipefail
+          # These files cause the mirror repo to act like the canonical repo:
+          # opening dependabot PRs, asking contributors to file issues here,
+          # auto-approving PRs that we'd never see, etc. Remove them from the
+          # mirrored snapshot.
+          rm -f \
+            .github/dependabot.yml \
+            .github/CODEOWNERS \
+            .github/pull_request_template.md \
+            .github/workflows/release-guard.yml \
+            .github/workflows/auto-tag.yml \
+            .github/workflows/mirror-dev.yml
+          rm -rf .github/ISSUE_TEMPLATE
+          # Drop a marker so visitors to the mirror know it's a mirror.
+          cat > .github/MIRROR_NOTICE.md <<'NOTICE'
+          # This is a read-only mirror
+
+          The canonical repository is **[`0xNullAI/DG-Agent`](https://github.com/0xNullAI/DG-Agent)**.
+
+          Issues, PRs, and dependency updates should be filed there. This
+          mirror auto-syncs from `DG-Agent`'s `dev` branch and exists only
+          so the `dev` content gets a live preview deployment at
+          [https://0xnullai.github.io/DG-Agent-dev/](https://0xnullai.github.io/DG-Agent-dev/).
+          Anything pushed here will be overwritten on the next sync.
+          NOTICE
+
+      - name: Commit + force-push to mirror
+        env:
+          MIRROR_PAT: ${{ secrets.MIRROR_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${MIRROR_PAT:-}" ]; then
+            echo "::error::MIRROR_PAT secret is not configured."
+            exit 1
+          fi
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name  "github-actions[bot]"
+          git add -A
+          git commit -m "chore(mirror): sanitize for DG-Agent-dev" --allow-empty
+          git push --force \
+            "https://x-access-token:${MIRROR_PAT}@github.com/0xNullAI/DG-Agent-dev.git" \
+            HEAD:refs/heads/main
+
+      - name: Summary
+        run: |
+          {
+            echo "## 🪞 Mirrored to DG-Agent-dev"
+            echo ""
+            echo "Source: \`dev\` @ ${GITHUB_SHA::7}"
+            echo "Mirror: https://github.com/0xNullAI/DG-Agent-dev/tree/main"
+            echo "Live preview: https://0xnullai.github.io/DG-Agent-dev/"
+            echo ""
+            echo "Stripped before push: dependabot.yml, CODEOWNERS, PR + issue templates, release-guard, auto-tag, mirror-dev (no recursion)."
+          } >> "$GITHUB_STEP_SUMMARY"

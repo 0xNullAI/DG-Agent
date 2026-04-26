@@ -5,6 +5,9 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
+  "dependencies": {
+    "@dg-kit/core": "^1.0.0"
+  },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"
   }
