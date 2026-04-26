@@ -1,7 +1,9 @@
 name: Auto-tag main
 
 # After a release lands on main, push a git tag matching package.json's
-# version. Idempotent: if the tag already exists it's a no-op.
+# version AND publish a GitHub Release for it (so the repo's homepage
+# shows the "Latest" badge and listings are visible under /releases).
+# Idempotent: existing tag/release is skipped.
 
 on:
   push:
@@ -14,33 +16,60 @@ jobs:
   tag:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Read version from package.json
+      - name: Read version
         id: version
         run: |
-          version=$(node -p "require('./package.json').version")
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "Version: $version"
+          v=$(node -p "require('./package.json').version")
+          tag="v$v"
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
-      - name: Create tag if it doesn't exist
+      - name: Create tag (if absent)
         run: |
           set -euo pipefail
-          version="${{ steps.version.outputs.version }}"
-          tag="v$version"
+          tag="${{ steps.version.outputs.tag }}"
           if git rev-parse --quiet --verify "refs/tags/$tag" > /dev/null; then
-            echo "Tag $tag already exists, skipping."
+            echo "::notice::Tag $tag already exists, skipping."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "$tag" -m "Release $tag"
           git push origin "$tag"
+
+      - name: Create GitHub Release (if absent)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          tag="${{ steps.version.outputs.tag }}"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "::notice::Release $tag already exists, skipping."
+            exit 0
+          fi
+          # Pull commit messages since the previous tag for the release notes.
+          prev=$(git tag --sort=-creatordate | grep -v "^$tag$" | head -1 || true)
+          if [ -n "$prev" ]; then
+            notes=$(git log --pretty=format:'- %s' "$prev..HEAD")
+            range="$prev → $tag"
+          else
+            notes=$(git log --pretty=format:'- %s' | head -20)
+            range="initial → $tag"
+          fi
+          gh release create "$tag" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$tag" \
+            --notes "$(printf 'Released from \`main\` via auto-tag.yml.\n\n## Changes (%s)\n\n%s\n' "$range" "$notes")" \
+            --latest
+
+      - name: Summary
+        run: |
           {
-            echo "## 🏷️ Tagged \`$tag\`"
+            echo "## 🏷️ Tagged \`${{ steps.version.outputs.tag }}\`"
             echo ""
-            echo "Auto-tagged on merge to main."
+            echo "GitHub Release: https://github.com/${GITHUB_REPOSITORY}/releases/tag/${{ steps.version.outputs.tag }}"
           } >> "$GITHUB_STEP_SUMMARY"
