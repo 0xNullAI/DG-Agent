@@ -1,111 +1,112 @@
-# DG-Agent — 在浏览器中用 AI 控制郊狼
+<div align="center">
 
-> 基于 Web Bluetooth 的 DG-Lab 郊狼 脉冲主机 AI 控制器，打开网页即可通过自然语言对话控制设备。
+# DG-Agent
+
+**用自然语言控制 DG-Lab 郊狼 2.0 / 3.0**
+
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
+[![@dg-kit](https://img.shields.io/badge/built%20on-%40dg--kit%2F*-0a84ff)](https://github.com/0xNullAI/DG-Kit)
+[![Demo](https://img.shields.io/badge/demo-online-success)](https://0xnullai.github.io/DG-Agent/)
+
+中文 | [English](./README.en.md)
 
 > 交流 QQ 群：**628954471**
 
-**[立即体验 → 0xnullai.github.io/DG-Agent](https://0xnullai.github.io/DG-Agent/)**
+</div>
+
+## 这是什么
+
+DG-Agent 是一个浏览器版的 AI 设备控制器。打开网页、连上你的郊狼、跟 AI 对话——它会通过工具调用真实控制设备：调强度、换波形、设计新波形、定时跟进。
+
+跟普通的 chatbot 不一样的地方在于：AI 真的能"动手"。"启动 A 通道，强度 5，用呼吸波形" 这句话会被理解为一个工具调用序列，AI 自己安全地拆步执行，每一步都受策略引擎约束。
 
 ## 特性
 
-- **全设备适配** — 手机、平板、电脑，响应式布局 + 深色/浅色主题
-- **纯网页运行** — 无需安装任何 APP，打开浏览器即用
-- **隐私安全** — 无后端服务器，API Key 和聊天数据仅存在你的设备上
-- **BLE 直连** — Web Bluetooth 直接连接郊狼 2.0 / 3.0，无需手机 APP
-- **自定义人设** — 自由编写 AI 人设提示词，支持保存多套方案
-- **可管理的波形库** — 支持手动导入 `.pulse` 或 `.zip` 并在设置里编辑名称和说明
-- **多层安全护栏** — 固定强度上限、单回合调用频次限制、AI 幻觉检测自动纠正
-- **语音对话** — 支持语音输入 (ASR) 和语音回放 (TTS)，基于 DashScope
-- **社交桥接** — 通过 QQ (NapCat/OneBot) 或 Telegram Bot 远程控制
-- **上下文策略** — 可选截取到上一轮 / 前五轮 / 完整历史
+- **多 LLM 支持** — OpenAI / Anthropic / DeepSeek / Qwen / 任何 OpenAI 兼容服务，并内置免费体验模式
+- **完整工具集** — `start` / `stop` / `adjust_strength` / `change_wave` / `burst` / `design_wave` / `timer`
+- **AI 设计波形** — 用 `ramp / hold / pulse / silence` 段落组合自定义波形，自动入库
+- **语音输入输出** — 浏览器原生 ASR + 阿里云 DashScope ASR/TTS 二选一
+- **社交桥接** — 通过 QQ（NapCat/OneBot）或 Telegram Bot，让群友也能用文字驱动你的设备
+- **安全保障** — 强度上限、单回合调用次数上限、冷启动钳制、紧急停止
+- **完全本地** — 会话、波形库、设置全部在浏览器（IndexedDB / localStorage）
 
 ## 快速开始
 
-### 1. 选择 AI 服务并配置
+### 在线试玩
 
-点击顶栏 ⚙️ 按钮，选择一个 AI 服务商并填入 API Key：
+直接打开 [demo](https://0xnullai.github.io/DG-Agent/)。Web Bluetooth 需要 **Chrome 或 Edge**，HTTPS 已配好。
 
-| 服务商              | 国内直连  | 说明                                                                                               |
-| ------------------- | --------- | -------------------------------------------------------------------------------------------------- |
-| **免费体验** (推荐) | ✅        | 无需 API Key，使用阿里云线路，每分钟限 10 条（模型由 [MapleLeaf API](https://ai.071129.xyz) 提供） |
-| **通义千问**        | ✅        | [bailian.console.aliyun.com](https://bailian.console.aliyun.com)                                   |
-| **DeepSeek**        | ✅        | [platform.deepseek.com](https://platform.deepseek.com)                                             |
-| **豆包**            | ✅        | 火山方舟 [www.volcengine.com/product/ark](https://www.volcengine.com/product/ark)                  |
-| **OpenAI**          | ❌ 需代理 | [platform.openai.com](https://platform.openai.com)                                                 |
-| **自定义**          | —         | 自定义模型、API Key 和接口地址，兼容 OpenAI API 格式                                               |
-
-### 2. 连接设备
-
-1. 长按郊狼电源键开机
-2. 确保设备蓝牙已开启
-3. 点击顶栏蓝牙按钮，在弹出的系统配对框中选择设备
-
-> ⚠️ Web Bluetooth 需要 HTTPS 环境 + 支持的浏览器（Chrome / Edge / Opera）
-
-### 3. 开始对话
-
-选择一个场景模式（或自定义人设），然后直接和 AI 聊天。AI 会根据对话内容自动控制设备：
-
-```
-你：轻轻试一下 A 通道
-AI：好的，我先用很轻的力度让你感受一下~
-    🔧 play(channel: A, strength: 8, preset: breath)
-AI：已经开始了哦，是很轻柔的呼吸波形，感觉怎么样？
-```
-
-## 浏览器支持
-
-| 浏览器           | 状态        | 说明                         |
-| ---------------- | ----------- | ---------------------------- |
-| Chrome (桌面)    | ✅ 支持     | 推荐                         |
-| Edge (桌面)      | ✅ 支持     | 推荐                         |
-| Chrome (Android) | ✅ 支持     | 需系统蓝牙权限               |
-| Opera            | ⚠️ 部分支持 | 需手动启用 Web Bluetooth     |
-| Safari           | ❌ 不支持   | Apple 未实现 Web Bluetooth   |
-| Firefox          | ❌ 不支持   | Mozilla 未实现 Web Bluetooth |
-
-## 安全须知
-
-1. **从低强度开始** — 首次使用建议强度设为 `5~10`，逐步增加
-2. **设置软上限** — 在 App 设置中调整 A/B 强度上限，所有 AI 操作都会被自动夹紧
-3. **紧急停止** — 直接关闭郊狼电源即可立即停止所有输出
-4. **禁止区域** — 请勿将电极放置在心脏区域或头颈部
-5. **AI 不是人** — AI 无法感知你的实际体验，请随时手动调整或停止
-
-## 本地开发
+### 本地开发
 
 ```bash
+git clone https://github.com/0xNullAI/DG-Agent.git
+cd DG-Agent
 npm install
 npm run dev
 ```
 
-其他命令：
+打开 http://localhost:5173/ 即可。
 
-```bash
-npm run build          # 构建所有工作空间
-npm run typecheck      # 全量类型检查
-npm run test           # 运行测试
-npm run lint           # ESLint
-npm run format:check   # Prettier 检查
+## 使用方法
+
+1. 打开页面，点设置（齿轮图标）→ 配置一个 LLM provider 和 API key
+2. 长按郊狼电源键开机
+3. 点顶部蓝牙按钮 → 系统弹窗里选你的设备
+4. 在输入框跟 AI 说话："请用呼吸波形启动 A 通道，强度 5"
+5. AI 会描述意图、执行、并询问感受。回话调整即可。
+
+> 推荐第一次用先把强度上限调到 30 以下，等熟悉了再放开。
+
+## 架构
+
+```
+apps/web/                  React 18 SPA UI 壳
+packages/
+  agent-browser/           浏览器侧依赖装配
+  runtime/                 Agent 运行循环、策略引擎、turn state
+  bridge/                  QQ / Telegram 桥
+  device-webbluetooth/     DG-Kit 协议层的浏览器转接
+  waveforms/               基于 IndexedDB 的浏览器波形库
+  ...
 ```
 
-项目是 npm workspaces monorepo，详细架构见 [docs/architecture.md](docs/architecture.md)。
+[`@dg-kit/*`](https://github.com/0xNullAI/DG-Kit) 提供的部分：协议字节打包、波形编译、`.pulse` 解析、工具定义。本仓库聚焦在 React UI、会话管理、LLM 接入、桥接 IM 等浏览器/agent 专属功能。
 
-## 贡献指南
+## 分支约定
 
-- **报告 Bug / 提建议**：在 [Issues](https://github.com/0xNullAI/DG-Agent/issues) 里描述复现步骤、浏览器版本和设备型号。
-- **提交代码**：请基于 `dev` 分支开发，PR 也请提交到 `dev`（`main` 只接收版本发布合并）。
-- **提交信息**：建议使用简洁的英文祈使句（如 `Add DeepSeek provider`），单个 PR 聚焦一件事。
-- **本地开发**：`npm install && npm run dev` 启动本地服务；改动涉及 UI 请在手机和桌面断点下都验证一遍。
+- `dev` — 日常开发分支，PR 全部走这里
+- `main` — 仅用于发版本
+
+## 命令
+
+```bash
+npm run dev          # 本地开发
+npm run build        # 类型检查 + Vite 构建
+npm run typecheck    # 仅类型检查
+npm run test         # vitest
+npm run lint         # eslint
+npm run format       # prettier --write
+```
 
 ## 致谢
 
-- [DG-MCP](https://github.com/0xNullAI/DG-MCP) — 本项目的 Python MCP 版本
 - [DG-LAB-OPENSOURCE](https://github.com/DG-LAB-OPENSOURCE/DG-LAB-OPENSOURCE) — 官方开源 BLE 协议
 - [openclaw-plugin-dg-lab](https://github.com/FengYing1314/openclaw-plugin-dg-lab) — 波形解析器参考实现
 - [sse-dg-lab](https://github.com/admilkjs/sse-dg-lab) — Dungeonlab+pulse 波形解析引擎
 - [MapleLeaf API](https://ai.071129.xyz) — 为"免费体验"模式提供模型调用
 
+## 相关项目
+
+| 项目                                           | 用途                                       |
+| ---------------------------------------------- | ------------------------------------------ |
+| [DG-Kit](https://github.com/0xNullAI/DG-Kit)   | 共享的 TypeScript 中台（被本项目消费）     |
+| [DG-Chat](https://github.com/0xNullAI/DG-Chat) | 多人 P2P 房间，远程控制队友设备            |
+| [DG-MCP](https://github.com/0xNullAI/DG-MCP)   | MCP 服务器，让 Claude Desktop 直接驱动设备 |
+
 ## 免责声明
 
 > **本项目仅供学习交流使用，不得用于任何违法或不当用途。使用者应自行承担使用本项目所产生的一切风险和责任，项目作者不对因使用本项目而导致的任何直接或间接损害承担责任。**
+
+## 协议
+
+[MIT](./LICENSE)
