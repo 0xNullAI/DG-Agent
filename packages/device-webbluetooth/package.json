@@ -6,7 +6,9 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
-    "@dg-agent/core": "0.1.0"
+    "@dg-agent/core": "0.1.0",
+    "@dg-kit/protocol": "^0.1.1",
+    "@dg-kit/transport-webbluetooth": "^0.1.1"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"
