@@ -30,7 +30,7 @@ export function HelpTip({ text, side = 'top' }: HelpTipProps) {
   }, [open]);
 
   return (
-    <span ref={containerRef} className="relative inline-flex items-center align-middle">
+    <span ref={containerRef} className="relative ml-1 inline-flex items-center align-middle">
       <button
         type="button"
         title={text}
