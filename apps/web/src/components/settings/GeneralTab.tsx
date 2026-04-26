@@ -10,6 +10,7 @@ import {
   type ProviderFieldDefinition,
   type ProviderId,
 } from '@dg-agent/providers-catalog';
+import { HelpTip } from '../HelpTip.js';
 import { SettingLabel } from './SettingLabel.js';
 import { SettingSelect } from './SettingSelect.js';
 import { SettingToggle } from './SettingToggle.js';
@@ -155,7 +156,10 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
             ))}
           </div>
 
-          <SettingLabel>上下文策略</SettingLabel>
+          <SettingLabel className="inline-flex items-center gap-1.5">
+            上下文策略
+            <HelpTip text="策略越复杂，模型可以记住越长的对话历史，但工具调用的稳定性可能会下降，请按需选择。" />
+          </SettingLabel>
           <div className="settings-inline-field-control">
             <SettingSelect
               value={settingsDraft.modelContextStrategy}
