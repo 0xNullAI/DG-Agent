@@ -175,7 +175,7 @@ async function flushAsyncWork(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-describe('bridge-core', () => {
+describe('bridge', () => {
   it('processes queued messages sequentially', async () => {
     const order: string[] = [];
     const queue = new MessageQueue(async (text) => {

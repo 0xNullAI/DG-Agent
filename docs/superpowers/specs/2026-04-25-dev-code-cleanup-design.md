@@ -1,6 +1,13 @@
 # Dev 代码清洁设计文档
 
 **日期**：2026-04-25  
+**状态**：已实施。
+
+> **历史背景**：本 spec 完成后，同日做了一次包结构重组（见
+> `2026-04-25-package-restructure-design.md`），其中 `permissions-browser`
+> 合并进 `permissions`、`prompts-basic` 内嵌进 `runtime`。下文中出现的
+> 这两个旧包名仅作历史记录，对应能力现位于新包内。
+
 **范围**：`apps/web` + `packages/runtime` + `packages/providers-openai-http` + `packages/permissions-browser` + `packages/prompts-basic`  
 **目标**：拆分大文件、补充测试防护网，不引入新功能，不改变任何现有行为。
 
