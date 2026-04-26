@@ -12,7 +12,7 @@
     "dev": "npm run dev --workspace @dg-agent/web",
     "typecheck": "npm run typecheck --workspaces --if-present --include-workspace-root=false",
     "build": "npm run build --workspaces --if-present --include-workspace-root=false",
-    "test": "npm run test --workspaces --if-present --include-workspace-root=false",
+    "test": "vitest run",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",

@@ -10,7 +10,6 @@
     "@dg-agent/core": "0.1.0"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }

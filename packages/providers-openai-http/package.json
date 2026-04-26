@@ -11,7 +11,6 @@
     "zod": "^3.23.8"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "typecheck": "tsc -p tsconfig.json --noEmit"
   }
 }
