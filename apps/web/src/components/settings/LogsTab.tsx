@@ -1,17 +1,18 @@
 import type { BridgeLogEntry, BridgeManagerStatus } from '@dg-agent/bridge';
-import type { RuntimeEvent } from '@dg-agent/core';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
+import type { ModelLogTurn } from '../../services/model-log-store.js';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { formatTimestamp } from '../../utils/ui-formatters.js';
+import { SettingToggle } from './SettingToggle.js';
 
-interface LogsTabProps {
+interface BridgeLogsTabProps {
   bridgeLogs: BridgeLogEntry[];
   bridgeStatus: BridgeManagerStatus | null;
-  events: RuntimeEvent[];
   settings: BrowserAppSettings;
 }
 
-export function BridgeLogsTab({ bridgeLogs, bridgeStatus, settings }: LogsTabProps) {
+export function BridgeLogsTab({ bridgeLogs, bridgeStatus, settings }: BridgeLogsTabProps) {
   return (
     <div className="settings-panel-tab-content">
       <section className="settings-row-card">
@@ -49,168 +50,115 @@ export function BridgeLogsTab({ bridgeLogs, bridgeStatus, settings }: LogsTabPro
   );
 }
 
-interface LlmLogEntry {
+function CollapsibleJson({
+  label,
+  data,
+  defaultOpen = false,
+}: {
   label: string;
-  requestJson?: unknown;
-  responseJson?: unknown;
-  detail?: string;
-}
-
-function formatLlmTurnStartEntry(event: RuntimeEvent & { type: 'llm-turn-start' }): LlmLogEntry {
-  const tools = event.toolNames.length > 0 ? event.toolNames.join(', ') : '（无）';
-  return {
-    label: `▶ LLM 请求  iteration=${event.iteration}  消息×${event.messages.length}  工具：${tools}`,
-    requestJson: {
-      iteration: event.iteration,
-      instructions: event.instructions,
-      messages: event.messages,
-      toolNames: event.toolNames,
-    },
-  };
-}
-
-function formatLlmTurnCompleteEntry(
-  event: RuntimeEvent & { type: 'llm-turn-complete' },
-): LlmLogEntry {
-  return {
-    label: `◀ LLM 响应  iteration=${event.iteration}  工具×${event.toolCalls.length}`,
-    requestJson: event.rawRequest,
-    responseJson: event.rawResponse ?? {
-      assistantMessage: event.assistantMessage,
-      toolCalls: event.toolCalls,
-    },
-  };
-}
-
-function formatEvent(event: RuntimeEvent): { label: string; detail?: string } | null {
-  switch (event.type) {
-    case 'llm-turn-start':
-    case 'llm-turn-complete':
-      return null; // handled separately as LlmLogEntry
-
-    case 'device-command-executed': {
-      const cmd = event.command;
-      let summary: string = cmd.type;
-      if (cmd.type === 'start')
-        summary = `start ${cmd.channel} 强度=${cmd.strength} 波形=${cmd.waveform.id}`;
-      else if (cmd.type === 'stop') summary = `stop ${cmd.channel ?? '全部'}`;
-      else if (cmd.type === 'adjustStrength')
-        summary = `adjust ${cmd.channel} delta=${cmd.delta > 0 ? '+' : ''}${cmd.delta}`;
-      else if (cmd.type === 'changeWave')
-        summary = `changeWave ${cmd.channel} → ${cmd.waveform.id}`;
-      else if (cmd.type === 'burst')
-        summary = `burst ${cmd.channel} 强度=${cmd.strength} ${cmd.durationMs}ms`;
-      else if (cmd.type === 'emergencyStop') summary = 'emergencyStop';
-      const state = event.result.state;
-      const detail = `A=${state.strengthA}/${state.limitA}  B=${state.strengthB}/${state.limitB}`;
-      return { label: `🔧 ${summary}`, detail };
-    }
-
-    case 'tool-call-denied':
-      return { label: `⛔ 拒绝：${event.toolCall.name}`, detail: event.reason };
-
-    case 'tool-call-failed':
-      return { label: `❌ 失败：${event.toolCall.name}`, detail: event.error };
-
-    case 'timer-scheduled':
-      return {
-        label: `⏰ 定时：${event.label}（${Math.round((event.dueAt - Date.now()) / 1000)}s 后）`,
-      };
-
-    case 'timer-fired':
-      return { label: `⏰ 触发：${event.label}` };
-
-    case 'runtime-warning':
-      return { label: `⚠️ 警告`, detail: event.message };
-
-    case 'user-message-accepted':
-      return { label: `👤 用户消息`, detail: event.message.content.slice(0, 100) };
-
-    case 'assistant-message-completed':
-      return {
-        label: `✅ 回复完成`,
-        detail: event.message.content.slice(0, 100) || '（工具执行）',
-      };
-
-    case 'assistant-message-aborted':
-      return { label: `🛑 回复中止`, detail: event.reason };
-
-    default:
-      return null;
-  }
-}
-
-function CollapsibleJson({ label, data }: { label: string; data: unknown }) {
+  data: unknown;
+  defaultOpen?: boolean;
+}) {
   return (
-    <details className="mt-1">
-      <summary className="cursor-pointer select-none text-[11px] text-[var(--text-faint)] hover:text-[var(--text-soft)]">
+    <details
+      className="rounded-[8px] border border-[var(--surface-border)] bg-[var(--bg-soft)]"
+      open={defaultOpen}
+    >
+      <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-[var(--text-soft)] hover:text-[var(--text)]">
         {label}
       </summary>
-      <pre className="mt-1 overflow-x-auto whitespace-pre-wrap break-words rounded-[6px] bg-[var(--bg-soft)] p-2 text-[10px] leading-relaxed text-[var(--text-soft)]">
+      <pre className="overflow-x-auto whitespace-pre-wrap break-words border-t border-[var(--surface-border)] px-3 py-2 text-[11px] leading-relaxed text-[var(--text-soft)]">
         {JSON.stringify(data, null, 2)}
       </pre>
     </details>
   );
 }
 
-export function ModelToolLogsTab({ events }: LogsTabProps) {
-  const visibleEvents = [...events].reverse().filter((e) => {
-    return (
-      e.type !== 'assistant-message-delta' &&
-      e.type !== 'device-state-changed' &&
-      e.type !== 'session-updated'
-    );
-  });
+function formatTurnDuration(turn: ModelLogTurn): string {
+  if (turn.completedAt === undefined) return '进行中…';
+  const ms = turn.completedAt - turn.startedAt;
+  if (ms < 1000) return `${ms} ms`;
+  return `${(ms / 1000).toFixed(2)} s`;
+}
+
+interface ModelLogsTabProps {
+  settingsDraft: BrowserAppSettings;
+  setSettingsDraft: React.Dispatch<React.SetStateAction<BrowserAppSettings>>;
+  turns: ModelLogTurn[];
+  onClear: () => void;
+}
+
+export function ModelLogsTab({
+  settingsDraft,
+  setSettingsDraft,
+  turns,
+  onClear,
+}: ModelLogsTabProps) {
+  const enabled = settingsDraft.modelLogEnabled;
+  const sortedTurns = [...turns].sort((a, b) => b.startedAt - a.startedAt);
 
   return (
     <div className="settings-panel-tab-content">
       <section className="settings-row-card">
-        <h3 className="settings-card-legend">模型日志</h3>
-
-        <div className="settings-log-list">
-          {visibleEvents.length === 0 && (
-            <div className="settings-log-empty">还没有模型或工具调用日志</div>
-          )}
-          {visibleEvents.map((event, index) => {
-            if (event.type === 'llm-turn-start') {
-              const entry = formatLlmTurnStartEntry(event);
-              return (
-                <div key={index} className="settings-log-entry flex flex-col gap-0.5">
-                  <span className="font-medium">{entry.label}</span>
-                  {entry.requestJson !== undefined && (
-                    <CollapsibleJson label="请求内容" data={entry.requestJson} />
-                  )}
-                </div>
-              );
-            }
-            if (event.type === 'llm-turn-complete') {
-              const entry = formatLlmTurnCompleteEntry(event);
-              return (
-                <div key={index} className="settings-log-entry flex flex-col gap-0.5">
-                  <span className="font-medium">{entry.label}</span>
-                  {entry.requestJson !== undefined && (
-                    <CollapsibleJson label="HTTP 请求" data={entry.requestJson} />
-                  )}
-                  {entry.responseJson !== undefined && (
-                    <CollapsibleJson label="HTTP 响应" data={entry.responseJson} />
-                  )}
-                </div>
-              );
-            }
-            const formatted = formatEvent(event);
-            if (!formatted) return null;
-            return (
-              <div key={index} className="settings-log-entry flex flex-col gap-0.5">
-                <span className="font-medium">{formatted.label}</span>
-                {formatted.detail && (
-                  <pre className="whitespace-pre-wrap text-[var(--text-faint)] text-[11px] leading-relaxed">
-                    {formatted.detail}
-                  </pre>
-                )}
-              </div>
-            );
-          })}
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="settings-card-legend !mb-0">模型日志</h3>
+          <Button variant="secondary" size="sm" onClick={onClear} disabled={turns.length === 0}>
+            清空日志（{turns.length}）
+          </Button>
         </div>
+
+        <SettingToggle
+          checked={enabled}
+          onCheckedChange={(checked) =>
+            setSettingsDraft((current) => ({ ...current, modelLogEnabled: checked }))
+          }
+          label="记录模型日志"
+          description="开启后，所有 LLM 请求和响应都会永久保存到本地，直到手动清空。关闭只是停止收集，已有记录会保留。"
+        />
+
+        {!enabled && turns.length === 0 && (
+          <div className="settings-log-empty">请先开启「记录模型日志」开关</div>
+        )}
+
+        {enabled && turns.length === 0 && (
+          <div className="settings-log-empty">
+            还没有模型调用记录。下次和 AI 对话时，本回合的 LLM 请求和响应会出现在这里。
+          </div>
+        )}
+
+        {turns.length > 0 && (
+          <div className="flex flex-col gap-3">
+            {sortedTurns.map((turn) => (
+              <div
+                key={turn.id}
+                className="rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-strong)] p-3"
+              >
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-soft)]">
+                  <span className="font-medium text-[var(--text)]">
+                    会话 {turn.sessionId.slice(-8)} · iteration {turn.iteration}
+                  </span>
+                  <span className="text-[var(--text-faint)]">
+                    {formatTimestamp(turn.startedAt)}
+                  </span>
+                  <span className="text-[var(--text-faint)]">用时 {formatTurnDuration(turn)}</span>
+                  {turn.response && turn.response.toolCalls.length > 0 && (
+                    <Badge variant="default">工具 × {turn.response.toolCalls.length}</Badge>
+                  )}
+                  {turn.completedAt === undefined && <Badge variant="warning">未完成</Badge>}
+                </div>
+
+                <div className="mt-2 flex flex-col gap-2">
+                  {turn.request && (
+                    <CollapsibleJson label="📤 请求 (request)" data={turn.request} />
+                  )}
+                  {turn.response && (
+                    <CollapsibleJson label="📥 响应 (response)" data={turn.response} />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

@@ -117,6 +117,7 @@ export class BrowserAppSettingsStore {
       burstRequiresActiveChannel: settings.burstRequiresActiveChannel,
       safetyStopOnLeave: settings.safetyStopOnLeave,
       rememberApiKey: settings.rememberApiKey,
+      modelLogEnabled: settings.modelLogEnabled,
       speechRecognitionEnabled: settings.speechRecognitionEnabled,
       speechSynthesisEnabled: settings.speechSynthesisEnabled,
       speechRecognitionLanguage: settings.speechRecognitionLanguage,

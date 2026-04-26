@@ -26,6 +26,7 @@ export const settingsSchema = z.object({
   burstRequiresActiveChannel: z.boolean().optional(),
   safetyStopOnLeave: z.boolean().optional(),
   rememberApiKey: z.boolean().optional(),
+  modelLogEnabled: z.boolean().optional(),
   speechRecognitionEnabled: z.boolean().optional(),
   speechSynthesisEnabled: z.boolean().optional(),
   speechRecognitionLanguage: z.string().min(2).optional(),

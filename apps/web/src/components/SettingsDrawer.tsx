@@ -1,7 +1,8 @@
 import React from 'react';
 import type { BridgeLogEntry, BridgeManagerStatus } from '@dg-agent/bridge';
-import type { RuntimeEvent, WaveformDefinition } from '@dg-agent/core';
+import type { WaveformDefinition } from '@dg-agent/core';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
+import type { ModelLogTurn } from '../services/model-log-store.js';
 import {
   ArrowLeft,
   Bot,
@@ -20,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { GeneralTab } from './settings/GeneralTab.js';
 import { SafetyTab } from './settings/SafetyTab.js';
 import { BridgeTab } from './settings/BridgeTab.js';
-import { BridgeLogsTab, ModelToolLogsTab } from './settings/LogsTab.js';
+import { BridgeLogsTab, ModelLogsTab } from './settings/LogsTab.js';
 import { VoiceTab } from './settings/VoiceTab.js';
 import { PresetSelector } from './PresetSelector.js';
 import { WaveformsPanel } from './WaveformsPanel.js';
@@ -140,7 +141,8 @@ export interface SettingsDrawerProps {
   onEditWaveform: (waveform: WaveformDefinition) => void;
   bridgeLogs: BridgeLogEntry[];
   bridgeStatus: BridgeManagerStatus | null;
-  events: RuntimeEvent[];
+  modelLogTurns: ModelLogTurn[];
+  onClearModelLogs: () => void;
   settings: BrowserAppSettings;
 }
 
@@ -156,7 +158,8 @@ function SettingsTabContent({
   onEditWaveform,
   bridgeLogs,
   bridgeStatus,
-  events,
+  modelLogTurns,
+  onClearModelLogs,
   settings,
 }: Omit<
   SettingsDrawerProps,
@@ -191,20 +194,15 @@ function SettingsTabContent({
       return <VoiceTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
     case 'bridge-logs':
       return (
-        <BridgeLogsTab
-          bridgeLogs={bridgeLogs}
-          bridgeStatus={bridgeStatus}
-          settings={settings}
-          events={events}
-        />
+        <BridgeLogsTab bridgeLogs={bridgeLogs} bridgeStatus={bridgeStatus} settings={settings} />
       );
     case 'model-tool-logs':
       return (
-        <ModelToolLogsTab
-          bridgeLogs={bridgeLogs}
-          bridgeStatus={bridgeStatus}
-          events={events}
-          settings={settings}
+        <ModelLogsTab
+          settingsDraft={settingsDraft}
+          setSettingsDraft={setSettingsDraft}
+          turns={modelLogTurns}
+          onClear={onClearModelLogs}
         />
       );
     default:

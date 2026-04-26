@@ -71,6 +71,7 @@ export function defaultBrowserAppSettings(env: BrowserAppEnvLike = {}): BrowserA
     burstRequiresActiveChannel: toolCallConfig.burstRequiresActiveChannel,
     safetyStopOnLeave: true,
     rememberApiKey: false,
+    modelLogEnabled: false,
     speechRecognitionEnabled: false,
     speechSynthesisEnabled: false,
     speechRecognitionLanguage: 'zh-CN',

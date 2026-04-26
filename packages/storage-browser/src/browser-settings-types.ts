@@ -46,6 +46,7 @@ export interface BrowserAppSettings {
   burstRequiresActiveChannel: boolean;
   safetyStopOnLeave: boolean;
   rememberApiKey: boolean;
+  modelLogEnabled: boolean;
   speechRecognitionEnabled: boolean;
   speechSynthesisEnabled: boolean;
   speechRecognitionLanguage: string;

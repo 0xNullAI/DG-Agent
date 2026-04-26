@@ -34,6 +34,7 @@ import {
   useBrowserAppServices,
   type PendingPermissionRequest,
 } from './composition/use-browser-app-services.js';
+import { useModelLog } from './hooks/use-model-log.js';
 import { useRuntimeSessionState } from './hooks/use-runtime-session-state.js';
 import { useSettingsManager } from './hooks/use-settings-manager.js';
 import { useToastManager } from './hooks/use-toast-manager.js';
@@ -113,10 +114,18 @@ export function App() {
     setStatusMessage,
   });
 
+  const modelLog = useModelLog(settings.modelLogEnabled);
+
   const runtimeSession = useRuntimeSessionState({
     client,
     enabled: safetyNoticeAccepted,
-    onRuntimeEvent: voice.handleRuntimeEvent,
+    onRuntimeEvent: useCallback(
+      (event) => {
+        voice.handleRuntimeEvent(event);
+        modelLog.ingest(event);
+      },
+      [voice, modelLog],
+    ),
   });
 
   const waveformManager = useWaveformManager({
@@ -656,7 +665,8 @@ export function App() {
                 onEditWaveform={openWaveformEditor}
                 bridgeLogs={bridgeLogs}
                 bridgeStatus={bridgeStatus}
-                events={events}
+                modelLogTurns={modelLog.turns}
+                onClearModelLogs={modelLog.clear}
                 settings={settings}
               />
             ) : (
