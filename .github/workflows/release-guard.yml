@@ -1,0 +1,82 @@
+name: Release Guard
+
+# Runs on every PR that targets `main`. main is reserved for releases, so a
+# PR landing there MUST bump a version somewhere — root package.json for
+# single-package repos, or one of packages/*/package.json for monorepos.
+# This blocks accidental pushes / PRs that don't represent a real release.
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  version-bump-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect version bumps
+        run: |
+          set -euo pipefail
+          git fetch origin main:refs/remotes/origin/main
+
+          bumped_any=0
+          report=""
+
+          read_pr_version() {
+            local path=$1
+            [ -f "$path" ] || { echo ""; return; }
+            node -p "JSON.parse(require('fs').readFileSync('$path','utf8')).version || ''" 2>/dev/null || echo ""
+          }
+          read_main_version() {
+            local path=$1
+            git show "origin/main:$path" 2>/dev/null | \
+              node -e "let s=''; process.stdin.on('data',c=>s+=c); process.stdin.on('end',()=>{try{console.log(JSON.parse(s).version||'')}catch{console.log('')}})" \
+              2>/dev/null || echo ""
+          }
+
+          check() {
+            local path=$1
+            local pr_v main_v
+            pr_v=$(read_pr_version "$path")
+            main_v=$(read_main_version "$path")
+            [ -z "$pr_v" ] && return
+            if [ "$pr_v" != "$main_v" ]; then
+              report="$report\n  $path : ${main_v:-(absent)} → $pr_v"
+              bumped_any=1
+            fi
+          }
+
+          check "package.json"
+          for f in packages/*/package.json; do
+            [ -e "$f" ] && check "$f"
+          done
+
+          if [ "$bumped_any" = "0" ]; then
+            echo "::error::No package.json version was bumped on this PR."
+            echo "main is release-only; PRs to main MUST carry a version bump."
+            echo ""
+            echo "If this is a release PR:"
+            echo "  - For single-package repos: bump root package.json (e.g. npm version patch)"
+            echo "  - For monorepo (DG-Kit / DG-Agent): use changesets or bump packages/*/package.json"
+            echo ""
+            echo "If this is NOT a release PR: retarget the base branch to 'dev'."
+            exit 1
+          fi
+
+          echo "::notice::Version bumps detected:"
+          printf "%b\n" "$report"
+          {
+            echo "## ✅ Release-guard passed"
+            echo ""
+            echo "Version bumps detected:"
+            echo ""
+            printf "%b\n" "$report"
+          } >> "$GITHUB_STEP_SUMMARY"
