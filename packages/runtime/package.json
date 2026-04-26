@@ -8,7 +8,7 @@
   "dependencies": {
     "@dg-agent/core": "0.1.0",
     "@dg-agent/waveforms": "0.1.0",
-    "@dg-kit/tools": "^0.1.1",
+    "@dg-kit/tools": "^0.2.0",
     "zod": "^3.23.8"
   },
   "scripts": {
