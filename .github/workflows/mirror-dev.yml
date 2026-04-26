@@ -1,0 +1,52 @@
+name: Mirror dev → DG-Agent-dev/main
+
+# Mirrors every push on `dev` to the main branch of the public mirror repo
+# (https://github.com/0xNullAI/DG-Agent-dev). The mirror has its own CI +
+# deploy.yml that builds and publishes to https://0xnullai.github.io/DG-Agent-dev/
+# so the dev branch effectively gets a live preview URL.
+#
+# Force-pushes — the mirror is read-only by convention, anything diverging
+# on its side will be overwritten.
+#
+# Requires repo secret `MIRROR_PAT`: a fine-grained Personal Access Token
+# with Contents: read+write on 0xNullAI/DG-Agent-dev (or a classic PAT
+# with the `repo` scope).
+
+on:
+  push:
+    branches: [dev]
+
+concurrency:
+  group: mirror-dev
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Force-push dev to DG-Agent-dev/main
+        env:
+          MIRROR_PAT: ${{ secrets.MIRROR_PAT }}
+        run: |
+          set -euo pipefail
+          if [ -z "${MIRROR_PAT:-}" ]; then
+            echo "::error::MIRROR_PAT secret is not configured. Add it under Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          git push --force \
+            "https://x-access-token:${MIRROR_PAT}@github.com/0xNullAI/DG-Agent-dev.git" \
+            HEAD:refs/heads/main
+
+      - name: Summary
+        run: |
+          {
+            echo "## 🪞 Mirrored to DG-Agent-dev"
+            echo ""
+            echo "Source: \`dev\` @ ${GITHUB_SHA::7}"
+            echo "Mirror: https://github.com/0xNullAI/DG-Agent-dev/tree/main"
+            echo "Live preview: https://0xnullai.github.io/DG-Agent-dev/"
+          } >> "$GITHUB_STEP_SUMMARY"
