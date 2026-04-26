@@ -1,30 +1,29 @@
-export type Channel = 'A' | 'B';
+/**
+ * @dg-agent/core
+ *
+ * Shared types live in @dg-kit/core (published, version-pinned). This package
+ * re-exports them and adds the agent-runtime-only contracts that DG-Agent
+ * needs but DG-MCP / DG-Chat don't (LLM client, session store, permission
+ * service, runtime trace, etc.).
+ */
+
+export * from '@dg-kit/core';
+
+import type {
+  DeviceCommand,
+  DeviceCommandResult,
+  DeviceState,
+  ToolCall,
+  ToolDefinition,
+} from '@dg-kit/core';
+
+// ============================================================================
+// Agent-only types (not shared with DG-MCP / DG-Chat)
+// ============================================================================
+
 export type SourceType = 'web' | 'qq' | 'telegram' | 'cli' | 'api' | 'system';
 export type MessageRole = 'system' | 'user' | 'assistant';
 export type ModelContextStrategy = 'last-user-turn' | 'last-five-user-turns' | 'full-history';
-export type WaveFrame = [number, number];
-
-export interface WaveformDefinition {
-  id: string;
-  name: string;
-  description?: string;
-  frames: WaveFrame[];
-}
-
-export interface DeviceState {
-  connected: boolean;
-  deviceName?: string;
-  address?: string;
-  battery?: number;
-  strengthA: number;
-  strengthB: number;
-  limitA: number;
-  limitB: number;
-  waveActiveA: boolean;
-  waveActiveB: boolean;
-  currentWaveA?: string;
-  currentWaveB?: string;
-}
 
 export interface ActionContext {
   sessionId: string;
@@ -42,20 +41,6 @@ export interface ConversationMessage {
   createdAt: number;
   reasoningContent?: string;
   toolCalls?: ToolCall[];
-}
-
-export interface ToolCall {
-  id: string;
-  name: string;
-  displayName?: string;
-  args: Record<string, unknown>;
-}
-
-export interface ToolDefinition {
-  name: string;
-  displayName?: string;
-  description: string;
-  parameters: Record<string, unknown>;
 }
 
 export interface SessionSnapshot {
@@ -149,36 +134,6 @@ export interface RuntimeTraceEntry {
   firedAt?: number;
 }
 
-export type DeviceCommand =
-  | {
-      type: 'start';
-      channel: Channel;
-      strength: number;
-      waveform: WaveformDefinition;
-      loop: boolean;
-    }
-  | { type: 'stop'; channel?: Channel }
-  | { type: 'adjustStrength'; channel: Channel; delta: number }
-  | { type: 'changeWave'; channel: Channel; waveform: WaveformDefinition; loop: boolean }
-  | { type: 'burst'; channel: Channel; strength: number; durationMs: number }
-  | { type: 'emergencyStop' };
-
-export interface TimerCommand {
-  type: 'timer';
-  seconds: number;
-  label: string;
-}
-
-export type ToolExecutionPlan =
-  | { type: 'device'; command: DeviceCommand }
-  | { type: 'timer'; command: TimerCommand }
-  | { type: 'inline'; output: string; summary?: string };
-
-export interface DeviceCommandResult {
-  state: DeviceState;
-  notes?: string[];
-}
-
 export type PermissionDecision =
   | { type: 'approve-once' }
   | { type: 'approve-scoped'; expiresAt?: number }
@@ -243,29 +198,6 @@ export type RuntimeEvent =
       rawResponse?: unknown;
     };
 
-export function createEmptyDeviceState(): DeviceState {
-  return {
-    connected: false,
-    battery: 0,
-    strengthA: 0,
-    strengthB: 0,
-    limitA: 200,
-    limitB: 200,
-    waveActiveA: false,
-    waveActiveB: false,
-  };
-}
-
-export function isDeviceToolName(name: string): boolean {
-  return (
-    name === 'start' ||
-    name === 'stop' ||
-    name === 'adjust_strength' ||
-    name === 'change_wave' ||
-    name === 'burst'
-  );
-}
-
 export function createMessage(
   role: MessageRole,
   content: string,
@@ -283,7 +215,7 @@ export function createMessage(
 }
 
 // ============================================================================
-// Contract interfaces (merged from @dg-agent/core)
+// Agent-only contract interfaces
 // ============================================================================
 
 export type LlmConversationItem =
@@ -317,15 +249,6 @@ export interface LlmTurnResult {
   rawResponse?: unknown;
 }
 
-export interface DeviceClient {
-  connect(): Promise<void>;
-  disconnect(): Promise<void>;
-  getState(): Promise<DeviceState>;
-  execute(command: DeviceCommand): Promise<DeviceCommandResult>;
-  emergencyStop(): Promise<void>;
-  onStateChanged(listener: (state: DeviceState) => void): () => void;
-}
-
 export interface LlmClient {
   runTurn(input: LlmTurnInput): Promise<LlmTurnResult>;
 }
@@ -356,21 +279,4 @@ export interface SessionTraceStore {
     entry: Omit<RuntimeTraceEntry, 'id' | 'createdAt'>,
   ): Promise<RuntimeTraceEntry>;
   clear(sessionId: string): Promise<void>;
-}
-
-export interface WaveformLibrary {
-  getById(id: string): Promise<WaveformDefinition | null>;
-  list(): Promise<WaveformDefinition[]>;
-  /**
-   * Persist a new or updated waveform. Optional because not every library
-   * implementation supports writing (e.g. a read-only Node bundle); design
-   * tools should branch on its presence.
-   */
-  save?(waveform: WaveformDefinition): Promise<void>;
-}
-
-export interface Logger {
-  info(message: string, meta?: Record<string, unknown>): void;
-  warn(message: string, meta?: Record<string, unknown>): void;
-  error(message: string, meta?: Record<string, unknown>): void;
 }
