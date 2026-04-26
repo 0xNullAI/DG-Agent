@@ -1,4 +1,5 @@
-.claude
+.claude/settings.local.json
+.claude/projects/
 .superpowers
 .npm-cache
 .playwright-browsers
