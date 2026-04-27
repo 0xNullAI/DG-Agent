@@ -57,6 +57,7 @@ export function defaultBrowserAppSettings(env: BrowserAppEnvLike = {}): BrowserA
     deviceMode: 'web-bluetooth',
     llmMode: 'provider-http',
     modelContextStrategy: 'last-user-turn',
+    temperature: 0.3,
     permissionMode: 'confirm',
     backgroundBehavior: 'stop',
     maxStrengthA: 50,

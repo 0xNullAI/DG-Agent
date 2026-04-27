@@ -102,6 +102,7 @@ export class BrowserAppSettingsStore {
       deviceMode: settings.deviceMode,
       llmMode: settings.llmMode,
       modelContextStrategy: settings.modelContextStrategy,
+      temperature: settings.temperature,
       permissionMode: persistedPermissionMode,
       permissionModeExpiresAt: persistedPermissionModeExpiresAt,
       backgroundBehavior: settings.backgroundBehavior,

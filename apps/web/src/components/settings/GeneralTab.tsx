@@ -176,6 +176,31 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
               ]}
             />
           </div>
+
+          <SettingLabel className="whitespace-nowrap">
+            AI 多样性
+            <HelpTip text="越接近 1 多样性越高，模型回复更发散；越接近 0 越保守稳定，工具调用更可控。" />
+          </SettingLabel>
+          <div className="settings-inline-field-control flex items-center gap-3">
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={settingsDraft.temperature}
+              aria-label="AI 多样性"
+              onChange={(event) =>
+                setSettingsDraft((current) => ({
+                  ...current,
+                  temperature: Number(event.target.value),
+                }))
+              }
+              className="w-32"
+            />
+            <span className="w-10 text-right text-xs tabular-nums text-[var(--text-soft)]">
+              {settingsDraft.temperature.toFixed(2)}
+            </span>
+          </div>
         </div>
       </section>
 
