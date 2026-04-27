@@ -7,8 +7,8 @@
   "types": "./src/index.ts",
   "dependencies": {
     "@dg-agent/core": "0.1.0",
-    "@dg-kit/protocol": "^1.0.0",
-    "@dg-kit/transport-webbluetooth": "^1.0.0"
+    "@dg-kit/protocol": "^1.0.1",
+    "@dg-kit/transport-webbluetooth": "^1.0.1"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"

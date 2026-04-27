@@ -8,7 +8,7 @@
   "dependencies": {
     "@dg-agent/core": "0.1.0",
     "@dg-agent/providers-catalog": "0.1.0",
-    "zod": "^3.23.8"
+    "zod": "^4.3.6"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"
