@@ -87,6 +87,7 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
         model: provider.model,
         endpoint: provider.endpoint,
         useStrict: provider.useStrict,
+        temperature: settings.temperature,
       });
     } catch (error) {
       llm = new UnavailableLlmClient(formatProviderConfigError(error, config.provider.providerId));

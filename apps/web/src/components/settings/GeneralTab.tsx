@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import type { CSSProperties, Dispatch, SetStateAction } from 'react';
 import { Input } from '@/components/ui/input';
 
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
@@ -14,6 +14,7 @@ import { HelpTip } from '../HelpTip.js';
 import { SettingLabel } from './SettingLabel.js';
 import { SettingSelect } from './SettingSelect.js';
 import { SettingToggle } from './SettingToggle.js';
+import strengthStyles from './SafetyTab.module.css';
 
 interface GeneralTabProps {
   settingsDraft: BrowserAppSettings;
@@ -175,6 +176,57 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
                 { value: 'full-history', label: '复杂' },
               ]}
             />
+          </div>
+
+          <SettingLabel className="whitespace-nowrap">
+            回复多样性
+            <HelpTip text="越接近 1 多样性越高，模型回复更发散；越接近 0 越保守稳定，工具调用更可控。" />
+          </SettingLabel>
+          <div className="settings-inline-field-control">
+            <div
+              className="flex items-center gap-3"
+              style={
+                {
+                  '--strength-fill': 'var(--accent)',
+                  '--strength-fill-soft': 'var(--accent-soft)',
+                  '--strength-value': `${settingsDraft.temperature * 100}%`,
+                } as CSSProperties
+              }
+            >
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={settingsDraft.temperature}
+                aria-label="回复多样性滑杆"
+                onChange={(event) =>
+                  setSettingsDraft((current) => ({
+                    ...current,
+                    temperature: Number(event.target.value),
+                  }))
+                }
+                className={`flex-1 ${strengthStyles.strengthSlider}`}
+              />
+              <input
+                type="number"
+                min={0}
+                max={1}
+                step={0.05}
+                value={settingsDraft.temperature}
+                aria-label="回复多样性"
+                onChange={(event) => {
+                  const next = Number(event.target.value);
+                  if (Number.isFinite(next)) {
+                    setSettingsDraft((current) => ({
+                      ...current,
+                      temperature: Math.min(1, Math.max(0, next)),
+                    }));
+                  }
+                }}
+                className={strengthStyles.strengthValueInput}
+              />
+            </div>
           </div>
         </div>
       </section>

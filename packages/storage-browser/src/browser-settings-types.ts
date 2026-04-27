@@ -31,6 +31,7 @@ export interface BrowserAppSettings {
   deviceMode: 'fake' | 'web-bluetooth';
   llmMode: 'fake' | 'provider-http';
   modelContextStrategy: ModelContextStrategy;
+  temperature: number;
   permissionMode: BrowserPermissionMode;
   permissionModeExpiresAt?: number;
   backgroundBehavior: 'stop' | 'keep';
