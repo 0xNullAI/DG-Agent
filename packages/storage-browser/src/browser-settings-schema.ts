@@ -11,6 +11,7 @@ export const settingsSchema = z.object({
   modelContextStrategy: z
     .enum(['last-user-turn', 'last-five-user-turns', 'full-history'])
     .optional(),
+  temperature: z.number().min(0).max(1).optional(),
   permissionMode: z.enum(['confirm', 'timed', 'allow-all']).optional(),
   permissionModeExpiresAt: z.number().int().positive().optional(),
   backgroundBehavior: z.enum(['stop', 'keep']).optional(),
