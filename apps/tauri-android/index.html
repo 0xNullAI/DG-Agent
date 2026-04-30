@@ -8,9 +8,11 @@
   </head>
   <body>
     <style>
-      /* Splash shown while React mounts. The .dgaa-splash-loaded class is
-         added by main.tsx so we can fade out, then drop the splash entirely. */
-      html, body { background: #0b1020; margin: 0; }
+      /* Splash shown while React mounts. After React commits, main.tsx adds
+         the .dgaa-splash-loaded class which fades it out before removal.
+         Only the splash overlay is dark — body styling is intentionally left
+         to apps/web's theme tokens so light/dark mode stay in control. */
+      html, body { margin: 0; }
       #dgaa-splash {
         position: fixed; inset: 0; z-index: 9999;
         display: flex; align-items: center; justify-content: center;
