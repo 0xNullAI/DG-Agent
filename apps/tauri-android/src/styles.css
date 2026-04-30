@@ -35,3 +35,40 @@ body {
   min-height: 100vh;
   min-height: 100dvh;
 }
+
+/*
+ * Suppress Android WebView quirks that don't exist on the desktop web.
+ * Each rule is here only because web (Chrome desktop) already behaves the
+ * way we want by default.
+ */
+html {
+  /* Stop Android from rescaling text when system font-size is bumped — UI
+     density would otherwise drift from the web build. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  /* Disable native pull-to-refresh + horizontal swipe-back, both of which
+     conflict with our internal scrolling chat panel and sidebar gestures. */
+  overscroll-behavior: none;
+}
+
+* {
+  /* Kill the blue tap-flash WebView paints over every clickable element.
+     Web has no tap highlight; Android does. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Long-press on plain UI text shouldn't expose a text-selection toolbar.
+   Inputs and message bubbles still allow selection because they explicitly
+   set user-select via their own styles. */
+body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+input,
+textarea,
+[contenteditable='true'],
+.allow-select,
+.allow-select * {
+  -webkit-user-select: text;
+  user-select: text;
+}
