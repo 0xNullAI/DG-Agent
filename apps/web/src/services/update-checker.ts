@@ -9,6 +9,11 @@ export interface UpdateCheckerOptions {
   versionUrl: string;
   pollIntervalMs?: number;
   firstCheckDelayMs?: number;
+  /**
+   * When true, `start()` is a no-op. Used by non-browser shells (Tauri
+   * Android) where there is no version.json endpoint to poll.
+   */
+  disabled?: boolean;
 }
 
 export class BrowserUpdateChecker {
@@ -21,6 +26,8 @@ export class BrowserUpdateChecker {
   constructor(private readonly options: UpdateCheckerOptions) {}
 
   start(): void {
+    if (this.options.disabled) return;
+
     this.timeoutId = window.setTimeout(() => {
       void this.checkOnce();
     }, this.options.firstCheckDelayMs ?? 30_000);

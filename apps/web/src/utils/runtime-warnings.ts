@@ -12,10 +12,18 @@ function isValidHttpUrl(value: string): boolean {
   }
 }
 
+export interface BuildWarningsOptions {
+  /** Suppress QQ/Telegram bridge config warnings (Tauri shell ships without bridges). */
+  suppressBridge?: boolean;
+  /** Suppress speech recognition/synthesis warnings (Tauri shell ships without speech). */
+  suppressSpeech?: boolean;
+}
+
 export function buildWarnings(
   settings: BrowserAppSettings,
   modes: ReturnType<typeof describeBrowserModes>,
   speechCapabilities: ReturnType<typeof getBrowserSpeechCapabilities>,
+  options: BuildWarningsOptions = {},
 ): string[] {
   const warnings: string[] = [];
 
@@ -58,7 +66,12 @@ export function buildWarnings(
     warnings.push('A 或 B 通道的强度上限超过了 100，请再次确认安全阈值');
   }
 
-  if (settings.bridge.enabled && settings.bridge.qq.enabled && !settings.bridge.qq.wsUrl.trim()) {
+  if (
+    !options.suppressBridge &&
+    settings.bridge.enabled &&
+    settings.bridge.qq.enabled &&
+    !settings.bridge.qq.wsUrl.trim()
+  ) {
     warnings.push('已启用 QQ 桥接，但 QQ WebSocket 地址为空');
   }
 
@@ -87,7 +100,11 @@ export function buildWarnings(
     warnings.push('已启用 Telegram 桥接，但还没有配置允许的用户');
   }
 
-  if (settings.speechRecognitionEnabled && !speechCapabilities.recognitionSupported) {
+  if (
+    !options.suppressSpeech &&
+    settings.speechRecognitionEnabled &&
+    !speechCapabilities.recognitionSupported
+  ) {
     warnings.push(
       settings.voice.mode === 'dashscope-proxy'
         ? '已启用语音识别，但当前浏览器无法使用 DashScope 代理识别链路'
@@ -95,7 +112,11 @@ export function buildWarnings(
     );
   }
 
-  if (settings.speechSynthesisEnabled && !speechCapabilities.synthesisSupported) {
+  if (
+    !options.suppressSpeech &&
+    settings.speechSynthesisEnabled &&
+    !speechCapabilities.synthesisSupported
+  ) {
     warnings.push(
       settings.voice.mode === 'dashscope-proxy'
         ? '已启用语音合成，但当前浏览器无法使用 DashScope 代理合成链路'
@@ -104,6 +125,7 @@ export function buildWarnings(
   }
 
   if (
+    !options.suppressSpeech &&
     settings.voice.mode === 'dashscope-proxy' &&
     settings.voice.proxyUrl.trim() &&
     !settings.voice.apiKey.trim()
