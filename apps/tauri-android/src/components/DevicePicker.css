@@ -1,0 +1,90 @@
+.dgaa-picker-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.dgaa-picker-panel {
+  background: #1f1f23;
+  color: #fff;
+  width: 100%;
+  max-width: 480px;
+  border-radius: 16px 16px 0 0;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 70vh;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.dgaa-picker-header {
+  font-size: 18px;
+  font-weight: 600;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #2a2a30;
+}
+
+.dgaa-picker-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.dgaa-picker-row {
+  width: 100%;
+  text-align: left;
+  background: #2a2a30;
+  color: inherit;
+  border: none;
+  padding: 12px;
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.dgaa-picker-row:active {
+  background: #3a3a40;
+}
+
+.dgaa-picker-name {
+  font-size: 16px;
+  font-weight: 500;
+}
+
+.dgaa-picker-meta {
+  font-size: 12px;
+  color: #999;
+}
+
+.dgaa-picker-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: #999;
+  font-size: 14px;
+}
+
+.dgaa-picker-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: 8px;
+  border-top: 1px solid #2a2a30;
+}
+
+.dgaa-picker-cancel {
+  background: transparent;
+  color: #fff;
+  border: 1px solid #555;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+}
