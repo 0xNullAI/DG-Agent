@@ -76,6 +76,7 @@ export function buildWarnings(
   }
 
   if (
+    !options.suppressBridge &&
     settings.bridge.enabled &&
     settings.bridge.qq.enabled &&
     settings.bridge.qq.allowUsers.length === 0 &&
@@ -85,6 +86,7 @@ export function buildWarnings(
   }
 
   if (
+    !options.suppressBridge &&
     settings.bridge.enabled &&
     settings.bridge.telegram.enabled &&
     !settings.bridge.telegram.botToken.trim()
@@ -93,6 +95,7 @@ export function buildWarnings(
   }
 
   if (
+    !options.suppressBridge &&
     settings.bridge.enabled &&
     settings.bridge.telegram.enabled &&
     settings.bridge.telegram.allowUsers.length === 0
