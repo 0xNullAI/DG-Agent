@@ -23,7 +23,10 @@ export interface PendingPermissionRequest {
 export type ServicesOverrides = Pick<
   BrowserServicesOptions,
   'createDeviceClient' | 'disableSpeech' | 'disableBridge'
->;
+> & {
+  /** Skip the update-checker poll loop (no version.json on non-web shells). */
+  disableUpdateChecker?: boolean;
+};
 
 export interface UseBrowserAppServicesOptions {
   settings: BrowserAppSettings;
@@ -42,13 +45,15 @@ export function useBrowserAppServices(
 ): UseBrowserAppServicesResult {
   const { resolveBridgeSessionId, settings, setPendingPermission, servicesOverrides } = options;
 
+  const disableUpdateChecker = servicesOverrides?.disableUpdateChecker ?? false;
   const updateChecker = useMemo(
     () =>
       new BrowserUpdateChecker({
         currentBuildId: __BUILD_ID__,
         versionUrl: `${import.meta.env.BASE_URL}version.json`,
+        disabled: disableUpdateChecker,
       }),
-    [],
+    [disableUpdateChecker],
   );
 
   const services = useMemo(

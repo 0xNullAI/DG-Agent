@@ -166,7 +166,13 @@ export function App({ servicesOverrides }: AppProps = {}) {
 
   const busy = pendingSend || replyBusy;
   const deviceState = liveDeviceState ?? createEmptyDeviceState();
-  const warnings = [...buildWarnings(settings, modes, speechCapabilities), ...serviceInitWarnings];
+  const warnings = [
+    ...buildWarnings(settings, modes, speechCapabilities, {
+      suppressBridge: servicesOverrides?.disableBridge,
+      suppressSpeech: servicesOverrides?.disableSpeech,
+    }),
+    ...serviceInitWarnings,
+  ];
   const historicalTraceFeed = buildTraceFeed(sessionTrace);
   const traceFeed =
     liveTraceItems.length > 0
