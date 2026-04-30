@@ -141,7 +141,17 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
   });
 }
 
-export function describeBrowserModes(settings: BrowserAppSettings): {
+export function describeBrowserModes(
+  settings: BrowserAppSettings,
+  options: {
+    /**
+     * Override the bluetoothAvailability probe. Non-browser shells (Tauri
+     * Android) supply their own device transport and want the UI to skip the
+     * "Web Bluetooth not supported" warning.
+     */
+    bluetoothAvailabilityOverride?: ReturnType<typeof getWebBluetoothAvailability>;
+  } = {},
+): {
   deviceMode: 'fake' | 'web-bluetooth';
   llmMode: 'fake' | 'provider-http';
   bluetoothAvailability: ReturnType<typeof getWebBluetoothAvailability>;
@@ -155,6 +165,6 @@ export function describeBrowserModes(settings: BrowserAppSettings): {
     llmMode: config.llmMode,
     permissionMode: config.permissionMode,
     providerId: config.provider.providerId,
-    bluetoothAvailability: getWebBluetoothAvailability(),
+    bluetoothAvailability: options.bluetoothAvailabilityOverride ?? getWebBluetoothAvailability(),
   };
 }
