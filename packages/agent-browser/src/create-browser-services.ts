@@ -237,7 +237,9 @@ export function createBrowserServices(options: BrowserServicesOptions): BrowserS
     speechRecognition,
     speechSynthesizer,
     speechCapabilities,
-    modes: describeBrowserModes(settings),
+    modes: describeBrowserModes(settings, {
+      bluetoothAvailabilityOverride: options.createDeviceClient ? { supported: true } : undefined,
+    }),
     resetPermissionGrants: () => bridgePermissionService.clearGrants(),
     warnings,
   };
