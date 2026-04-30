@@ -33,6 +33,7 @@ import {
 import {
   useBrowserAppServices,
   type PendingPermissionRequest,
+  type ServicesOverrides,
 } from './composition/use-browser-app-services.js';
 import { useModelLog } from './hooks/use-model-log.js';
 import { useRuntimeSessionState } from './hooks/use-runtime-session-state.js';
@@ -45,7 +46,16 @@ import { buildWarnings } from './utils/runtime-warnings.js';
 import { formatUiErrorMessage, isBluetoothChooserCancelledError } from './utils/ui-formatters.js';
 import { buildTraceFeed } from './utils/trace-feed.js';
 
-export function App() {
+export interface AppProps {
+  /**
+   * Optional override for service construction. Web entry omits this to keep
+   * the historical Web Bluetooth + speech + bridge defaults; the Tauri Android
+   * shell supplies a Tauri device factory and disables speech/bridge.
+   */
+  servicesOverrides?: ServicesOverrides;
+}
+
+export function App({ servicesOverrides }: AppProps = {}) {
   const activeSessionIdRef = useRef<string | null>(null);
   const bridgeSessionResolverRef = useRef<
     (origin: MessageOrigin) => Promise<string | null> | string | null
@@ -99,6 +109,7 @@ export function App() {
     resolveBridgeSessionId,
     settings,
     setPendingPermission,
+    servicesOverrides,
   });
 
   const [updateStatus, setUpdateStatus] = useState<UpdateCheckerStatus>(() =>

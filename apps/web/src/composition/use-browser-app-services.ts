@@ -2,6 +2,7 @@ import { useMemo, type Dispatch, type SetStateAction } from 'react';
 import {
   createBrowserServices,
   type BrowserServices,
+  type BrowserServicesOptions,
   type PermissionRequestInput,
 } from '@dg-agent/agent-browser';
 import type { MessageOrigin } from '@dg-agent/bridge';
@@ -14,10 +15,21 @@ export interface PendingPermissionRequest {
   resolve: (decision: PermissionDecision) => void;
 }
 
+/**
+ * Subset of BrowserServicesOptions a non-browser shell (Tauri Android) may
+ * supply. Web entry point always omits this; defaults preserve the historical
+ * Web Bluetooth + speech + bridge behavior.
+ */
+export type ServicesOverrides = Pick<
+  BrowserServicesOptions,
+  'createDeviceClient' | 'disableSpeech' | 'disableBridge'
+>;
+
 export interface UseBrowserAppServicesOptions {
   settings: BrowserAppSettings;
   setPendingPermission: Dispatch<SetStateAction<PendingPermissionRequest | null>>;
   resolveBridgeSessionId: (origin: MessageOrigin) => string | null | Promise<string | null>;
+  servicesOverrides?: ServicesOverrides;
 }
 
 export interface UseBrowserAppServicesResult extends BrowserServices {
@@ -28,7 +40,7 @@ export interface UseBrowserAppServicesResult extends BrowserServices {
 export function useBrowserAppServices(
   options: UseBrowserAppServicesOptions,
 ): UseBrowserAppServicesResult {
-  const { resolveBridgeSessionId, settings, setPendingPermission } = options;
+  const { resolveBridgeSessionId, settings, setPendingPermission, servicesOverrides } = options;
 
   const updateChecker = useMemo(
     () =>
@@ -48,8 +60,9 @@ export function useBrowserAppServices(
           new Promise<PermissionDecision>((resolve) => {
             setPendingPermission({ input, resolve });
           }),
+        ...(servicesOverrides ?? {}),
       }),
-    [settings, resolveBridgeSessionId, setPendingPermission],
+    [settings, resolveBridgeSessionId, setPendingPermission, servicesOverrides],
   );
 
   return {
