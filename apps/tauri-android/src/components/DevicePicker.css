@@ -1,16 +1,25 @@
+/*
+ * DevicePicker modal styles.
+ *
+ * IMPORTANT: every visible color routes through apps/web's design tokens
+ * (defined in apps/web/src/styles/tokens.css and flipped per data-theme).
+ * Hardcoding hex values here would freeze the modal to one theme and break
+ * light/dark switching from Settings.
+ */
 .dgaa-picker-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
+  background: color-mix(in srgb, var(--text) 55%, transparent);
   display: flex;
   align-items: flex-end;
   justify-content: center;
   z-index: 9999;
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 .dgaa-picker-panel {
-  background: #1f1f23;
-  color: #fff;
+  background: var(--bg-elevated);
+  color: var(--text);
   width: 100%;
   max-width: 480px;
   border-radius: 16px 16px 0 0;
@@ -19,14 +28,16 @@
   flex-direction: column;
   gap: 12px;
   max-height: 70vh;
-  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 -8px 32px color-mix(in srgb, var(--text) 30%, transparent);
+  border-top: 1px solid var(--surface-border);
 }
 
 .dgaa-picker-header {
   font-size: 18px;
   font-weight: 600;
   padding-bottom: 8px;
-  border-bottom: 1px solid #2a2a30;
+  border-bottom: 1px solid var(--surface-border);
+  color: var(--text);
 }
 
 .dgaa-picker-list {
@@ -40,9 +51,9 @@
 .dgaa-picker-row {
   width: 100%;
   text-align: left;
-  background: #2a2a30;
-  color: inherit;
-  border: none;
+  background: var(--bg-strong);
+  color: var(--text);
+  border: 1px solid var(--surface-border);
   padding: 12px;
   border-radius: 8px;
   display: flex;
@@ -53,23 +64,25 @@
 }
 
 .dgaa-picker-row:active {
-  background: #3a3a40;
+  background: var(--accent-hover);
+  border-color: var(--accent);
 }
 
 .dgaa-picker-name {
   font-size: 16px;
   font-weight: 500;
+  color: var(--text);
 }
 
 .dgaa-picker-meta {
   font-size: 12px;
-  color: #999;
+  color: var(--text-soft);
 }
 
 .dgaa-picker-empty {
   padding: 32px 16px;
   text-align: center;
-  color: #999;
+  color: var(--text-soft);
   font-size: 14px;
 }
 
@@ -77,14 +90,18 @@
   display: flex;
   justify-content: flex-end;
   padding-top: 8px;
-  border-top: 1px solid #2a2a30;
+  border-top: 1px solid var(--surface-border);
 }
 
 .dgaa-picker-cancel {
   background: transparent;
-  color: #fff;
-  border: 1px solid #555;
+  color: var(--text);
+  border: 1px solid var(--surface-border-strong);
   padding: 8px 20px;
   border-radius: 8px;
   cursor: pointer;
+}
+
+.dgaa-picker-cancel:active {
+  background: var(--bg-strong);
 }
