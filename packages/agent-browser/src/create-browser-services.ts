@@ -1,4 +1,7 @@
 import {
+  NULL_SPEECH_CAPABILITIES,
+  createNullSpeechRecognitionController,
+  createNullSpeechSynthesizer,
   createSpeechRecognitionController,
   createSpeechSynthesizer,
   getBrowserSpeechCapabilities,
@@ -39,6 +42,24 @@ export interface BrowserServicesOptions {
   settings: BrowserAppSettings;
   onPermissionRequest: (input: PermissionRequestInput) => Promise<PermissionDecision>;
   resolveBridgeSessionId: (origin: MessageOrigin) => string | null | Promise<string | null>;
+  /**
+   * Optional override for the device client. Used by non-browser shells
+   * (e.g. the Tauri Android app) to inject a transport that doesn't depend
+   * on Web Bluetooth. Defaults to constructing a WebBluetoothDeviceClient.
+   */
+  createDeviceClient?: (protocol: CoyoteProtocolAdapter) => DeviceClient;
+  /**
+   * If true, speech recognition / synthesis are stubbed with no-op controllers
+   * and capabilities report nothing supported. Used by shells (Android WebView)
+   * that lack Web Speech APIs.
+   */
+  disableSpeech?: boolean;
+  /**
+   * If true, the BridgeManager is constructed without any adapters, so QQ /
+   * Telegram bridges are silently disabled. Used by shells that intentionally
+   * ship without bridge integrations.
+   */
+  disableBridge?: boolean;
 }
 
 export interface BrowserServices {
@@ -118,27 +139,35 @@ export function createBrowserServices(options: BrowserServicesOptions): BrowserS
   const waveformLibrary = new BrowserWaveformLibrary();
   const bridgeRegistry = new BridgeAdapterRegistry();
   const deviceProtocol = new CoyoteProtocolAdapter();
-  const device = new WebBluetoothDeviceClient({ protocol: deviceProtocol });
+  const device = options.createDeviceClient
+    ? options.createDeviceClient(deviceProtocol)
+    : new WebBluetoothDeviceClient({ protocol: deviceProtocol });
 
-  const speechRecognition = createSpeechRecognitionController({
-    lang: settings.speechRecognitionLanguage,
-    mode: settings.voice.mode,
-    proxyUrl: settings.voice.proxyUrl,
-    apiKey: settings.voice.apiKey,
-    autoStopEnabled: settings.voice.autoStopEnabled,
-  });
-  const speechSynthesizer = createSpeechSynthesizer({
-    lang: settings.speechSynthesisLanguage,
-    mode: settings.voice.mode,
-    proxyUrl: settings.voice.proxyUrl,
-    apiKey: settings.voice.apiKey,
-    speaker: settings.voice.speaker,
-    browserVoiceUri: settings.voice.browserVoiceUri,
-  });
-  const speechCapabilities = getBrowserSpeechCapabilities({
-    recognitionMode: settings.voice.mode,
-    synthesisMode: settings.voice.mode,
-  });
+  const speechRecognition = options.disableSpeech
+    ? createNullSpeechRecognitionController()
+    : createSpeechRecognitionController({
+        lang: settings.speechRecognitionLanguage,
+        mode: settings.voice.mode,
+        proxyUrl: settings.voice.proxyUrl,
+        apiKey: settings.voice.apiKey,
+        autoStopEnabled: settings.voice.autoStopEnabled,
+      });
+  const speechSynthesizer = options.disableSpeech
+    ? createNullSpeechSynthesizer()
+    : createSpeechSynthesizer({
+        lang: settings.speechSynthesisLanguage,
+        mode: settings.voice.mode,
+        proxyUrl: settings.voice.proxyUrl,
+        apiKey: settings.voice.apiKey,
+        speaker: settings.voice.speaker,
+        browserVoiceUri: settings.voice.browserVoiceUri,
+      });
+  const speechCapabilities = options.disableSpeech
+    ? NULL_SPEECH_CAPABILITIES
+    : getBrowserSpeechCapabilities({
+        recognitionMode: settings.voice.mode,
+        synthesisMode: settings.voice.mode,
+      });
 
   const localPermissionService = new BrowserPermissionService({
     mode: settings.permissionMode,
@@ -174,21 +203,30 @@ export function createBrowserServices(options: BrowserServicesOptions): BrowserS
   }
 
   let bridgeManager: BridgeManager;
-  try {
-    bridgeManager = new BridgeManager({
-      client,
-      registry: bridgeRegistry,
-      adapters: createBrowserBridgeAdapters(settings.bridge),
-      resolveTargetSessionId: resolveBridgeSessionId,
-    });
-  } catch (error) {
-    warnings.push(formatInitError('桥接服务初始化失败', error));
+  if (options.disableBridge) {
     bridgeManager = new BridgeManager({
       client,
       registry: bridgeRegistry,
       adapters: [],
       resolveTargetSessionId: resolveBridgeSessionId,
     });
+  } else {
+    try {
+      bridgeManager = new BridgeManager({
+        client,
+        registry: bridgeRegistry,
+        adapters: createBrowserBridgeAdapters(settings.bridge),
+        resolveTargetSessionId: resolveBridgeSessionId,
+      });
+    } catch (error) {
+      warnings.push(formatInitError('桥接服务初始化失败', error));
+      bridgeManager = new BridgeManager({
+        client,
+        registry: bridgeRegistry,
+        adapters: [],
+        resolveTargetSessionId: resolveBridgeSessionId,
+      });
+    }
   }
 
   return {
