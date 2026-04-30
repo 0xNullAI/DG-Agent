@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { App } from '@dg-agent/web-app/App';
 import { TauriBlecDeviceClient } from '@dg-agent/device-tauri-ble';
 import { showDevicePicker } from './components/show-device-picker';
-import '@dg-agent/web-app/styles.css';
+import './styles.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

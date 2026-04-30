@@ -1,0 +1,13 @@
+/*
+ * Tauri Android entry stylesheet.
+ *
+ * Tailwind v4 auto-scans the Vite project root for class usage; here that
+ * root is apps/tauri-android/, but the React components live in
+ * apps/web/src/. Without these @source directives Tailwind tree-shakes all
+ * utilities to zero — the app renders unstyled. Re-declares the scan paths
+ * before re-importing the web entry so utility extraction sees both trees.
+ */
+@source "../../web/src";
+@source "./";
+
+@import '../../web/src/styles.css';
