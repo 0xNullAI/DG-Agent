@@ -91,7 +91,7 @@ npm run format
 - [DG-LAB-OPENSOURCE](https://github.com/DG-LAB-OPENSOURCE/DG-LAB-OPENSOURCE) — official BLE protocol
 - [openclaw-plugin-dg-lab](https://github.com/FengYing1314/openclaw-plugin-dg-lab) — waveform parser reference
 - [sse-dg-lab](https://github.com/admilkjs/sse-dg-lab) — Dungeonlab+pulse parsing engine
-- [MapleLeaf API](https://ai.071129.xyz) — model proxy for the free-trial mode
+- [MapleLeaf API](https://aihub.071129.xyz) — model proxy for the free-trial mode
 
 ## Sister projects
 
