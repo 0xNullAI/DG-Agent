@@ -93,7 +93,7 @@ npm run format       # prettier --write
 - [DG-LAB-OPENSOURCE](https://github.com/DG-LAB-OPENSOURCE/DG-LAB-OPENSOURCE) — 官方开源 BLE 协议
 - [openclaw-plugin-dg-lab](https://github.com/FengYing1314/openclaw-plugin-dg-lab) — 波形解析器参考实现
 - [sse-dg-lab](https://github.com/admilkjs/sse-dg-lab) — Dungeonlab+pulse 波形解析引擎
-- [MapleLeaf API](https://ai.071129.xyz) — 为"免费体验"模式提供模型调用
+- [MapleLeaf API](https://aihub.071129.xyz) — 为"免费体验"模式提供模型调用
 
 ## 相关项目
 

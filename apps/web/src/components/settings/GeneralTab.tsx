@@ -257,7 +257,7 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
                 <>
                   无需配置 API-Key，当前由{' '}
                   <a
-                    href="https://ai.071129.xyz/"
+                    href="https://aihub.071129.xyz/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="underline text-[var(--accent)] hover:text-[var(--text)]"

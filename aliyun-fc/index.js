@@ -1,21 +1,21 @@
 /**
  * Aliyun Function Compute (FC 3.0) — DG-Agent Free Tier Proxy
  *
- * Rate-limited proxy to ai.071129.xyz (OpenAI-compatible gateway).
+ * Rate-limited proxy to aihub.071129.xyz (OpenAI-compatible gateway).
  *
  * Deploy (FC 3.0 Console):
  *   1. Create function -> Web Function -> Runtime: Node.js 20
  *   2. Region: cn-hangzhou
  *   3. Upload this folder as zip, or paste inline
  *   4. Environment variables:
- *        PROXY_API_KEY = xxx   (ai.071129.xyz API key)
+ *        PROXY_API_KEY = xxx   (aihub.071129.xyz API key)
  *   5. HTTP Trigger: authentication = anonymous
  *   6. Listen port: 9000 (FC web function default)
  */
 
 const http = require('http');
 
-const PROXY_API = 'https://ai.071129.xyz/v1/chat/completions';
+const PROXY_API = 'https://aihub.071129.xyz/v1/chat/completions';
 const MAX_REQUESTS_PER_MINUTE = 10;
 const ALLOWED_ORIGINS = ['https://0xnullai.github.io'];
 const PORT = parseInt(process.env.FC_SERVER_PORT || '9000', 10);
