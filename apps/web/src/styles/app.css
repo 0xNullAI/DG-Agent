@@ -648,6 +648,9 @@
   margin: auto -0.75rem 0;
   padding: 0.5rem 0.75rem;
   border-top: 1px solid var(--surface-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .settings-sidebar-reset {
@@ -728,9 +731,13 @@
   margin-top: auto;
   padding: 0.5rem 0.75rem;
   border-top: 1px solid var(--surface-border);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
-.settings-mobile-directory-footer button {
+.settings-mobile-directory-footer button,
+.settings-mobile-directory-footer a {
   display: inline-flex;
   width: 100%;
   height: 2.25rem;
@@ -741,9 +748,11 @@
   color: var(--text-soft);
   font-size: 13px;
   font-weight: 500;
+  text-decoration: none;
 }
 
-.settings-mobile-directory-footer button:hover {
+.settings-mobile-directory-footer button:hover,
+.settings-mobile-directory-footer a:hover {
   background: var(--bg-soft);
   color: var(--text);
 }
