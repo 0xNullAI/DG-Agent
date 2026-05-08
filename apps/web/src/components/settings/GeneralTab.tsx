@@ -6,6 +6,7 @@ import {
   type Dispatch,
   type SetStateAction,
 } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
@@ -17,7 +18,7 @@ import {
   type ProviderFieldDefinition,
   type ProviderId,
 } from '@dg-agent/providers-catalog';
-import { listModels } from '@dg-agent/providers-openai-http';
+import { ListModelsError, listModels } from '@dg-agent/providers-openai-http';
 import { HelpTip } from '../HelpTip.js';
 import { SettingLabel } from './SettingLabel.js';
 import { SettingSelect } from './SettingSelect.js';
@@ -119,18 +120,27 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
 
     if (field.key === 'model') {
       return (
-        <label key={field.key} htmlFor={fieldId} className="settings-inline-field">
-          <SettingLabel>{field.label}</SettingLabel>
-          <ModelPicker
-            inputId={fieldId}
-            placeholder={field.placeholder}
+        <div key={field.key} className="grid gap-2">
+          <label htmlFor={fieldId} className="settings-inline-field">
+            <SettingLabel>{field.label}</SettingLabel>
+            <ModelPicker
+              inputId={fieldId}
+              placeholder={field.placeholder}
+              baseUrl={settingsDraft.provider.baseUrl}
+              apiKey={settingsDraft.provider.apiKey}
+              providerId={settingsDraft.provider.providerId}
+              value={settingsDraft.provider.model}
+              onChange={(next) => updateProviderField('model', next)}
+            />
+          </label>
+          <ConnectionTestButton
+            // Remount when config changes so stale results / aborted requests
+            // are cleared — avoids setState-in-effect lint rules.
+            key={`${settingsDraft.provider.baseUrl}|${settingsDraft.provider.apiKey}`}
             baseUrl={settingsDraft.provider.baseUrl}
             apiKey={settingsDraft.provider.apiKey}
-            providerId={settingsDraft.provider.providerId}
-            value={settingsDraft.provider.model}
-            onChange={(next) => updateProviderField('model', next)}
           />
-        </label>
+        </div>
       );
     }
 
@@ -420,6 +430,97 @@ function ModelPicker({
         </button>
       </div>
       {error && <div className="text-[12px] leading-relaxed text-[var(--text-faint)]">{error}</div>}
+    </div>
+  );
+}
+
+interface ConnectionTestButtonProps {
+  baseUrl: string;
+  apiKey: string;
+}
+
+type ConnectionTestStatus =
+  | { kind: 'idle' }
+  | { kind: 'testing' }
+  | { kind: 'success'; latencyMs: number }
+  | { kind: 'error'; message: string };
+
+// Test button uses its own AbortController + status state (latency / error)
+// rather than a shared hook with ModelPicker — the picker tracks a cached
+// model list that this button does not need, and conflating their lifecycles
+// would force one side to ignore half the state.
+function ConnectionTestButton({ baseUrl, apiKey }: ConnectionTestButtonProps) {
+  const [status, setStatus] = useState<ConnectionTestStatus>({ kind: 'idle' });
+  const abortRef = useRef<AbortController | null>(null);
+
+  // Abort any in-flight request on unmount. Reset on config change is handled
+  // by the parent via a `key` prop that remounts the component.
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort();
+      abortRef.current = null;
+    };
+  }, []);
+
+  async function runTest(): Promise<void> {
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+
+    setStatus({ kind: 'testing' });
+    const start = performance.now();
+    try {
+      await listModels({ baseUrl, apiKey, signal: controller.signal });
+      if (controller.signal.aborted) return;
+      const latencyMs = Math.round(performance.now() - start);
+      setStatus({ kind: 'success', latencyMs });
+    } catch (caught) {
+      if (controller.signal.aborted) return;
+      if ((caught as { name?: string } | null)?.name === 'AbortError') return;
+      const message =
+        caught instanceof ListModelsError
+          ? caught.message
+          : caught instanceof Error
+            ? caught.message
+            : '未知错误';
+      setStatus({ kind: 'error', message });
+    } finally {
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+      }
+    }
+  }
+
+  const testing = status.kind === 'testing';
+  const disabled = testing || !baseUrl;
+
+  return (
+    <div className="flex items-center gap-2">
+      <button
+        type="button"
+        onClick={() => {
+          void runTest();
+        }}
+        disabled={disabled}
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-strong)] text-[var(--text-soft)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
+        aria-label="测试连接"
+        title="测试连接"
+      >
+        <RefreshCw size={16} className={testing ? 'animate-spin' : undefined} aria-hidden />
+      </button>
+      {status.kind === 'testing' && (
+        <span className="text-[12px] text-[var(--text-soft)]">测试中…</span>
+      )}
+      {status.kind === 'success' && (
+        <span className="text-[12px] font-medium text-[var(--accent)]">
+          连接成功 · {status.latencyMs} ms
+        </span>
+      )}
+      {status.kind === 'error' && (
+        <span className="text-[12px] leading-relaxed text-[var(--danger)]">
+          连接失败：{status.message}
+        </span>
+      )}
     </div>
   );
 }
