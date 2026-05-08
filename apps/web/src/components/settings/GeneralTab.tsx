@@ -1,4 +1,11 @@
-import type { CSSProperties, Dispatch, SetStateAction } from 'react';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type Dispatch,
+  type SetStateAction,
+} from 'react';
 import { Input } from '@/components/ui/input';
 
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
@@ -10,6 +17,7 @@ import {
   type ProviderFieldDefinition,
   type ProviderId,
 } from '@dg-agent/providers-catalog';
+import { listModels } from '@dg-agent/providers-openai-http';
 import { HelpTip } from '../HelpTip.js';
 import { SettingLabel } from './SettingLabel.js';
 import { SettingSelect } from './SettingSelect.js';
@@ -107,6 +115,23 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
 
     if (field.key !== 'apiKey' && field.key !== 'model' && field.key !== 'baseUrl') {
       return null;
+    }
+
+    if (field.key === 'model') {
+      return (
+        <label key={field.key} htmlFor={fieldId} className="settings-inline-field">
+          <SettingLabel>{field.label}</SettingLabel>
+          <ModelPicker
+            inputId={fieldId}
+            placeholder={field.placeholder}
+            baseUrl={settingsDraft.provider.baseUrl}
+            apiKey={settingsDraft.provider.apiKey}
+            providerId={settingsDraft.provider.providerId}
+            value={settingsDraft.provider.model}
+            onChange={(next) => updateProviderField('model', next)}
+          />
+        </label>
+      );
     }
 
     return (
@@ -291,6 +316,110 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
           )}
         </div>
       </section>
+    </div>
+  );
+}
+
+interface ModelPickerProps {
+  inputId: string;
+  placeholder?: string;
+  baseUrl: string;
+  apiKey: string;
+  providerId: ProviderId;
+  value: string;
+  onChange: (next: string) => void;
+}
+
+function ModelPicker({
+  inputId,
+  placeholder,
+  baseUrl,
+  apiKey,
+  providerId,
+  value,
+  onChange,
+}: ModelPickerProps) {
+  const [models, setModels] = useState<string[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Reset cached list whenever the user switches provider — model IDs differ between vendors.
+  const lastProviderRef = useRef(providerId);
+  useEffect(() => {
+    if (lastProviderRef.current !== providerId) {
+      lastProviderRef.current = providerId;
+      setModels(null);
+      setError(null);
+    }
+  }, [providerId]);
+
+  async function refresh(): Promise<void> {
+    setLoading(true);
+    setError(null);
+    try {
+      const list = await listModels({ baseUrl, apiKey });
+      setModels(list);
+      // If the saved model isn't in the new list and the list is non-empty,
+      // we keep it as a "(自定义)" option (rendered below) so it doesn't get lost.
+      if (list.length > 0 && !value) {
+        onChange(list[0] ?? '');
+      }
+    } catch (caught) {
+      const message = caught instanceof Error ? caught.message : '未知错误';
+      setError(`无法拉取模型列表：${message}，已切换到手动输入`);
+      setModels(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const showDropdown = models !== null && !error;
+  const refreshDisabled = loading || !baseUrl;
+
+  // Build dropdown options. If the saved model is not in the fetched list,
+  // surface it as a "(自定义)" entry pinned to the top so we don't silently drop it.
+  let options: Array<{ value: string; label: string }> = [];
+  if (showDropdown && models) {
+    const seen = new Set(models);
+    if (value && !seen.has(value)) {
+      options.push({ value, label: `${value}（自定义）` });
+    }
+    options = options.concat(models.map((id) => ({ value: id, label: id })));
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
+        <div className="flex-1 min-w-0">
+          {showDropdown ? (
+            <SettingSelect
+              value={value}
+              onValueChange={(next) => onChange(next)}
+              options={options}
+            />
+          ) : (
+            <Input
+              id={inputId}
+              type="text"
+              value={value}
+              onChange={(event) => onChange(event.target.value)}
+              placeholder={placeholder}
+              disabled={loading}
+            />
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            void refresh();
+          }}
+          disabled={refreshDisabled}
+          className="h-10 shrink-0 rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-strong)] px-3 text-xs font-medium text-[var(--text-soft)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="刷新模型列表"
+        >
+          {loading ? '加载中…' : '刷新'}
+        </button>
+      </div>
+      {error && <div className="text-[12px] leading-relaxed text-[var(--text-faint)]">{error}</div>}
     </div>
   );
 }

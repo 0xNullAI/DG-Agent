@@ -387,3 +387,88 @@ function isDeepSeekModel(config: z.infer<typeof configSchema>): boolean {
 function shouldIncludeReasoningContent(config: z.infer<typeof configSchema>): boolean {
   return isDeepSeekModel(config);
 }
+
+export interface ListModelsOptions {
+  baseUrl: string;
+  apiKey: string;
+  signal?: AbortSignal;
+}
+
+export class ListModelsError extends Error {
+  constructor(
+    message: string,
+    public readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = 'ListModelsError';
+  }
+}
+
+const listModelsResponseSchema = z.object({
+  data: z.array(z.object({ id: z.string() }).passthrough()),
+});
+
+/**
+ * Fetch available model IDs from an OpenAI-compatible `/models` endpoint.
+ * baseUrl is expected to already include the version prefix (e.g. `.../v1`),
+ * so the request hits `${baseUrl}/models` directly.
+ */
+export async function listModels({
+  baseUrl,
+  apiKey,
+  signal,
+}: ListModelsOptions): Promise<string[]> {
+  const trimmedBase = baseUrl.replace(/\/+$/, '');
+  if (!trimmedBase) {
+    throw new ListModelsError('未配置接口地址，无法拉取模型列表');
+  }
+
+  const headers: Record<string, string> = {
+    Accept: 'application/json',
+  };
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${trimmedBase}/models`, {
+      method: 'GET',
+      headers,
+      signal,
+    });
+  } catch (error) {
+    if ((error as { name?: string } | null)?.name === 'AbortError') {
+      throw error;
+    }
+    throw new ListModelsError('网络错误，无法连接模型服务', error);
+  }
+
+  if (!response.ok) {
+    let detail = '';
+    try {
+      detail = (await response.text()).slice(0, 200);
+    } catch {
+      // ignore body read failure
+    }
+    throw new ListModelsError(
+      `模型列表请求失败（HTTP ${response.status}）${detail ? `：${detail}` : ''}`,
+    );
+  }
+
+  let rawJson: unknown;
+  try {
+    rawJson = await response.json();
+  } catch (error) {
+    throw new ListModelsError('模型列表响应不是有效的 JSON', error);
+  }
+
+  const parsed = listModelsResponseSchema.safeParse(rawJson);
+  if (!parsed.success) {
+    throw new ListModelsError('模型列表响应格式不符合 OpenAI 规范', parsed.error);
+  }
+
+  const ids = Array.from(new Set(parsed.data.data.map((entry) => entry.id).filter(Boolean)));
+  ids.sort((a, b) => a.localeCompare(b));
+  return ids;
+}
