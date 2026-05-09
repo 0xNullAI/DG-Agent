@@ -15,6 +15,14 @@ updates:
     labels:
       - 'type:chore'
       - 'area:deps'
+    ignore:
+      # eslint v10 requires plugin updates that aren't yet released
+      # (eslint-plugin-react@7.37.5 peer caps at ^9.7). Re-enable once
+      # the ecosystem catches up.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
     groups:
       dev-dependencies:
         dependency-type: 'development'
