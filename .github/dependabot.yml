@@ -26,6 +26,11 @@ updates:
     groups:
       dev-dependencies:
         dependency-type: 'development'
+        # Grouped updates don't fully honor top-level ignore rules; exclude
+        # eslint packages so they get their own PR (where ignore applies).
+        exclude-patterns:
+          - 'eslint'
+          - '@eslint/js'
       production-dependencies:
         dependency-type: 'production'
 
