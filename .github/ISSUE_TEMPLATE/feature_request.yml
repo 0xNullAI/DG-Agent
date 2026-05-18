@@ -2,6 +2,18 @@ name: ✨ 功能请求
 description: 提议一个新功能或改进
 labels: ['type:feat']
 body:
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 主要面向的平台
+      description: 这个功能更多服务于哪个平台？两个都需要选「两者皆需」
+      options:
+        - Web（浏览器版）
+        - Android（APK）
+        - 两者皆需
+        - 不限平台
+    validations:
+      required: true
   - type: textarea
     id: problem
     attributes:
