@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0b1020" />
+    <title>DG-Agent</title>
+  </head>
+  <body>
+    <style>
+      /* Splash shown while React mounts. After React commits, main.tsx adds
+         the .dgaa-splash-loaded class which fades it out before removal.
+         Only the splash overlay is dark — body styling is intentionally left
+         to apps/web's theme tokens so light/dark mode stay in control. */
+      html, body { margin: 0; }
+      #dgaa-splash {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; align-items: center; justify-content: center;
+        background: #0b1020;
+        transition: opacity 200ms ease-out;
+      }
+      #dgaa-splash.dgaa-splash-loaded { opacity: 0; pointer-events: none; }
+      #dgaa-splash svg { width: 96px; height: 96px; }
+      #dgaa-splash path { stroke-dasharray: 80; animation: dgaa-pulse 1.4s ease-in-out infinite; }
+      @keyframes dgaa-pulse {
+        0%, 100% { opacity: 0.55; }
+        50% { opacity: 1; }
+      }
+    </style>
+    <div id="root"></div>
+    <div id="dgaa-splash" aria-hidden="true">
+      <svg viewBox="0 0 32 32">
+        <rect width="32" height="32" rx="6" fill="#0a0e14"/>
+        <path d="M3 16 L8 16 L10 9 L13 23 L16 5 L19 27 L22 11 L24 16 L29 16"
+              stroke="#00e5ff" stroke-width="2" fill="none"
+              stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

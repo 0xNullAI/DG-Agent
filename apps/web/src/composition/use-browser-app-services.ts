@@ -2,6 +2,7 @@ import { useMemo, type Dispatch, type SetStateAction } from 'react';
 import {
   createBrowserServices,
   type BrowserServices,
+  type BrowserServicesOptions,
   type PermissionRequestInput,
 } from '@dg-agent/agent-browser';
 import type { MessageOrigin } from '@dg-agent/bridge';
@@ -14,10 +15,24 @@ export interface PendingPermissionRequest {
   resolve: (decision: PermissionDecision) => void;
 }
 
+/**
+ * Subset of BrowserServicesOptions a non-browser shell (Tauri Android) may
+ * supply. Web entry point always omits this; defaults preserve the historical
+ * Web Bluetooth + speech + bridge behavior.
+ */
+export type ServicesOverrides = Pick<
+  BrowserServicesOptions,
+  'createDeviceClient' | 'disableSpeech' | 'disableBridge'
+> & {
+  /** Skip the update-checker poll loop (no version.json on non-web shells). */
+  disableUpdateChecker?: boolean;
+};
+
 export interface UseBrowserAppServicesOptions {
   settings: BrowserAppSettings;
   setPendingPermission: Dispatch<SetStateAction<PendingPermissionRequest | null>>;
   resolveBridgeSessionId: (origin: MessageOrigin) => string | null | Promise<string | null>;
+  servicesOverrides?: ServicesOverrides;
 }
 
 export interface UseBrowserAppServicesResult extends BrowserServices {
@@ -28,15 +43,17 @@ export interface UseBrowserAppServicesResult extends BrowserServices {
 export function useBrowserAppServices(
   options: UseBrowserAppServicesOptions,
 ): UseBrowserAppServicesResult {
-  const { resolveBridgeSessionId, settings, setPendingPermission } = options;
+  const { resolveBridgeSessionId, settings, setPendingPermission, servicesOverrides } = options;
 
+  const disableUpdateChecker = servicesOverrides?.disableUpdateChecker ?? false;
   const updateChecker = useMemo(
     () =>
       new BrowserUpdateChecker({
         currentBuildId: __BUILD_ID__,
         versionUrl: `${import.meta.env.BASE_URL}version.json`,
+        disabled: disableUpdateChecker,
       }),
-    [],
+    [disableUpdateChecker],
   );
 
   const services = useMemo(
@@ -48,8 +65,9 @@ export function useBrowserAppServices(
           new Promise<PermissionDecision>((resolve) => {
             setPendingPermission({ input, resolve });
           }),
+        ...(servicesOverrides ?? {}),
       }),
-    [settings, resolveBridgeSessionId, setPendingPermission],
+    [settings, resolveBridgeSessionId, setPendingPermission, servicesOverrides],
   );
 
   return {

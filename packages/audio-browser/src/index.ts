@@ -32,6 +32,11 @@ export {
   type SpeechSynthesisSession,
   type SpeechSynthesizer,
 } from './types.js';
+export {
+  NULL_SPEECH_CAPABILITIES,
+  createNullSpeechRecognitionController,
+  createNullSpeechSynthesizer,
+} from './null-speech.js';
 
 interface SpeechRecognitionAlternativeLike {
   transcript: string;

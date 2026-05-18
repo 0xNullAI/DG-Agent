@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Template for src-tauri/gen/android/app/src/main/AndroidManifest.xml.
+
+  Tauri's `cargo tauri android init` regenerates that file from scratch
+  every time. After re-init, copy the <uses-permission> / <uses-feature>
+  entries below into the generated manifest's <manifest> root.
+
+  Permission notes:
+    * BLUETOOTH_SCAN / BLUETOOTH_CONNECT — required on Android 12+ (API 31+).
+      `usesPermissionFlags="neverForLocation"` tells the OS we will not use
+      BLE scan results to infer physical location, which (a) avoids the
+      stricter location-permission prompt and (b) is genuinely accurate
+      for DG-Lab Coyote: we filter on the device's broadcast name.
+    * BLUETOOTH / BLUETOOTH_ADMIN — pre-Android-12 equivalents, capped at
+      SDK 30 so they aren't requested on newer devices where the runtime
+      ignores them.
+    * ACCESS_*_LOCATION — Android 6-11 (API 23-30) required Location to
+      run any BLE scan. Capped at SDK 30 since 12+ uses BLUETOOTH_SCAN
+      with neverForLocation instead.
+    * INTERNET — outbound LLM API calls.
+    * uses-feature bluetooth_le required="false" — we want the app to
+      install on emulators and devices without BLE, where it can still
+      run the chat UI; runtime checks will surface "BLE unavailable".
+
+  Also bump app/build.gradle.kts minSdk to 26 — required by
+  @mnlphlp/plugin-blec's Android backend.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Android 12+ (API 31+) BLE -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN"
+                     android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+    <!-- Android 6 - 11 BLE -->
+    <uses-permission android:name="android.permission.BLUETOOTH"
+                     android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN"
+                     android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"
+                     android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"
+                     android:maxSdkVersion="30" />
+
+    <uses-feature android:name="android.hardware.bluetooth_le"
+                  android:required="false" />
+
+    <!--
+      <application> entries are managed by Tauri's manifest generator.
+      Do not duplicate them here.
+    -->
+
+</manifest>

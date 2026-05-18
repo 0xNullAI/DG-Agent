@@ -1,0 +1,12 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "enables the default permissions",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "blec:default",
+    "blec:allow-check-permissions",
+    "blec:allow-disconnect"
+  ]
+}
