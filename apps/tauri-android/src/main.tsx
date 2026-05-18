@@ -3,6 +3,7 @@ import ReactDOM from 'react-dom/client';
 import { App } from '@dg-agent/web-app/App';
 import { TauriBlecDeviceClient } from '@dg-agent/device-tauri-ble';
 import { showDevicePicker } from './components/show-device-picker';
+import { wrapWithLifecycleSafety } from './lifecycle-safety';
 import './styles.css';
 
 // Fade out the splash placed in index.html once React commits its first frame.
@@ -24,12 +25,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         disableBridge: true,
         disableUpdateChecker: true,
         createDeviceClient: (protocol) =>
-          new TauriBlecDeviceClient({
-            protocol,
-            selectDevice: showDevicePicker,
-            namePrefixes: ['47L121', 'D-LAB'],
-            scanDurationMs: 8000,
-          }),
+          wrapWithLifecycleSafety(
+            new TauriBlecDeviceClient({
+              protocol,
+              selectDevice: showDevicePicker,
+              namePrefixes: ['47L121', 'D-LAB'],
+              scanDurationMs: 8000,
+            }),
+          ),
       }}
     />
   </React.StrictMode>,

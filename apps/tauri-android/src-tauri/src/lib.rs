@@ -1,3 +1,5 @@
+use tauri::{Emitter, RunEvent};
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -12,6 +14,17 @@ pub fn run() {
       }
       Ok(())
     })
-    .run(tauri::generate_context!())
-    .expect("error while running tauri application");
+    .build(tauri::generate_context!())
+    .expect("error while building tauri application")
+    .run(|app, event| {
+      // Emit an `app://paused` event to the webview on exit so the JS
+      // lifecycle-safety wrapper can fire emergencyStop. Android's native
+      // onPause is not a stable Tauri 2.10 RunEvent variant; backgrounding
+      // is covered by the JS-side `visibilitychange` listener instead,
+      // which Android WebView fires reliably when its host activity
+      // transitions to onPause.
+      if let RunEvent::ExitRequested { .. } = event {
+        let _ = app.emit("app://paused", ());
+      }
+    });
 }

@@ -36,19 +36,14 @@ cargo tauri android init      # regenerates src-tauri/gen/android/
 # After init, re-apply BLE permissions to AndroidManifest.xml — see below.
 ```
 
-The `gen/android/` directory is regenerated and gitignored. After every regeneration you must re-add to `gen/android/app/src/main/AndroidManifest.xml`:
+The `gen/android/` directory is regenerated and gitignored. After every regeneration:
 
-```xml
-<uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
-<uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
-<uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
-<uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
-<uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="30" />
-<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
-<uses-feature android:name="android.hardware.bluetooth_le" android:required="true" />
-```
-
-And bump `gen/android/app/build.gradle.kts` `minSdk` to `26`.
+1. Copy the `<uses-permission>` / `<uses-feature>` block from
+   [`AndroidManifest.template.xml`](./AndroidManifest.template.xml) into
+   `gen/android/app/src/main/AndroidManifest.xml` (inside `<manifest>` root,
+   before `<application>`). The template explains each permission.
+2. Bump `gen/android/app/build.gradle.kts` `minSdk` to `26` (required by
+   `@mnlphlp/plugin-blec`'s Android backend).
 
 ## Develop
 
@@ -70,6 +65,8 @@ React UI (apps/web/src/App.tsx, reused via vite alias)
   ↓
 @dg-agent/agent-browser createBrowserServices({ createDeviceClient: ... })
   ↓
+wrapWithLifecycleSafety  ← Android safety net (see below)
+  ↓
 TauriBlecDeviceClient (@dg-kit/transport-tauri-blec)
   ↓ scan + connect + (uuid, bytes) writes
 @mnlphlp/plugin-blec (Tauri plugin)
@@ -78,3 +75,18 @@ android.bluetooth.le.* (Android system BLE)
   ↓
 DG-Lab Coyote 2.0 / 3.0
 ```
+
+### Lifecycle safety
+
+Coyote V3 is state-retentive: once a strength is commanded, the device keeps running until a new packet arrives — *not* until the BLE link drops. On a normal browser tab this is invisible because the page's `setInterval` keeps ticking out new packets (throttled but alive) even when backgrounded.
+
+Android Tauri is different: when the user swipes home / locks the screen, the host activity hits `onPause` and the WebView is suspended. JS timers stop. The device keeps running at the last commanded strength until the BLE link eventually drops, which can take a long time.
+
+[`src/lifecycle-safety.ts`](./src/lifecycle-safety.ts) wraps the `TauriBlecDeviceClient` so any backgrounding signal fires `emergencyStop()` before the WebView is suspended. Signals covered:
+
+- `document.visibilitychange` → state becomes `hidden` (Android WebView reliably emits this on host onPause)
+- `window.pagehide` (Tauri navigation / app teardown)
+- `document.freeze` (Chromium bfcache eviction)
+- Tauri `app://paused` event from `lib.rs` on `RunEvent::ExitRequested` (belt-and-braces)
+
+The wrapper is transparent: every method except `disconnect()` forwards unchanged. `disconnect()` additionally detaches the listeners so they don't leak across reconnects.
