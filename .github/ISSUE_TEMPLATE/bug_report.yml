@@ -6,11 +6,22 @@ body:
     attributes:
       value: |
         感谢报告。请尽量补全下面信息以便复现。
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 平台
+      description: 选择遇到 bug 的运行环境
+      options:
+        - Web（浏览器版）
+        - Android（APK）
+        - 其它
+    validations:
+      required: true
   - type: input
     id: version
     attributes:
       label: 版本
-      placeholder: e.g. 1.0.0 / @dg-kit/protocol@1.0.0 / commit hash
+      placeholder: e.g. v4.0.1 / @dg-kit/protocol@1.2.0 / commit hash
     validations:
       required: true
   - type: textarea
@@ -42,8 +53,9 @@ body:
     attributes:
       label: 环境
       placeholder: |
-        OS:
-        浏览器 / Node 版本:
+        OS / Android 版本:
+        浏览器 / Chrome WebView 版本（Web 必填；Android 可在「关于手机 → Android System WebView」查看）:
+        手机型号 / ROM（Android 必填）:
         郊狼版本（V2 / V3）:
         其它相关信息:
   - type: textarea
