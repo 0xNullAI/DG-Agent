@@ -1,12 +1,15 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions",
+  "description": "Default permissions: core + tauri-plugin-blec BLE access + Tauri event bus (app://paused listener for lifecycle-safety)",
   "windows": ["main"],
   "permissions": [
     "core:default",
     "blec:default",
     "blec:allow-check-permissions",
-    "blec:allow-disconnect"
+    "blec:allow-disconnect",
+    "core:event:default",
+    "core:event:allow-listen",
+    "core:event:allow-unlisten"
   ]
 }

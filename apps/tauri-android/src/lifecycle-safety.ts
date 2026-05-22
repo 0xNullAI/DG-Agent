@@ -89,9 +89,20 @@ async function attachTauriListener(stop: Stopper): Promise<LifecycleListener> {
  * forwarded unchanged.
  */
 export function wrapWithLifecycleSafety(client: DeviceClient): DeviceClient {
+  // Track the underlying client's connected state. Without this guard,
+  // every lifecycle transition fires `client.emergencyStop()` — a no-op
+  // when nothing is connected, but worse during connect-in-progress: if
+  // the user backgrounds the app while plugin-blec's GATT discovery
+  // retry loop is mid-flight, emergencyStop tries to write into a
+  // half-initialised protocol state.
+  let connected = false;
+  const offState = client.onStateChanged((state) => {
+    connected = state.connected;
+  });
+
   let stopping = false;
   const stop: Stopper = async () => {
-    if (stopping) return;
+    if (!connected || stopping) return;
     stopping = true;
     try {
       await client.emergencyStop();
@@ -118,6 +129,7 @@ export function wrapWithLifecycleSafety(client: DeviceClient): DeviceClient {
       } finally {
         webListener.detach();
         tauriListener?.detach();
+        offState();
       }
     },
     execute: (command) => client.execute(command),
