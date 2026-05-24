@@ -118,7 +118,7 @@ export class RuntimeToolExecutor {
     throwIfAborted(abortSignal);
 
     if (planResult.plan.type === 'timer') {
-      return this.scheduleTimer(session, planResult.plan.command, context);
+      return this.scheduleTimer(session, planResult.plan.command, context, displayToolCall);
     }
 
     if (planResult.plan.type === 'inline') {
@@ -146,6 +146,11 @@ export class RuntimeToolExecutor {
     plan: Extract<ToolExecutionPlan, { type: 'inline' }>;
   }): Promise<string> {
     const { session, toolCall, context, plan } = input;
+    this.options.emit({
+      type: 'tool-call-executing',
+      sessionId: session.id,
+      toolCall,
+    });
     await this.options.traceStore.append(session.id, {
       kind: 'tool-result',
       turnId: context.traceId,
@@ -191,7 +196,13 @@ export class RuntimeToolExecutor {
     session: SessionSnapshot,
     command: Extract<ToolExecutionPlan, { type: 'timer' }>['command'],
     context: ActionContext,
+    toolCall: ToolCall,
   ): Promise<string> {
+    this.options.emit({
+      type: 'tool-call-executing',
+      sessionId: session.id,
+      toolCall,
+    });
     const dueAt = Date.now() + command.seconds * 1000;
     const timerId = `${session.id}:${command.label}:${dueAt}`;
     const timer = setTimeout(() => {
@@ -289,18 +300,35 @@ export class RuntimeToolExecutor {
       return this.denyToolCall(session, toolCall, decision.reason, context);
     }
 
-    let clampReason: string | undefined;
+    let clampedFrom: { command: DeviceCommand; reason: string } | undefined;
     if (decision.type === 'clamp') {
+      const originalCommand = command;
       this.options.logger.warn('Command clamped by policy.', {
         sessionId: session.id,
         toolName: toolCall.name,
         reason: decision.reason,
       });
-      clampReason = decision.reason;
+      clampedFrom = { command: originalCommand, reason: decision.reason };
       command = decision.command;
+      this.options.emit({
+        type: 'tool-call-clamped',
+        sessionId: session.id,
+        toolCall,
+        originalCommand,
+        adjustedCommand: command,
+        reason: decision.reason,
+      });
     }
 
     throwIfAborted(abortSignal);
+
+    this.options.emit({
+      type: 'tool-call-executing',
+      sessionId: session.id,
+      toolCall,
+      command,
+      ...(clampedFrom ? { clampedFrom } : {}),
+    });
 
     try {
       const result = await this.options.queue.enqueue(command);
@@ -313,12 +341,22 @@ export class RuntimeToolExecutor {
         result,
       });
 
+      const baseNotes = result.notes ?? [];
+      const notes = clampedFrom
+        ? [...baseNotes, `policy-clamped: ${clampedFrom.reason}`]
+        : baseNotes;
+
       const output = JSON.stringify({
-        ok: true,
+        ok: clampedFrom ? 'clamped' : true,
         command,
         state: result.state,
-        notes: result.notes ?? [],
-        ...(clampReason ? { _clamped: clampReason } : {}),
+        notes,
+        ...(clampedFrom
+          ? {
+              clampedFrom: clampedFrom.command,
+              _warning: `策略限制：原始命令被调整为上面的 command。回复用户时请按实际执行值（command 字段）说明，不要按原始请求复述。原因：${clampedFrom.reason}`,
+            }
+          : {}),
         _hint: '以上 state 是设备当前真实状态，请根据此状态回复用户。',
       });
       await this.options.traceStore.append(session.id, {
