@@ -101,6 +101,10 @@ class TestDevice implements DeviceClient {
     };
   }
 
+  get listenerCount(): number {
+    return this.listeners.size;
+  }
+
   private emit(): void {
     for (const listener of this.listeners) {
       listener(this.state);
@@ -954,6 +958,145 @@ describe('AgentRuntime', () => {
 
     const session = await runtime.getSessionSnapshot('test');
     expect(session.deviceState.strengthA).toBe(12);
+  });
+
+  it('emits tool-call-clamped with original and adjusted commands when policy clamps', async () => {
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      llm: new LargeStartLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      policyEngine: new PolicyEngine(
+        createDefaultPolicyRules({
+          maxColdStartStrength: 12,
+        }),
+      ),
+      toolCallConfig: {
+        maxToolIterations: 1,
+      },
+    });
+
+    const events: RuntimeEvent[] = [];
+    runtime.subscribe((event) => events.push(event));
+
+    await runtime.sendUserMessage({
+      sessionId: 'clamp-event',
+      text: '启动 A',
+      context: {
+        sessionId: 'clamp-event',
+        sourceType: 'cli',
+        traceId: 'trace-clamp-event',
+      },
+    });
+
+    const clamped = events.find((event) => event.type === 'tool-call-clamped');
+    expect(clamped).toBeDefined();
+    if (!clamped || clamped.type !== 'tool-call-clamped') throw new Error('expected clamp event');
+    expect(clamped.originalCommand.type).toBe('start');
+    expect(clamped.adjustedCommand.type).toBe('start');
+    if (clamped.originalCommand.type !== 'start' || clamped.adjustedCommand.type !== 'start') {
+      throw new Error('expected start commands');
+    }
+    expect(clamped.originalCommand.strength).toBe(30);
+    expect(clamped.adjustedCommand.strength).toBe(12);
+    expect(clamped.reason).toContain('冷启动');
+
+    const executing = events.find(
+      (event) =>
+        event.type === 'tool-call-executing' &&
+        event.command?.type === 'start' &&
+        event.clampedFrom !== undefined,
+    );
+    expect(executing).toBeDefined();
+  });
+
+  it('feeds clamp details back to the LLM so it cannot ignore the adjustment', async () => {
+    class CapturingLlm implements LlmClient {
+      capturedToolOutput: string | null = null;
+      private callCount = 0;
+      async runTurn(input: Parameters<LlmClient['runTurn']>[0]) {
+        this.callCount += 1;
+        if (this.callCount === 1) {
+          return {
+            assistantMessage: '尝试启动',
+            toolCalls: [
+              {
+                id: 'tool-clamp-feedback',
+                name: 'start',
+                args: { channel: 'A', strength: 30, waveformId: 'pulse_mid', loop: true },
+              },
+            ],
+          };
+        }
+        const lastOutput = input.conversation
+          ?.filter((item) => item.kind === 'function_call_output')
+          .pop();
+        if (lastOutput && 'output' in lastOutput && typeof lastOutput.output === 'string') {
+          this.capturedToolOutput = lastOutput.output;
+        }
+        return { assistantMessage: '已按策略调整后启动。' };
+      }
+    }
+
+    const llm = new CapturingLlm();
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      llm,
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      policyEngine: new PolicyEngine(createDefaultPolicyRules({ maxColdStartStrength: 12 })),
+      toolCallConfig: { maxToolIterations: 2 },
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'clamp-feedback',
+      text: '启动 A',
+      context: {
+        sessionId: 'clamp-feedback',
+        sourceType: 'cli',
+        traceId: 'trace-clamp-feedback',
+      },
+    });
+
+    expect(llm.capturedToolOutput).not.toBeNull();
+    const parsed = JSON.parse(llm.capturedToolOutput ?? '{}');
+    expect(parsed.ok).toBe('clamped');
+    expect(parsed.clampedFrom).toBeDefined();
+    expect(parsed.clampedFrom.strength).toBe(30);
+    expect(parsed.command.strength).toBe(12);
+    expect(parsed._warning).toContain('策略限制');
+    expect(parsed.notes.some((note: string) => note.startsWith('policy-clamped:'))).toBe(true);
+  });
+
+  it('releases its device-state listener on dispose so multiple runtimes can share one device', async () => {
+    const device = new TestDevice();
+    expect(device.listenerCount).toBe(0);
+
+    const first = new AgentRuntime({
+      device,
+      llm: new TestLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+    expect(device.listenerCount).toBe(1);
+
+    const second = new AgentRuntime({
+      device,
+      llm: new TestLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+    expect(device.listenerCount).toBe(2);
+
+    first.dispose();
+    expect(device.listenerCount).toBe(1);
+
+    second.dispose();
+    expect(device.listenerCount).toBe(0);
+
+    // Calling dispose twice is a no-op.
+    first.dispose();
+    expect(device.listenerCount).toBe(0);
   });
 
   it('blocks burst on inactive channels when configured', async () => {

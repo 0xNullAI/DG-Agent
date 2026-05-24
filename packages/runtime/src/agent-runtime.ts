@@ -107,6 +107,8 @@ export class AgentRuntime {
   private readonly pendingSystemWork = new Map<string, QueuedSystemWork[]>();
   private readonly drainingSessions = new Set<string>();
   private readonly deletedSessionIds = new Set<string>();
+  private readonly disposeDeviceListener: () => void;
+  private disposed = false;
 
   constructor(private readonly options: AgentRuntimeOptions) {
     this.sessions = options.sessionStore ?? new InMemorySessionStore();
@@ -135,9 +137,22 @@ export class AgentRuntime {
       traceStore: this.traces,
     });
 
-    options.device.onStateChanged((state) => {
+    this.disposeDeviceListener = options.device.onStateChanged((state) => {
+      if (this.disposed) return;
       this.events.emit({ type: 'device-state-changed', state });
     });
+  }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.disposeDeviceListener();
+    this.toolExecutor.cancelScheduledTimers();
+    for (const controller of this.activeTurns.values()) {
+      controller.abort();
+    }
+    this.activeTurns.clear();
+    this.pendingSystemWork.clear();
   }
 
   subscribe(listener: RuntimeListener): () => void {

@@ -48,6 +48,24 @@ function captureRequestBody(): { body: Record<string, unknown> | null } {
   return captured;
 }
 
+function captureRequestInit(): {
+  headers: Record<string, string> | null;
+} {
+  const captured: { headers: Record<string, string> | null } = { headers: null };
+  vi.stubGlobal(
+    'fetch',
+    vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+      captured.headers = init.headers as Record<string, string>;
+      return {
+        ok: true,
+        json: async () => MOCK_CHAT_RESPONSE,
+        body: null,
+      };
+    }),
+  );
+  return captured;
+}
+
 describe('OpenAiHttpLlmClient', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn());
@@ -144,6 +162,47 @@ describe('OpenAiHttpLlmClient', () => {
         (m) => m.role === 'assistant' && Array.isArray(m.tool_calls),
       );
       expect(assistantMsg?.reasoning_content).toBe('<think>thinking...</think>');
+    });
+  });
+
+  describe('extraHeaders', () => {
+    it('merges extraHeaders() into the outbound request alongside the base headers', async () => {
+      const captured = captureRequestInit();
+      const client = new OpenAiHttpLlmClient({
+        apiKey: 'sk-test',
+        baseUrl: 'https://example.com/v1',
+        model: 'gpt-4o-mini',
+        extraHeaders: () => ({
+          'X-DG-Timestamp': '12345',
+          'X-DG-Signature': 'deadbeef',
+        }),
+      });
+
+      await client.runTurn(makeTurnInput());
+
+      expect(captured.headers?.['Content-Type']).toBe('application/json');
+      expect(captured.headers?.['Authorization']).toBe('Bearer sk-test');
+      expect(captured.headers?.['X-DG-Timestamp']).toBe('12345');
+      expect(captured.headers?.['X-DG-Signature']).toBe('deadbeef');
+    });
+
+    it('awaits an async extraHeaders before issuing the request', async () => {
+      const captured = captureRequestInit();
+      let called = false;
+      const client = new OpenAiHttpLlmClient({
+        apiKey: 'sk-test',
+        baseUrl: 'https://example.com/v1',
+        model: 'gpt-4o-mini',
+        extraHeaders: async () => {
+          called = true;
+          return { 'X-DG-Signature': 'abc' };
+        },
+      });
+
+      await client.runTurn(makeTurnInput());
+
+      expect(called).toBe(true);
+      expect(captured.headers?.['X-DG-Signature']).toBe('abc');
     });
   });
 });

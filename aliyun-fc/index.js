@@ -8,16 +8,29 @@
  *   2. Region: cn-hangzhou
  *   3. Upload this folder as zip, or paste inline
  *   4. Environment variables:
- *        PROXY_API_KEY = xxx   (aihub.071129.xyz API key)
+ *        PROXY_API_KEY        = xxx   (aihub.071129.xyz API key)
+ *        DG_PROXY_HMAC_SECRET = xxx   (shared with Tauri Android build)
  *   5. HTTP Trigger: authentication = anonymous
  *   6. Listen port: 9000 (FC web function default)
+ *
+ * Two ways a request can be allowed:
+ *   - Origin is in the browser whitelist (web build via GitHub Pages), OR
+ *   - X-DG-Timestamp + X-DG-Signature pair matches HMAC-SHA256(secret,
+ *     timestamp) with the timestamp within ±5 minutes of server time
+ *     (Tauri Android / desktop shells, which carry no Origin).
+ *
+ * The HMAC secret is intentionally low-trust: it ships inside the Android
+ * APK and can be recovered by anyone who decompiles it. Rotate the
+ * server-side env var to invalidate a leaked secret.
  */
 
 const http = require('http');
+const { createHmac, timingSafeEqual } = require('crypto');
 
 const PROXY_API = 'https://aihub.071129.xyz/v1/chat/completions';
 const MAX_REQUESTS_PER_MINUTE = 10;
 const ALLOWED_ORIGINS = ['https://0xnullai.github.io'];
+const SIGNATURE_WINDOW_MS = 5 * 60_000;
 const PORT = parseInt(process.env.FC_SERVER_PORT || '9000', 10);
 
 // In-memory rate limit map: ip -> { minute, count }
@@ -49,8 +62,29 @@ function pickAllowedOrigin(reqOrigin) {
 function setCors(res, reqOrigin) {
   res.setHeader('Access-Control-Allow-Origin', pickAllowedOrigin(reqOrigin));
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, X-DG-Timestamp, X-DG-Signature',
+  );
   res.setHeader('Access-Control-Max-Age', '86400');
+}
+
+function isValidHmacSignature(req) {
+  const secret = process.env.DG_PROXY_HMAC_SECRET;
+  if (!secret) return false;
+  const timestamp = req.headers['x-dg-timestamp'];
+  const signature = req.headers['x-dg-signature'];
+  if (typeof timestamp !== 'string' || typeof signature !== 'string') return false;
+
+  const tsNumber = Number(timestamp);
+  if (!Number.isFinite(tsNumber)) return false;
+  if (Math.abs(Date.now() - tsNumber) > SIGNATURE_WINDOW_MS) return false;
+
+  const expected = createHmac('sha256', secret).update(timestamp).digest('hex');
+  const sigBuf = Buffer.from(signature, 'hex');
+  const expBuf = Buffer.from(expected, 'hex');
+  if (sigBuf.length !== expBuf.length) return false;
+  return timingSafeEqual(sigBuf, expBuf);
 }
 
 function sendJson(res, status, data) {
@@ -92,7 +126,8 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  if (!ALLOWED_ORIGINS.some((o) => origin.startsWith(o))) {
+  const originAllowed = ALLOWED_ORIGINS.some((o) => origin.startsWith(o));
+  if (!originAllowed && !isValidHmacSignature(req)) {
     sendJson(res, 403, { error: '来源不被允许' });
     return;
   }

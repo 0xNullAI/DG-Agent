@@ -11,7 +11,10 @@ import type {
 } from '@dg-agent/core';
 import { getWebBluetoothAvailability } from '@dg-agent/device-webbluetooth';
 import { BrowserPermissionService } from '@dg-agent/permissions-browser';
-import { resolveProviderRuntimeSettings } from '@dg-agent/providers-catalog';
+import {
+  createFreeProxyHmacHeaders,
+  resolveProviderRuntimeSettings,
+} from '@dg-agent/providers-catalog';
 import { OpenAiHttpLlmClient } from '@dg-agent/providers-openai-http';
 import {
   PolicyEngine,
@@ -59,6 +62,13 @@ export interface CreateBrowserAgentClientOptions {
   sessionTraceStore?: SessionTraceStore;
   waveformLibrary: WaveformLibrary;
   permissionService?: PermissionService;
+  /**
+   * Shared secret used to sign requests to the free-tier proxy. Only the
+   * Tauri Android shell supplies this (via a build-time env var); web
+   * builds rely on the proxy's Origin whitelist instead. Ignored unless
+   * the active provider is `free`.
+   */
+  freeProxySecret?: string;
 }
 
 export function createBrowserAgentClient(options: CreateBrowserAgentClientOptions): AgentClient {
@@ -81,6 +91,10 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
     );
   } else {
     try {
+      const extraHeaders =
+        provider.providerId === 'free' && options.freeProxySecret
+          ? createFreeProxyHmacHeaders(options.freeProxySecret)
+          : undefined;
       llm = new OpenAiHttpLlmClient({
         apiKey: provider.apiKey,
         baseUrl: provider.baseUrl,
@@ -88,6 +102,7 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
         endpoint: provider.endpoint,
         useStrict: provider.useStrict,
         temperature: settings.temperature,
+        extraHeaders,
       });
     } catch (error) {
       llm = new UnavailableLlmClient(formatProviderConfigError(error, config.provider.providerId));

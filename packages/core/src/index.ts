@@ -168,6 +168,21 @@ export type RuntimeEvent =
       sourceType: SourceType;
     }
   | { type: 'tool-call-proposed'; sessionId: string; toolCall: ToolCall }
+  | {
+      type: 'tool-call-executing';
+      sessionId: string;
+      toolCall: ToolCall;
+      command?: DeviceCommand;
+      clampedFrom?: { command: DeviceCommand; reason: string };
+    }
+  | {
+      type: 'tool-call-clamped';
+      sessionId: string;
+      toolCall: ToolCall;
+      originalCommand: DeviceCommand;
+      adjustedCommand: DeviceCommand;
+      reason: string;
+    }
   | { type: 'timer-scheduled'; sessionId: string; label: string; dueAt: number }
   | { type: 'timer-fired'; sessionId: string; label: string; firedAt: number }
   | { type: 'tool-call-denied'; sessionId: string; toolCall: ToolCall; reason: string }

@@ -1,2 +1,7 @@
 dist/
 node_modules/
+
+# Local env for HMAC secret (VITE_DG_PROXY_SECRET). Never check in.
+.env
+.env.local
+.env.*.local

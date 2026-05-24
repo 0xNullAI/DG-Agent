@@ -1,6 +1,8 @@
+import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
   FREE_TRIAL_PROXY_URL,
+  createFreeProxyHmacHeaders,
   createProviderSettings,
   normalizeProviderSettings,
   providerRequiresUserApiKey,
@@ -45,5 +47,20 @@ describe('providers-catalog', () => {
   it('detects whether a provider needs a user API key', () => {
     expect(providerRequiresUserApiKey('free')).toBe(false);
     expect(providerRequiresUserApiKey('openai')).toBe(true);
+  });
+
+  it('signs the timestamp with HMAC-SHA256 so the proxy can verify the caller', async () => {
+    const secret = 'unit-test-shared-secret';
+    const signFn = createFreeProxyHmacHeaders(secret);
+    const headers = await signFn();
+
+    expect(headers['X-DG-Timestamp']).toMatch(/^\d+$/);
+    expect(headers['X-DG-Signature']).toMatch(/^[0-9a-f]{64}$/);
+
+    const expected = createHmac('sha256', secret).update(headers['X-DG-Timestamp']).digest('hex');
+    expect(headers['X-DG-Signature']).toBe(expected);
+
+    const recent = Math.abs(Date.now() - Number(headers['X-DG-Timestamp']));
+    expect(recent).toBeLessThan(5_000);
   });
 });

@@ -1,4 +1,4 @@
-import type { RuntimeEvent, RuntimeTraceEntry } from '@dg-agent/core';
+import type { DeviceCommand, RuntimeEvent, RuntimeTraceEntry } from '@dg-agent/core';
 
 export interface TraceFeedItem {
   id: string;
@@ -61,6 +61,16 @@ export function buildLiveTraceFeedItemFromEvent(event: RuntimeEvent): TraceFeedI
         text: `执行失败：${event.toolCall.displayName ?? event.toolCall.name}。原因：${event.error}`,
         createdAt,
       };
+    case 'tool-call-clamped': {
+      const summary = describeClampDelta(event.originalCommand, event.adjustedCommand);
+      return {
+        id,
+        text: summary
+          ? `策略限制：${event.toolCall.displayName ?? event.toolCall.name}（${summary}）。原因：${event.reason}`
+          : `策略限制：${event.toolCall.displayName ?? event.toolCall.name}。原因：${event.reason}`,
+        createdAt,
+      };
+    }
     case 'timer-scheduled':
       return {
         id,
@@ -87,6 +97,30 @@ function formatTraceEntry(entry: RuntimeTraceEntry): string | null {
     default:
       return null;
   }
+}
+
+function describeClampDelta(original: DeviceCommand, adjusted: DeviceCommand): string | null {
+  if (original.type !== adjusted.type) return null;
+  if (original.type === 'start' && adjusted.type === 'start') {
+    if (original.strength !== adjusted.strength) {
+      return `强度 ${original.strength} → ${adjusted.strength}`;
+    }
+  }
+  if (original.type === 'burst' && adjusted.type === 'burst') {
+    if (original.strength !== adjusted.strength) {
+      return `强度 ${original.strength} → ${adjusted.strength}`;
+    }
+    if (original.durationMs !== adjusted.durationMs) {
+      return `时长 ${original.durationMs}ms → ${adjusted.durationMs}ms`;
+    }
+  }
+  if (original.type === 'adjustStrength' && adjusted.type === 'adjustStrength') {
+    if (original.delta !== adjusted.delta) {
+      const fmt = (n: number): string => (n > 0 ? `+${n}` : `${n}`);
+      return `调整量 ${fmt(original.delta)} → ${fmt(adjusted.delta)}`;
+    }
+  }
+  return null;
 }
 
 function formatExecutedTrace(entry: RuntimeTraceEntry): string | null {

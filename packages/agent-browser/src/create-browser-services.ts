@@ -43,9 +43,18 @@ export interface BrowserServicesOptions {
   onPermissionRequest: (input: PermissionRequestInput) => Promise<PermissionDecision>;
   resolveBridgeSessionId: (origin: MessageOrigin) => string | null | Promise<string | null>;
   /**
+   * A pre-built device client to reuse across settings-driven service rebuilds.
+   * When provided, `createDeviceClient` is ignored and no new device is
+   * constructed — this keeps the underlying BLE connection alive when other
+   * settings (provider, voice, bridge, …) change. Web/Android shells pass a
+   * device they own and hold stable across re-renders.
+   */
+  device?: DeviceClient;
+  /**
    * Optional override for the device client. Used by non-browser shells
    * (e.g. the Tauri Android app) to inject a transport that doesn't depend
-   * on Web Bluetooth. Defaults to constructing a WebBluetoothDeviceClient.
+   * on Web Bluetooth. Only consulted when `device` is not supplied. Defaults
+   * to constructing a WebBluetoothDeviceClient.
    */
   createDeviceClient?: (protocol: CoyoteProtocolAdapter) => DeviceClient;
   /**
@@ -60,6 +69,13 @@ export interface BrowserServicesOptions {
    * ship without bridge integrations.
    */
   disableBridge?: boolean;
+  /**
+   * Shared secret for HMAC-signing requests to the free-tier proxy.
+   * Tauri Android passes this so the proxy will allow its requests
+   * (which carry no recognizable browser Origin). Web builds leave it
+   * undefined and rely on the proxy's Origin whitelist.
+   */
+  freeProxySecret?: string;
 }
 
 export interface BrowserServices {
@@ -138,10 +154,14 @@ export function createBrowserServices(options: BrowserServicesOptions): BrowserS
   const sessionTraceStore = new BrowserSessionTraceStore();
   const waveformLibrary = new BrowserWaveformLibrary();
   const bridgeRegistry = new BridgeAdapterRegistry();
-  const deviceProtocol = new CoyoteProtocolAdapter();
-  const device = options.createDeviceClient
-    ? options.createDeviceClient(deviceProtocol)
-    : new WebBluetoothDeviceClient({ protocol: deviceProtocol });
+  const device =
+    options.device ??
+    (() => {
+      const deviceProtocol = new CoyoteProtocolAdapter();
+      return options.createDeviceClient
+        ? options.createDeviceClient(deviceProtocol)
+        : new WebBluetoothDeviceClient({ protocol: deviceProtocol });
+    })();
 
   const speechRecognition = options.disableSpeech
     ? createNullSpeechRecognitionController()
@@ -195,6 +215,7 @@ export function createBrowserServices(options: BrowserServicesOptions): BrowserS
       sessionTraceStore,
       waveformLibrary,
       permissionService: bridgePermissionService,
+      freeProxySecret: options.freeProxySecret,
     });
   } catch (error) {
     const message = formatInitError('模型服务初始化失败', error);
