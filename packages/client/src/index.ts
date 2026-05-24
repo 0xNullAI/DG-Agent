@@ -28,6 +28,12 @@ export interface AgentClient {
   abortCurrentReply(sessionId: string): Promise<void>;
   sendUserMessage(input: SendUserMessageInput): Promise<void>;
   subscribe(listener: (event: RuntimeEvent) => void): () => void;
+  /**
+   * Release resources held by the client (device listeners, pending timers,
+   * in-flight turns). Safe to call multiple times. Implementations that don't
+   * own resources may make this a no-op.
+   */
+  dispose?(): void;
 }
 
 class EmbeddedAgentClient implements AgentClient {
@@ -74,6 +80,10 @@ class EmbeddedAgentClient implements AgentClient {
 
   subscribe(listener: (event: RuntimeEvent) => void): () => void {
     return this.runtime.subscribe(listener);
+  }
+
+  dispose(): void {
+    this.runtime.dispose();
   }
 }
 

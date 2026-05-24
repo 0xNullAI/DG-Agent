@@ -101,6 +101,10 @@ class TestDevice implements DeviceClient {
     };
   }
 
+  get listenerCount(): number {
+    return this.listeners.size;
+  }
+
   private emit(): void {
     for (const listener of this.listeners) {
       listener(this.state);
@@ -1062,6 +1066,37 @@ describe('AgentRuntime', () => {
     expect(parsed.command.strength).toBe(12);
     expect(parsed._warning).toContain('策略限制');
     expect(parsed.notes.some((note: string) => note.startsWith('policy-clamped:'))).toBe(true);
+  });
+
+  it('releases its device-state listener on dispose so multiple runtimes can share one device', async () => {
+    const device = new TestDevice();
+    expect(device.listenerCount).toBe(0);
+
+    const first = new AgentRuntime({
+      device,
+      llm: new TestLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+    expect(device.listenerCount).toBe(1);
+
+    const second = new AgentRuntime({
+      device,
+      llm: new TestLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+    expect(device.listenerCount).toBe(2);
+
+    first.dispose();
+    expect(device.listenerCount).toBe(1);
+
+    second.dispose();
+    expect(device.listenerCount).toBe(0);
+
+    // Calling dispose twice is a no-op.
+    first.dispose();
+    expect(device.listenerCount).toBe(0);
   });
 
   it('blocks burst on inactive channels when configured', async () => {
