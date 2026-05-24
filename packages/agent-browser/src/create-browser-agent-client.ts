@@ -134,6 +134,8 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
         maxColdStartStrength: settings.maxColdStartStrength,
         maxAdjustStep: settings.maxAdjustStrengthStep,
         maxBurstDurationMs: settings.maxBurstDurationMs,
+        maxBurstStrengthAbsolute: settings.maxBurstStrengthAbsolute,
+        maxBurstStrengthRelative: settings.maxBurstStrengthRelative,
       }),
     ),
     buildInstructions: createBuildBrowserInstructions({

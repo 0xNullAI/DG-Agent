@@ -69,6 +69,9 @@ export function defaultBrowserAppSettings(env: BrowserAppEnvLike = {}): BrowserA
     maxAdjustStrengthStep: DEFAULT_MAX_ADJUST_STEP,
     maxBurstCallsPerTurn: toolCallConfig.maxBurstCallsPerTurn,
     maxBurstDurationMs: DEFAULT_MAX_BURST_DURATION_MS,
+    // 0 = the cap is disabled; user opts in by typing a value.
+    maxBurstStrengthAbsolute: 0,
+    maxBurstStrengthRelative: 0,
     burstRequiresActiveChannel: toolCallConfig.burstRequiresActiveChannel,
     safetyStopOnLeave: true,
     rememberApiKey: false,

@@ -20,6 +20,11 @@ export function PermissionModal({
   onDeny,
 }: PermissionModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  // The long-effect grants ("允许 5 分钟" / "允许本会话") are hidden behind
+  // this fold so a tap on "仅本次允许" can't accidentally hit a wider grant
+  // on the same screen. Mobile users repeatedly hit the adjacent button
+  // before — see issue #69.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => {
     panelRef.current?.focus();
@@ -56,19 +61,51 @@ export function PermissionModal({
 
         <ArgsCollapsible args={args} />
 
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Button variant="secondary" className="rounded-[10px] text-[13px]" onClick={onAllowOnce}>
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <Button className="h-11 rounded-[10px] text-[13px] font-medium" onClick={onAllowOnce}>
             仅本次允许
           </Button>
-          <Button variant="secondary" className="rounded-[10px] text-[13px]" onClick={onAllowTimed}>
-            允许 5 分钟
-          </Button>
-          <Button className="rounded-[10px] text-[13px]" onClick={onAllowSession}>
-            允许本会话
-          </Button>
-          <Button variant="destructive" className="rounded-[10px] text-[13px]" onClick={onDeny}>
+          <Button
+            variant="destructive"
+            className="h-11 rounded-[10px] text-[13px] font-medium"
+            onClick={onDeny}
+          >
             拒绝
           </Button>
+        </div>
+
+        <div className="mt-3 border-t border-[var(--surface-border)] pt-2">
+          <button
+            type="button"
+            className="mx-auto flex items-center gap-1 text-xs text-[var(--text-faint)] transition-colors hover:text-[var(--text-soft)]"
+            onClick={() => setAdvancedOpen((v) => !v)}
+            aria-expanded={advancedOpen}
+          >
+            {advancedOpen ? (
+              <ChevronDown className="h-3.5 w-3.5" />
+            ) : (
+              <ChevronRight className="h-3.5 w-3.5" />
+            )}
+            高级选项（长效授权）
+          </button>
+          {advancedOpen && (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <Button
+                variant="secondary"
+                className="rounded-[10px] text-[12px]"
+                onClick={onAllowTimed}
+              >
+                允许 5 分钟
+              </Button>
+              <Button
+                variant="secondary"
+                className="rounded-[10px] text-[12px]"
+                onClick={onAllowSession}
+              >
+                允许本会话
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </section>

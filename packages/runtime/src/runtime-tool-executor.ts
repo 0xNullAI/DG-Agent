@@ -15,6 +15,12 @@ import type { PolicyEngine } from './policy-engine.js';
 import type { ToolCallConfig } from './tool-call-config.js';
 import type { ToolRegistry } from './tool-registry.js';
 
+// Clamp rules are convergent in practice (each pass narrows the command),
+// but bound the loop in case a custom rule keeps clamping. 4 is enough for
+// the worst real chain — burst-strength-cap → user-strength-cap → step-adjust
+// → permission-gate — with one slot of safety margin.
+const POLICY_RESOLVE_MAX_ITERATIONS = 4;
+
 interface ScheduledTimer {
   sessionId: string;
   timer: ReturnType<typeof setTimeout>;
@@ -269,13 +275,87 @@ export class RuntimeToolExecutor {
       return this.denyToolCall(session, toolCall, burstError, context);
     }
 
-    let decision = this.options.policyEngine.evaluate({
-      context,
-      command,
-      deviceState: currentState,
-    });
+    // Resolve the policy decision in a loop so that a clamp doesn't
+    // short-circuit later rules (especially permission-gate). The old code
+    // returned at the first non-null rule — that meant any clamp would skip
+    // the user's "每次询问" confirmation prompt (issue #65) and would also
+    // mask any tighter cap from a later rule (e.g. channel strength cap
+    // after a burst-specific cap). Now we re-evaluate the clamped command
+    // until no more clamps fire, then handle deny / require-confirm.
+    const initialCommand = command;
+    const clampReasons: string[] = [];
+    let needsConfirm = false;
+    let confirmReason = '';
+    let denyReason: string | undefined;
+    let exhausted = true;
 
-    if (decision.type === 'require-confirm') {
+    for (let iter = 0; iter < POLICY_RESOLVE_MAX_ITERATIONS; iter += 1) {
+      const decision = this.options.policyEngine.evaluate({
+        context,
+        command,
+        deviceState: currentState,
+      });
+
+      if (decision.type === 'allow') {
+        exhausted = false;
+        break;
+      }
+      if (decision.type === 'deny') {
+        denyReason = decision.reason;
+        exhausted = false;
+        break;
+      }
+      if (decision.type === 'require-confirm') {
+        needsConfirm = true;
+        confirmReason = decision.reason;
+        exhausted = false;
+        break;
+      }
+      // clamp
+      clampReasons.push(decision.reason);
+      command = decision.command;
+    }
+
+    const clampedFrom =
+      clampReasons.length > 0
+        ? { command: initialCommand, reason: clampReasons.join('; ') }
+        : undefined;
+
+    if (clampedFrom) {
+      this.options.logger.warn('Command clamped by policy.', {
+        sessionId: session.id,
+        toolName: toolCall.name,
+        reason: clampedFrom.reason,
+      });
+      this.options.emit({
+        type: 'tool-call-clamped',
+        sessionId: session.id,
+        toolCall,
+        originalCommand: initialCommand,
+        adjustedCommand: command,
+        reason: clampedFrom.reason,
+      });
+    }
+
+    if (exhausted) {
+      this.options.logger.error('Policy clamp loop did not converge.', {
+        sessionId: session.id,
+        toolName: toolCall.name,
+        clampReasons,
+      });
+      return this.denyToolCall(
+        session,
+        toolCall,
+        '策略评估未收敛（clamp 规则未稳定），本次调用被拒绝。',
+        context,
+      );
+    }
+
+    if (denyReason !== undefined) {
+      return this.denyToolCall(session, toolCall, denyReason, context);
+    }
+
+    if (needsConfirm) {
       const permission = await this.options.permission.request({
         context,
         toolName: toolCall.name,
@@ -290,34 +370,8 @@ export class RuntimeToolExecutor {
       throwIfAborted(abortSignal);
 
       if (permission.type === 'deny') {
-        return this.denyToolCall(session, toolCall, permission.reason ?? decision.reason, context);
+        return this.denyToolCall(session, toolCall, permission.reason ?? confirmReason, context);
       }
-
-      decision = { type: 'allow' };
-    }
-
-    if (decision.type === 'deny') {
-      return this.denyToolCall(session, toolCall, decision.reason, context);
-    }
-
-    let clampedFrom: { command: DeviceCommand; reason: string } | undefined;
-    if (decision.type === 'clamp') {
-      const originalCommand = command;
-      this.options.logger.warn('Command clamped by policy.', {
-        sessionId: session.id,
-        toolName: toolCall.name,
-        reason: decision.reason,
-      });
-      clampedFrom = { command: originalCommand, reason: decision.reason };
-      command = decision.command;
-      this.options.emit({
-        type: 'tool-call-clamped',
-        sessionId: session.id,
-        toolCall,
-        originalCommand,
-        adjustedCommand: command,
-        reason: decision.reason,
-      });
     }
 
     throwIfAborted(abortSignal);

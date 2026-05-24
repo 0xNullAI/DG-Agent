@@ -115,6 +115,8 @@ export class BrowserAppSettingsStore {
       maxAdjustStrengthStep: settings.maxAdjustStrengthStep,
       maxBurstCallsPerTurn: settings.maxBurstCallsPerTurn,
       maxBurstDurationMs: settings.maxBurstDurationMs,
+      maxBurstStrengthAbsolute: settings.maxBurstStrengthAbsolute,
+      maxBurstStrengthRelative: settings.maxBurstStrengthRelative,
       burstRequiresActiveChannel: settings.burstRequiresActiveChannel,
       safetyStopOnLeave: settings.safetyStopOnLeave,
       rememberApiKey: settings.rememberApiKey,

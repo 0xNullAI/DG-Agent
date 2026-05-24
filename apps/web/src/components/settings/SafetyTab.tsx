@@ -65,16 +65,20 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
   }
 
   function setToolLimit(
-    key:
-      | 'maxToolIterations'
-      | 'maxToolCallsPerTurn'
-      | 'maxAdjustStrengthCallsPerTurn'
-      | 'maxBurstCallsPerTurn',
+    key: 'maxToolIterations' | 'maxToolCallsPerTurn' | 'maxAdjustStrengthCallsPerTurn',
     value: number,
   ) {
     setSettingsDraft((current) => ({
       ...current,
       [key]: clamp(value, TOOL_LIMIT_MIN, TOOL_LIMIT_MAX),
+    }));
+  }
+
+  function setBurstCallsPerTurn(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      // 0 is the "disable bursts" opt-out (issue #67) — must stay reachable.
+      maxBurstCallsPerTurn: clamp(value, 0, TOOL_LIMIT_MAX),
     }));
   }
 
@@ -96,6 +100,22 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
     setSettingsDraft((current) => ({
       ...current,
       maxBurstDurationMs: clamp(value, BURST_DURATION_MIN, BURST_DURATION_MAX),
+    }));
+  }
+
+  function setBurstStrengthAbsolute(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      // 0 = cap disabled (defer to channel cap); upper bound matches the
+      // device's hardware limit space (0..200).
+      maxBurstStrengthAbsolute: clamp(value, 0, STRENGTH_MAX),
+    }));
+  }
+
+  function setBurstStrengthRelative(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      maxBurstStrengthRelative: clamp(value, 0, STRENGTH_MAX),
     }));
   }
 
@@ -239,11 +259,12 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
         </label>
 
         <label htmlFor="max-burst-calls-per-turn" className="settings-inline-field">
-          <SettingLabel>单轮突增次数上限</SettingLabel>
+          <SettingLabel>单轮突增次数上限（0 表示关闭突增）</SettingLabel>
           <ToolLimitField
             id="max-burst-calls-per-turn"
             value={settingsDraft.maxBurstCallsPerTurn}
-            onChange={(value) => setToolLimit('maxBurstCallsPerTurn', value)}
+            onChange={setBurstCallsPerTurn}
+            min={0}
           />
         </label>
 
@@ -255,6 +276,28 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
             min={BURST_DURATION_MIN}
             max={BURST_DURATION_MAX}
             onChange={setBurstDurationMs}
+          />
+        </label>
+
+        <label htmlFor="max-burst-strength-absolute" className="settings-inline-field">
+          <SettingLabel>突增绝对强度上限（0 = 不限）</SettingLabel>
+          <ConfigNumberField
+            id="max-burst-strength-absolute"
+            value={settingsDraft.maxBurstStrengthAbsolute}
+            min={0}
+            max={STRENGTH_MAX}
+            onChange={setBurstStrengthAbsolute}
+          />
+        </label>
+
+        <label htmlFor="max-burst-strength-relative" className="settings-inline-field">
+          <SettingLabel>突增相对强度上限（当前 + N，0 = 不限）</SettingLabel>
+          <ConfigNumberField
+            id="max-burst-strength-relative"
+            value={settingsDraft.maxBurstStrengthRelative}
+            min={0}
+            max={STRENGTH_MAX}
+            onChange={setBurstStrengthRelative}
           />
         </label>
 
@@ -280,19 +323,15 @@ function ToolLimitField({
   id,
   value,
   onChange,
+  min = TOOL_LIMIT_MIN,
 }: {
   id: string;
   value: number;
   onChange: (value: number) => void;
+  min?: number;
 }) {
   return (
-    <ConfigNumberField
-      id={id}
-      value={value}
-      min={TOOL_LIMIT_MIN}
-      max={TOOL_LIMIT_MAX}
-      onChange={onChange}
-    />
+    <ConfigNumberField id={id} value={value} min={min} max={TOOL_LIMIT_MAX} onChange={onChange} />
   );
 }
 
