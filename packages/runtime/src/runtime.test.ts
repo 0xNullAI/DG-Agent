@@ -472,6 +472,14 @@ class DenyingPermission implements PermissionService {
   }
 }
 
+class CountingPermission implements PermissionService {
+  callCount = 0;
+  async request() {
+    this.callCount += 1;
+    return { type: 'approve-once' } as const;
+  }
+}
+
 class TestSessionStore implements SessionStore {
   constructor(private readonly sessions = new Map<string, TestSessionStoreEntry>()) {}
 
@@ -958,6 +966,100 @@ describe('AgentRuntime', () => {
 
     const session = await runtime.getSessionSnapshot('test');
     expect(session.deviceState.strengthA).toBe(12);
+  });
+
+  it('still asks for permission after a clamp instead of silently executing the clamped command', async () => {
+    // Issue #65: a clamp rule (here step-adjust, max ±10) used to short-
+    // circuit the policy engine and skip past permission-gate. So an
+    // "+12" adjust in "每次询问" mode would clamp to +10 and execute
+    // without ever asking the user — and PR #76's clamp visibility was
+    // only half the story.
+    const permission = new CountingPermission();
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ strengthA: 10, waveActiveA: true, currentWaveA: 'pulse_mid' }),
+      llm: new LargeAdjustLlm(),
+      permission,
+      waveformLibrary: createBasicWaveformLibrary(),
+      policyEngine: new PolicyEngine(
+        createDefaultPolicyRules({
+          maxAdjustStep: 10,
+        }),
+      ),
+      toolCallConfig: {
+        maxToolIterations: 1,
+      },
+    });
+
+    const events: RuntimeEvent[] = [];
+    runtime.subscribe((event) => events.push(event));
+
+    await runtime.sendUserMessage({
+      sessionId: 'clamp-then-confirm',
+      text: '调高一点',
+      context: {
+        sessionId: 'clamp-then-confirm',
+        sourceType: 'cli',
+        traceId: 'trace-clamp-confirm',
+      },
+    });
+
+    // Permission was asked exactly once, even though step-adjust clamped.
+    expect(permission.callCount).toBe(1);
+    // Clamp event still fires with the original (+25) and adjusted (+10).
+    const clamped = events.find((event) => event.type === 'tool-call-clamped');
+    expect(clamped).toBeDefined();
+    if (!clamped || clamped.type !== 'tool-call-clamped') throw new Error('expected clamp event');
+    if (
+      clamped.originalCommand.type === 'adjustStrength' &&
+      clamped.adjustedCommand.type === 'adjustStrength'
+    ) {
+      expect(clamped.originalCommand.delta).toBe(25);
+      expect(clamped.adjustedCommand.delta).toBe(10);
+    }
+    // And the device only moved by the clamped delta.
+    const session = await runtime.getSessionSnapshot('clamp-then-confirm');
+    expect(session.deviceState.strengthA).toBe(20);
+  });
+
+  it('rejects the call when permission is denied even after a clamp', async () => {
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ strengthA: 10, waveActiveA: true, currentWaveA: 'pulse_mid' }),
+      llm: new LargeAdjustLlm(),
+      permission: new DenyingPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      policyEngine: new PolicyEngine(
+        createDefaultPolicyRules({
+          maxAdjustStep: 10,
+        }),
+      ),
+      toolCallConfig: {
+        maxToolIterations: 1,
+      },
+    });
+
+    const events: RuntimeEvent[] = [];
+    runtime.subscribe((event) => events.push(event));
+
+    await runtime.sendUserMessage({
+      sessionId: 'clamp-then-deny',
+      text: '调高一点',
+      context: {
+        sessionId: 'clamp-then-deny',
+        sourceType: 'cli',
+        traceId: 'trace-clamp-deny',
+      },
+    });
+
+    expect(
+      events.some(
+        (event) =>
+          event.type === 'device-command-executed' && event.command.type === 'adjustStrength',
+      ),
+    ).toBe(false);
+    const denied = events.find((event) => event.type === 'tool-call-denied');
+    expect(denied && 'reason' in denied ? denied.reason : '').toContain('拒绝');
+    const session = await runtime.getSessionSnapshot('clamp-then-deny');
+    expect(session.deviceState.strengthA).toBe(10);
   });
 
   it('emits tool-call-clamped with original and adjusted commands when policy clamps', async () => {
