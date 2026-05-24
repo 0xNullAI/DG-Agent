@@ -103,6 +103,22 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
     }));
   }
 
+  function setBurstStrengthAbsolute(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      // 0 = cap disabled (defer to channel cap); upper bound matches the
+      // device's hardware limit space (0..200).
+      maxBurstStrengthAbsolute: clamp(value, 0, STRENGTH_MAX),
+    }));
+  }
+
+  function setBurstStrengthRelative(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      maxBurstStrengthRelative: clamp(value, 0, STRENGTH_MAX),
+    }));
+  }
+
   const permissionOptions: Array<{
     value: BrowserAppSettings['permissionMode'];
     label: string;
@@ -260,6 +276,28 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
             min={BURST_DURATION_MIN}
             max={BURST_DURATION_MAX}
             onChange={setBurstDurationMs}
+          />
+        </label>
+
+        <label htmlFor="max-burst-strength-absolute" className="settings-inline-field">
+          <SettingLabel>突增绝对强度上限（0 = 不限）</SettingLabel>
+          <ConfigNumberField
+            id="max-burst-strength-absolute"
+            value={settingsDraft.maxBurstStrengthAbsolute}
+            min={0}
+            max={STRENGTH_MAX}
+            onChange={setBurstStrengthAbsolute}
+          />
+        </label>
+
+        <label htmlFor="max-burst-strength-relative" className="settings-inline-field">
+          <SettingLabel>突增相对强度上限（当前 + N，0 = 不限）</SettingLabel>
+          <ConfigNumberField
+            id="max-burst-strength-relative"
+            value={settingsDraft.maxBurstStrengthRelative}
+            min={0}
+            max={STRENGTH_MAX}
+            onChange={setBurstStrengthRelative}
           />
         </label>
 

@@ -44,6 +44,12 @@ export interface BrowserAppSettings {
   maxAdjustStrengthStep: number;
   maxBurstCallsPerTurn: number;
   maxBurstDurationMs: number;
+  // Absolute cap on the strength value of a burst (independent of channel
+  // cap). 0 = disabled — defer to maxStrengthA/B. See issue #68.
+  maxBurstStrengthAbsolute: number;
+  // Relative cap: burst.strength must not exceed currentStrength + this.
+  // 0 = disabled. Both caps may be enabled and the tighter one wins.
+  maxBurstStrengthRelative: number;
   burstRequiresActiveChannel: boolean;
   safetyStopOnLeave: boolean;
   rememberApiKey: boolean;

@@ -14,6 +14,10 @@ export interface DefaultPolicyOptions {
   maxColdStartStrength?: number;
   maxAdjustStep?: number;
   maxBurstDurationMs?: number;
+  // Issue #68: extra caps that apply only to `burst` commands, narrower
+  // than the per-channel strength cap. 0 (default) = disabled.
+  maxBurstStrengthAbsolute?: number;
+  maxBurstStrengthRelative?: number;
 }
 
 function requiresConfirmation(command: DeviceCommand): boolean {
@@ -26,6 +30,8 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
   const maxColdStartStrength = normalizeColdStartStrengthLimit(options.maxColdStartStrength);
   const maxAdjustStep = normalizeAdjustStepLimit(options.maxAdjustStep);
   const maxBurstDurationMs = normalizeBurstDurationLimit(options.maxBurstDurationMs);
+  const maxBurstStrengthAbsolute = normalizeOptionalCap(options.maxBurstStrengthAbsolute);
+  const maxBurstStrengthRelative = normalizeOptionalCap(options.maxBurstStrengthRelative);
 
   return [
     {
@@ -102,6 +108,37 @@ export function createDefaultPolicyRules(options: DefaultPolicyOptions = {}): Po
       },
     },
     {
+      name: 'burst-strength-cap',
+      evaluate({ command, deviceState }) {
+        if (command.type !== 'burst') return null;
+        if (maxBurstStrengthAbsolute === 0 && maxBurstStrengthRelative === 0) return null;
+
+        const current = command.channel === 'A' ? deviceState.strengthA : deviceState.strengthB;
+        let cap = Number.POSITIVE_INFINITY;
+        const reasons: string[] = [];
+        if (maxBurstStrengthAbsolute > 0 && command.strength > maxBurstStrengthAbsolute) {
+          cap = Math.min(cap, maxBurstStrengthAbsolute);
+          reasons.push(`突增绝对强度上限 ${maxBurstStrengthAbsolute}`);
+        }
+        if (maxBurstStrengthRelative > 0) {
+          const relativeCap = current + maxBurstStrengthRelative;
+          if (command.strength > relativeCap) {
+            cap = Math.min(cap, relativeCap);
+            reasons.push(
+              `突增相对强度上限 +${maxBurstStrengthRelative}（当前 ${current} → 不超过 ${relativeCap}）`,
+            );
+          }
+        }
+        if (!Number.isFinite(cap)) return null;
+
+        return {
+          type: 'clamp',
+          command: { ...command, strength: cap },
+          reason: reasons.join('；'),
+        };
+      },
+    },
+    {
       name: 'step-adjust',
       evaluate({ command }) {
         if (command.type !== 'adjustStrength') return null;
@@ -164,6 +201,14 @@ function normalizeAdjustStepLimit(value: number | undefined): number {
 function normalizeBurstDurationLimit(value: number | undefined): number {
   const raw = typeof value === 'number' ? value : DEFAULT_MAX_BURST_DURATION_MS;
   return clamp(raw, 100, MAX_BURST_DURATION_LIMIT_MS);
+}
+
+// 0 means "disabled" for the burst-specific caps. Negative input is
+// coerced to 0 so a misconfigured slider can't widen the cap into the
+// negative-strength territory.
+function normalizeOptionalCap(value: number | undefined): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return 0;
+  return Math.min(Math.round(value), 200);
 }
 
 function getEffectiveLimit(

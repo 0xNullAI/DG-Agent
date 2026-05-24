@@ -1298,6 +1298,108 @@ describe('AgentRuntime', () => {
     expect(session.deviceState.strengthA).toBe(40);
   });
 
+  it('clamps burst to the absolute strength cap when configured', async () => {
+    // Issue #68: a burst-only absolute cap (here 30) must clamp burst.strength
+    // even when the per-channel max (default 50) would allow more.
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ strengthA: 10, waveActiveA: true, currentWaveA: 'pulse_mid' }),
+      llm: new BurstOnlyLlm(), // tries burst at strength 40
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      policyEngine: new PolicyEngine(
+        createDefaultPolicyRules({
+          maxBurstStrengthAbsolute: 30,
+        }),
+      ),
+      toolCallConfig: {
+        maxToolIterations: 1,
+        burstRequiresActiveChannel: false,
+      },
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'burst-abs-cap',
+      text: 'burst',
+      context: {
+        sessionId: 'burst-abs-cap',
+        sourceType: 'cli',
+        traceId: 'trace-burst-abs',
+      },
+    });
+
+    const session = await runtime.getSessionSnapshot('burst-abs-cap');
+    expect(session.deviceState.strengthA).toBe(30);
+  });
+
+  it('clamps burst to current strength + relative cap', async () => {
+    // current = 25, relative cap = 10 → burst can't exceed 35.
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ strengthA: 25, waveActiveA: true, currentWaveA: 'pulse_mid' }),
+      llm: new BurstOnlyLlm(), // tries burst at strength 40
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      policyEngine: new PolicyEngine(
+        createDefaultPolicyRules({
+          maxBurstStrengthRelative: 10,
+        }),
+      ),
+      toolCallConfig: {
+        maxToolIterations: 1,
+        burstRequiresActiveChannel: false,
+      },
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'burst-rel-cap',
+      text: 'burst',
+      context: {
+        sessionId: 'burst-rel-cap',
+        sourceType: 'cli',
+        traceId: 'trace-burst-rel',
+      },
+    });
+
+    const session = await runtime.getSessionSnapshot('burst-rel-cap');
+    expect(session.deviceState.strengthA).toBe(35);
+  });
+
+  it('takes the tighter of absolute and per-channel caps when both apply to a burst', async () => {
+    // Channel cap 30, burst absolute cap 80, current strength 5.
+    // The channel cap wins — burst can't exceed 30. Verifies that the
+    // policy loop introduced by #65 lets channel-cap and burst-cap stack
+    // instead of racing for "first clamp wins".
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ strengthA: 5, waveActiveA: true, currentWaveA: 'pulse_mid' }),
+      llm: new BurstOnlyLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      policyEngine: new PolicyEngine(
+        createDefaultPolicyRules({
+          maxStrengthA: 30,
+          maxStrengthB: 30,
+          maxBurstStrengthAbsolute: 80,
+        }),
+      ),
+      toolCallConfig: {
+        maxToolIterations: 1,
+        burstRequiresActiveChannel: false,
+      },
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'burst-stacked-caps',
+      text: 'burst',
+      context: {
+        sessionId: 'burst-stacked-caps',
+        sourceType: 'cli',
+        traceId: 'trace-burst-stack',
+      },
+    });
+
+    const session = await runtime.getSessionSnapshot('burst-stacked-caps');
+    expect(session.deviceState.strengthA).toBe(30);
+  });
+
   it('applies a configurable burst duration cap', async () => {
     const runtime = new AgentRuntime({
       device: new TestDevice({ strengthA: 10, waveActiveA: true, currentWaveA: 'pulse_mid' }),
