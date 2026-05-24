@@ -1132,6 +1132,44 @@ describe('AgentRuntime', () => {
     expect(denied && 'reason' in denied ? denied.reason : '').toContain('还没有运行');
   });
 
+  it('rejects every burst call when maxBurstCallsPerTurn is 0 ("disable bursts" opt-out)', async () => {
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ strengthA: 20, waveActiveA: true, currentWaveA: 'pulse_mid' }),
+      llm: new BurstOnlyLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      toolCallConfig: {
+        maxToolIterations: 1,
+        maxBurstCallsPerTurn: 0,
+        burstRequiresActiveChannel: false,
+      },
+    });
+
+    const events: RuntimeEvent[] = [];
+    runtime.subscribe((event) => events.push(event));
+
+    await runtime.sendUserMessage({
+      sessionId: 'burst-off',
+      text: 'burst',
+      context: {
+        sessionId: 'burst-off',
+        sourceType: 'cli',
+        traceId: 'trace-burst-disabled',
+      },
+    });
+
+    expect(
+      events.some(
+        (event) => event.type === 'device-command-executed' && event.command.type === 'burst',
+      ),
+    ).toBe(false);
+    const denied = events.find((event) => event.type === 'tool-call-denied');
+    expect(denied && 'reason' in denied ? denied.reason : '').toContain('已被用户在设置中关闭');
+    // Strength must not have moved.
+    const session = await runtime.getSessionSnapshot('burst-off');
+    expect(session.deviceState.strengthA).toBe(20);
+  });
+
   it('allows burst on inactive channels when the tool-call config disables that guard', async () => {
     const runtime = new AgentRuntime({
       device: new TestDevice(),

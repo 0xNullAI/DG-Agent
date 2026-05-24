@@ -100,6 +100,9 @@ export function consumeTurnQuota(
   }
 
   if (toolName === 'burst') {
+    if (config.maxBurstCallsPerTurn === 0) {
+      return 'burst 已被用户在设置中关闭（单轮突增次数上限为 0），本次调用被拒绝。请改用 adjust_strength 逐步推进强度，不要再尝试 burst。';
+    }
     const channel = normalizeBurstChannel(toolArgs);
     if (turnState.burstCallsByChannel[channel] >= config.maxBurstCallsPerTurn) {
       return `burst 通道 ${channel} 本回合调用已达上限 (${config.maxBurstCallsPerTurn} 次)，本次调用被拒绝。同一通道的短时突增每回合只允许一次，请直接回复用户，不要重复触发。`;

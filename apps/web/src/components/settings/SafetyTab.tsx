@@ -65,16 +65,20 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
   }
 
   function setToolLimit(
-    key:
-      | 'maxToolIterations'
-      | 'maxToolCallsPerTurn'
-      | 'maxAdjustStrengthCallsPerTurn'
-      | 'maxBurstCallsPerTurn',
+    key: 'maxToolIterations' | 'maxToolCallsPerTurn' | 'maxAdjustStrengthCallsPerTurn',
     value: number,
   ) {
     setSettingsDraft((current) => ({
       ...current,
       [key]: clamp(value, TOOL_LIMIT_MIN, TOOL_LIMIT_MAX),
+    }));
+  }
+
+  function setBurstCallsPerTurn(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      // 0 is the "disable bursts" opt-out (issue #67) — must stay reachable.
+      maxBurstCallsPerTurn: clamp(value, 0, TOOL_LIMIT_MAX),
     }));
   }
 
@@ -239,11 +243,12 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
         </label>
 
         <label htmlFor="max-burst-calls-per-turn" className="settings-inline-field">
-          <SettingLabel>单轮突增次数上限</SettingLabel>
+          <SettingLabel>单轮突增次数上限（0 表示关闭突增）</SettingLabel>
           <ToolLimitField
             id="max-burst-calls-per-turn"
             value={settingsDraft.maxBurstCallsPerTurn}
-            onChange={(value) => setToolLimit('maxBurstCallsPerTurn', value)}
+            onChange={setBurstCallsPerTurn}
+            min={0}
           />
         </label>
 
@@ -280,19 +285,15 @@ function ToolLimitField({
   id,
   value,
   onChange,
+  min = TOOL_LIMIT_MIN,
 }: {
   id: string;
   value: number;
   onChange: (value: number) => void;
+  min?: number;
 }) {
   return (
-    <ConfigNumberField
-      id={id}
-      value={value}
-      min={TOOL_LIMIT_MIN}
-      max={TOOL_LIMIT_MAX}
-      onChange={onChange}
-    />
+    <ConfigNumberField id={id} value={value} min={min} max={TOOL_LIMIT_MAX} onChange={onChange} />
   );
 }
 

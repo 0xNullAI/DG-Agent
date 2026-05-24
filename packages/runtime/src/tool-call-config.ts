@@ -33,7 +33,13 @@ export function resolveToolCallConfig(input: ToolCallConfigInput = {}): ToolCall
       input.maxAdjustStrengthCallsPerTurn,
       defaults.maxAdjustStrengthCallsPerTurn,
     ),
-    maxBurstCallsPerTurn: normalizeCount(input.maxBurstCallsPerTurn, defaults.maxBurstCallsPerTurn),
+    // Burst alone may go to 0 — that's the "disable bursts entirely" config
+    // some users prefer (issue #67). The other caps must stay ≥ 1, otherwise
+    // the agent loop would stall immediately on the first iteration.
+    maxBurstCallsPerTurn: normalizeBurstCount(
+      input.maxBurstCallsPerTurn,
+      defaults.maxBurstCallsPerTurn,
+    ),
     burstRequiresActiveChannel:
       input.burstRequiresActiveChannel ?? defaults.burstRequiresActiveChannel,
   };
@@ -43,4 +49,10 @@ function normalizeCount(value: number | undefined, fallback: number): number {
   const parsed = typeof value === 'number' ? value : Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.max(1, Math.round(parsed));
+}
+
+function normalizeBurstCount(value: number | undefined, fallback: number): number {
+  const parsed = typeof value === 'number' ? value : Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(0, Math.round(parsed));
 }

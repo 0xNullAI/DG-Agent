@@ -22,7 +22,7 @@ export const settingsSchema = z.object({
   maxToolCallsPerTurn: z.number().int().min(1).optional(),
   maxAdjustStrengthCallsPerTurn: z.number().int().min(1).optional(),
   maxAdjustStrengthStep: z.number().int().min(1).max(200).optional(),
-  maxBurstCallsPerTurn: z.number().int().min(1).optional(),
+  maxBurstCallsPerTurn: z.number().int().min(0).optional(),
   maxBurstDurationMs: z.number().int().min(100).max(20000).optional(),
   burstRequiresActiveChannel: z.boolean().optional(),
   safetyStopOnLeave: z.boolean().optional(),
