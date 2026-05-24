@@ -61,13 +61,19 @@ export function useBrowserAppServices(
   // changes that rebuild the services (LLM client, bridge, permissions, …)
   // must not tear down the BLE connection — that used to disconnect users
   // every time they closed the settings drawer.
+  //
+  // autoReconnect is on by default: if the Coyote briefly drops the GATT
+  // link (background WebView, brief out-of-range), the transport silently
+  // reconnects via the cached BluetoothDevice rather than forcing the user
+  // back to the chooser. The Tauri shell brings its own factory and decides
+  // for itself.
   const createDeviceClient = servicesOverrides?.createDeviceClient;
   const deviceRef = useRef<DeviceClient | null>(null);
   if (deviceRef.current === null) {
     const protocol = new CoyoteProtocolAdapter();
     deviceRef.current = createDeviceClient
       ? createDeviceClient(protocol)
-      : new WebBluetoothDeviceClient({ protocol });
+      : new WebBluetoothDeviceClient({ protocol, autoReconnect: true });
   }
   const device = deviceRef.current;
 
