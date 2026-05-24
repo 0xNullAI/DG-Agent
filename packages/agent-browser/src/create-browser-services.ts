@@ -69,6 +69,13 @@ export interface BrowserServicesOptions {
    * ship without bridge integrations.
    */
   disableBridge?: boolean;
+  /**
+   * Shared secret for HMAC-signing requests to the free-tier proxy.
+   * Tauri Android passes this so the proxy will allow its requests
+   * (which carry no recognizable browser Origin). Web builds leave it
+   * undefined and rely on the proxy's Origin whitelist.
+   */
+  freeProxySecret?: string;
 }
 
 export interface BrowserServices {
@@ -208,6 +215,7 @@ export function createBrowserServices(options: BrowserServicesOptions): BrowserS
       sessionTraceStore,
       waveformLibrary,
       permissionService: bridgePermissionService,
+      freeProxySecret: options.freeProxySecret,
     });
   } catch (error) {
     const message = formatInitError('模型服务初始化失败', error);

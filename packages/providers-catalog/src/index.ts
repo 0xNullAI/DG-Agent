@@ -234,3 +234,49 @@ export function isProviderUsableInBrowser(settings: ProviderSettings): boolean {
   const definition = getProviderDefinition(settings.providerId);
   return Boolean(definition?.browserSupported);
 }
+
+/**
+ * Per-request HMAC headers for the free-proxy. The signed payload is just
+ * the current timestamp — that's enough for the proxy to verify the caller
+ * holds the shared secret (and reject replays via the ±5 minute window)
+ * without us having to canonicalize the request body.
+ *
+ * The secret is shipped in the Tauri Android build (via Vite env), so this
+ * is deliberately a low bar: anyone who decompiles the APK can recover the
+ * secret. Rotating the secret server-side invalidates the leaked one. The
+ * web build doesn't ship the secret and is whitelisted by Origin instead.
+ */
+export function createFreeProxyHmacHeaders(secret: string): () => Promise<Record<string, string>> {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) {
+    throw new Error('HMAC headers require WebCrypto subtle; not available in this runtime');
+  }
+  const encoder = new TextEncoder();
+  // Import the key once and cache the import; signing is the only hot path.
+  const keyPromise = subtle.importKey(
+    'raw',
+    encoder.encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign'],
+  );
+
+  return async () => {
+    const timestamp = Date.now().toString();
+    const key = await keyPromise;
+    const sigBytes = await subtle.sign('HMAC', key, encoder.encode(timestamp));
+    return {
+      'X-DG-Timestamp': timestamp,
+      'X-DG-Signature': bufferToHex(sigBytes),
+    };
+  };
+}
+
+function bufferToHex(buf: ArrayBuffer): string {
+  const view = new Uint8Array(buf);
+  let out = '';
+  for (let i = 0; i < view.length; i += 1) {
+    out += (view[i] ?? 0).toString(16).padStart(2, '0');
+  }
+  return out;
+}

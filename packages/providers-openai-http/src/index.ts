@@ -21,6 +21,9 @@ const configSchema = z.object({
   temperature: z.number().min(0).max(2).default(0.3),
   endpoint: z.enum(['responses', 'chat/completions']).default('chat/completions'),
   useStrict: z.boolean().default(true),
+  extraHeaders: z
+    .custom<() => Record<string, string> | Promise<Record<string, string>>>()
+    .optional(),
 });
 
 const chatResponseSchema = z.object({
@@ -62,6 +65,12 @@ export interface OpenAiHttpLlmClientConfig {
   temperature?: number;
   endpoint?: ProviderEndpoint;
   useStrict?: boolean;
+  /**
+   * Per-request headers merged on top of Content-Type / Authorization.
+   * Called once per outbound request. Used by the free-proxy provider to
+   * attach an HMAC signature; ordinary providers leave this unset.
+   */
+  extraHeaders?: () => Record<string, string> | Promise<Record<string, string>>;
 }
 
 export class OpenAiHttpLlmClient implements LlmClient {
@@ -69,6 +78,16 @@ export class OpenAiHttpLlmClient implements LlmClient {
 
   constructor(inputConfig: OpenAiHttpLlmClientConfig) {
     this.config = configSchema.parse(inputConfig);
+  }
+
+  private async buildHeaders(): Promise<Record<string, string>> {
+    const base: Record<string, string> = {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${this.config.apiKey}`,
+    };
+    if (!this.config.extraHeaders) return base;
+    const extra = await this.config.extraHeaders();
+    return { ...base, ...extra };
   }
 
   async runTurn(input: LlmTurnInput): Promise<LlmTurnResult> {
@@ -102,10 +121,7 @@ export class OpenAiHttpLlmClient implements LlmClient {
     const response = await fetch(`${this.config.baseUrl}/chat/completions`, {
       method: 'POST',
       signal: input.abortSignal,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.config.apiKey}`,
-      },
+      headers: await this.buildHeaders(),
       body: JSON.stringify(requestBody),
     });
 
@@ -162,10 +178,7 @@ export class OpenAiHttpLlmClient implements LlmClient {
     const response = await fetch(`${this.config.baseUrl}/responses`, {
       method: 'POST',
       signal: input.abortSignal,
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.config.apiKey}`,
-      },
+      headers: await this.buildHeaders(),
       body: JSON.stringify(requestBody),
     });
 

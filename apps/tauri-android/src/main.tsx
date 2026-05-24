@@ -22,6 +22,11 @@ queueMicrotask(() => {
   });
 });
 
+// Vite inlines this at build time. The Android shell signs requests to the
+// free-tier proxy with an HMAC of the current timestamp so the proxy can
+// allow Android (no browser Origin) without opening the door for anyone.
+const freeProxySecret = import.meta.env.VITE_DG_PROXY_SECRET;
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <App
@@ -29,6 +34,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         disableSpeech: true,
         disableBridge: true,
         disableUpdateChecker: true,
+        freeProxySecret,
         createDeviceClient: (protocol) => {
           const inner = wrapWithLifecycleSafety(
             new TauriBlecDeviceClient({
