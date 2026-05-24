@@ -646,7 +646,7 @@
 
 .settings-sidebar-footer {
   margin: auto -0.75rem 0;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0.75rem max(0.5rem, env(safe-area-inset-bottom));
   border-top: 1px solid var(--surface-border);
   display: flex;
   flex-direction: column;
@@ -729,7 +729,7 @@
 
 .settings-mobile-directory-footer {
   margin-top: auto;
-  padding: 0.5rem 0.75rem;
+  padding: 0.5rem 0.75rem max(0.5rem, env(safe-area-inset-bottom));
   border-top: 1px solid var(--surface-border);
   display: flex;
   flex-direction: column;
