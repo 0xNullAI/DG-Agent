@@ -555,7 +555,7 @@ export function App({ servicesOverrides }: AppProps = {}) {
   return (
     <>
       <main
-        className="relative flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden"
+        className="relative flex h-[100dvh] min-h-[100dvh] flex-col overflow-hidden pt-[env(safe-area-inset-top)]"
         aria-hidden={!safetyNoticeAccepted}
       >
         {pendingPermission && (
@@ -587,7 +587,7 @@ export function App({ servicesOverrides }: AppProps = {}) {
         <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
           <SheetContent
             side="left"
-            className="dg-sidebar-sheet flex h-full w-screen max-w-none flex-col overflow-hidden bg-[var(--bg-elevated)] p-0 sm:max-w-[420px] [&>button]:hidden"
+            className="dg-sidebar-sheet flex h-full w-screen max-w-none flex-col overflow-hidden bg-[var(--bg-elevated)] p-0 pt-[env(safe-area-inset-top)] sm:max-w-[420px] [&>button]:hidden"
           >
             <SheetHeader className="px-5 pt-5">
               <div className="flex items-center justify-between gap-4">
