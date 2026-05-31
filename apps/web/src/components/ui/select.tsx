@@ -70,7 +70,11 @@ const SelectItem = React.forwardRef<
   <SelectPrimitive.Item
     ref={ref}
     className={cn(
-      'relative flex w-full cursor-default select-none items-center rounded-sm py-2 pl-8 pr-2 text-sm outline-none focus:bg-[var(--bg-soft)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+      // `cursor-pointer` (not `cursor-default`) is load-bearing on touch:
+      // Radix selects an item on the synthesized `click` for non-mouse pointers,
+      // and iOS Safari only fires that click on elements it considers clickable
+      // (cursor: pointer). With cursor-default, tapping a list item does nothing.
+      'relative flex w-full cursor-pointer select-none items-center rounded-sm py-2 pl-8 pr-2 text-sm outline-none focus:bg-[var(--bg-soft)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
       className,
     )}
     {...props}
