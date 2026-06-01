@@ -11,7 +11,7 @@
     "@dg-agent/permissions-browser": "0.1.0",
     "@dg-agent/providers-catalog": "0.1.0",
     "@dg-agent/runtime": "0.1.0",
-    "idb-keyval": "^6.2.1",
+    "idb-keyval": "^6.2.4",
     "zod": "^4.4.3"
   },
   "scripts": {
