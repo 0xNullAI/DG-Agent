@@ -43,9 +43,19 @@ import { useVoiceController } from './hooks/use-voice-controller.js';
 import { useWaveformManager } from './hooks/use-waveform-manager.js';
 import { createSessionId, isReplyAbortError } from './utils/app-runtime-helpers.js';
 import { buildWarnings } from './utils/runtime-warnings.js';
-import { formatUiErrorMessage, isBluetoothChooserCancelledError } from './utils/ui-formatters.js';
+import {
+  formatUiErrorMessage,
+  getSessionTitle,
+  isBluetoothChooserCancelledError,
+} from './utils/ui-formatters.js';
 import { buildTraceFeed } from './utils/trace-feed.js';
-import { buildExportDocument, parseImportDocument } from './utils/session-transfer.js';
+import {
+  parseSessionsFromJson,
+  serializeSessionFile,
+  sessionFileName,
+} from './utils/session-transfer.js';
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
+import type { SessionSnapshot } from '@dg-agent/core';
 
 export interface AppProps {
   /**
@@ -494,33 +504,61 @@ export function App({ servicesOverrides }: AppProps = {}) {
     }
   }
 
-  async function exportSessions(): Promise<void> {
+  function triggerDownload(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  // Export the chosen sessions as a zip with one JSON file per session.
+  async function exportSessions(sessionIds: string[]): Promise<void> {
     try {
-      const sessions = await client.listSessions();
-      if (sessions.length === 0) {
-        setStatusMessage('暂无可导出的会话');
+      const all = await client.listSessions();
+      const chosen = all.filter((session) => sessionIds.includes(session.id));
+      if (chosen.length === 0) {
+        setStatusMessage('请选择要导出的会话');
         return;
       }
-      const document_ = buildExportDocument(sessions, Date.now());
-      const blob = new Blob([JSON.stringify(document_, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      anchor.href = url;
-      anchor.download = `dg-agent-chat-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
-      setStatusMessage(`已导出 ${sessions.length} 个会话`);
+      const exportedAt = Date.now();
+      const files: Record<string, Uint8Array> = {};
+      for (const session of chosen) {
+        let name = sessionFileName(session);
+        // Guard against (unlikely) filename collisions inside the zip.
+        for (let i = 2; name in files; i += 1) {
+          name = sessionFileName(session).replace(/\.json$/, `-${i}.json`);
+        }
+        files[name] = strToU8(serializeSessionFile(session, exportedAt));
+      }
+      const zipped = zipSync(files);
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-');
+      triggerDownload(
+        new Blob([zipped], { type: 'application/zip' }),
+        `dg-agent-chat-${stamp}.zip`,
+      );
+      setStatusMessage(`已导出 ${chosen.length} 个会话`);
     } catch (error) {
       setErrorMessage(formatUiErrorMessage(error));
     }
   }
 
+  // Import from a zip (one JSON per session) or a single JSON file.
   async function importSessions(file: File): Promise<void> {
     try {
-      const text = await file.text();
-      const sessions = parseImportDocument(text);
+      const sessions: SessionSnapshot[] = [];
+      if (/\.zip$/i.test(file.name)) {
+        const entries = unzipSync(new Uint8Array(await file.arrayBuffer()));
+        for (const [name, content] of Object.entries(entries)) {
+          if (!/\.json$/i.test(name)) continue;
+          sessions.push(...parseSessionsFromJson(strFromU8(content)));
+        }
+      } else {
+        sessions.push(...parseSessionsFromJson(await file.text()));
+      }
       if (sessions.length === 0) {
         setStatusMessage('文件中没有会话');
         return;
@@ -725,8 +763,12 @@ export function App({ servicesOverrides }: AppProps = {}) {
                 modelLogTurns={modelLog.turns}
                 onClearModelLogs={modelLog.clear}
                 settings={settings}
-                sessionCount={savedSessions.length}
-                onExportSessions={() => void exportSessions()}
+                exportableSessions={savedSessions.map((s) => ({
+                  id: s.id,
+                  title: getSessionTitle(s),
+                  updatedAt: s.updatedAt,
+                }))}
+                onExportSessions={(ids) => void exportSessions(ids)}
                 onImportSessions={(file) => void importSessions(file)}
               />
             ) : (

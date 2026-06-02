@@ -24,7 +24,7 @@ import { SafetyTab } from './settings/SafetyTab.js';
 import { BridgeTab } from './settings/BridgeTab.js';
 import { BridgeLogsTab, ModelLogsTab } from './settings/LogsTab.js';
 import { VoiceTab } from './settings/VoiceTab.js';
-import { DataTab } from './settings/DataTab.js';
+import { DataTab, type ExportableSession } from './settings/DataTab.js';
 import { PresetSelector } from './PresetSelector.js';
 import { WaveformsPanel } from './WaveformsPanel.js';
 
@@ -154,8 +154,8 @@ export interface SettingsDrawerProps {
   modelLogTurns: ModelLogTurn[];
   onClearModelLogs: () => void;
   settings: BrowserAppSettings;
-  sessionCount: number;
-  onExportSessions: () => void;
+  exportableSessions: ExportableSession[];
+  onExportSessions: (sessionIds: string[]) => void;
   onImportSessions: (file: File) => void;
 }
 
@@ -174,7 +174,7 @@ function SettingsTabContent({
   modelLogTurns,
   onClearModelLogs,
   settings,
-  sessionCount,
+  exportableSessions,
   onExportSessions,
   onImportSessions,
 }: Omit<
@@ -211,7 +211,7 @@ function SettingsTabContent({
     case 'data':
       return (
         <DataTab
-          sessionCount={sessionCount}
+          sessions={exportableSessions}
           onExport={onExportSessions}
           onImport={onImportSessions}
         />
