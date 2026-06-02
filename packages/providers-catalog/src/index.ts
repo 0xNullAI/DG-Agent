@@ -59,6 +59,13 @@ const providerSettingsSchema = z.object({
 
 export const FREE_TRIAL_PROXY_URL = 'https://dg-agent-proxy-eloracuikl.cn-hangzhou.fcapp.run';
 
+/**
+ * Display model for the free tier. The Aliyun FC proxy forces the real upstream
+ * model server-side (via the PROXY_MODEL env var), so this value is only used
+ * for the UI label and the request body the proxy then overrides.
+ */
+export const FREE_TRIAL_MODEL = 'openrouter/free';
+
 export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
   {
     id: 'free',
@@ -193,7 +200,7 @@ export function normalizeProviderSettings(input: ProviderSettings): ProviderSett
       break;
     case 'free':
       normalized.baseUrl = FREE_TRIAL_PROXY_URL + '/v1';
-      normalized.model = 'LongCat-Flash-Chat';
+      normalized.model = FREE_TRIAL_MODEL;
       normalized.endpoint = 'chat/completions';
       normalized.useStrict = false;
       break;
@@ -216,7 +223,7 @@ export function resolveProviderRuntimeSettings(input: ProviderSettings): Provide
     return {
       ...normalized,
       apiKey: 'free',
-      model: 'LongCat-Flash-Chat',
+      model: FREE_TRIAL_MODEL,
       baseUrl: FREE_TRIAL_PROXY_URL + '/v1',
       endpoint: 'chat/completions',
       useStrict: false,
