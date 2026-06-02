@@ -1,6 +1,7 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import {
+  FREE_TRIAL_MODEL,
   FREE_TRIAL_PROXY_URL,
   createFreeProxyHmacHeaders,
   createProviderSettings,
@@ -27,8 +28,9 @@ describe('providers-catalog', () => {
     const runtime = resolveProviderRuntimeSettings(createProviderSettings('free'));
 
     expect(runtime.apiKey).toBe('free');
-    expect(runtime.model).toBe('LongCat-Flash-Chat');
+    expect(runtime.model).toBe(FREE_TRIAL_MODEL);
     expect(runtime.baseUrl).toBe(FREE_TRIAL_PROXY_URL + '/v1');
+    expect(runtime.endpoint).toBe('chat/completions');
     expect(runtime.browserSupported).toBe(true);
   });
 

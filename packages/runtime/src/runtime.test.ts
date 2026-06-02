@@ -876,7 +876,9 @@ describe('AgentRuntime', () => {
 
     const session = await runtime.getSessionSnapshot('test');
     expect(llm.count).toBe(1);
-    expect(session.messages.at(-1)?.content).toBe('设备未连接，请先点击“连接设备”');
+    expect(session.messages.at(-1)?.content).toBe(
+      '设备未连接，请先点击输入框旁的蓝牙图标连接郊狼。',
+    );
   });
 
   it('enforces configurable per-turn adjust_strength quotas', async () => {

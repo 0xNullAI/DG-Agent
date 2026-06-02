@@ -21,6 +21,11 @@ export interface AgentClient {
   listSessions(): Promise<SessionSnapshot[]>;
   getSessionSnapshot(sessionId: string): Promise<SessionSnapshot>;
   getSessionTrace(sessionId: string): Promise<RuntimeTraceEntry[]>;
+  /**
+   * Restore exported sessions into the store. Sessions sharing an id with an
+   * existing one are overwritten. Not all transports support this.
+   */
+  importSessions(sessions: SessionSnapshot[]): Promise<void>;
   deleteSession(sessionId: string): Promise<void>;
   connectDevice(sessionId?: string): Promise<void>;
   disconnectDevice(): Promise<void>;
@@ -52,6 +57,10 @@ class EmbeddedAgentClient implements AgentClient {
 
   getSessionTrace(sessionId: string): Promise<RuntimeTraceEntry[]> {
     return this.runtime.getSessionTrace(sessionId);
+  }
+
+  importSessions(sessions: SessionSnapshot[]): Promise<void> {
+    return this.runtime.importSessions(sessions);
   }
 
   deleteSession(sessionId: string): Promise<void> {
@@ -111,6 +120,10 @@ export class HttpAgentClient implements AgentClient {
 
   async getSessionTrace(_sessionId: string): Promise<RuntimeTraceEntry[]> {
     return [];
+  }
+
+  async importSessions(_sessions: SessionSnapshot[]): Promise<void> {
+    throw new Error('当前传输方式不支持导入会话');
   }
 
   async deleteSession(sessionId: string): Promise<void> {

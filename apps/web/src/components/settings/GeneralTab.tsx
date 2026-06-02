@@ -4,6 +4,7 @@ import {
   useState,
   type CSSProperties,
   type Dispatch,
+  type ReactNode,
   type SetStateAction,
 } from 'react';
 import { RefreshCw } from 'lucide-react';
@@ -131,15 +132,17 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
               providerId={settingsDraft.provider.providerId}
               value={settingsDraft.provider.model}
               onChange={(next) => updateProviderField('model', next)}
+              trailing={
+                <ConnectionTestButton
+                  // Remount when config changes so stale results / aborted requests
+                  // are cleared — avoids setState-in-effect lint rules.
+                  key={`${settingsDraft.provider.baseUrl}|${settingsDraft.provider.apiKey}`}
+                  baseUrl={settingsDraft.provider.baseUrl}
+                  apiKey={settingsDraft.provider.apiKey}
+                />
+              }
             />
           </label>
-          <ConnectionTestButton
-            // Remount when config changes so stale results / aborted requests
-            // are cleared — avoids setState-in-effect lint rules.
-            key={`${settingsDraft.provider.baseUrl}|${settingsDraft.provider.apiKey}`}
-            baseUrl={settingsDraft.provider.baseUrl}
-            apiKey={settingsDraft.provider.apiKey}
-          />
         </div>
       );
     }
@@ -338,6 +341,8 @@ interface ModelPickerProps {
   providerId: ProviderId;
   value: string;
   onChange: (next: string) => void;
+  /** Extra controls rendered inline after the refresh button (e.g. 测试连接). */
+  trailing?: ReactNode;
 }
 
 function ModelPicker({
@@ -348,6 +353,7 @@ function ModelPicker({
   providerId,
   value,
   onChange,
+  trailing,
 }: ModelPickerProps) {
   const [models, setModels] = useState<string[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -398,8 +404,8 @@ function ModelPicker({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="flex items-center gap-2">
-        <div className="flex-1 min-w-0">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1 basis-[200px]">
           {showDropdown ? (
             <SettingSelect
               value={value}
@@ -428,6 +434,7 @@ function ModelPicker({
         >
           {loading ? '加载中…' : '刷新'}
         </button>
+        {trailing}
       </div>
       {error && <div className="text-[12px] leading-relaxed text-[var(--text-faint)]">{error}</div>}
     </div>
@@ -495,33 +502,30 @@ function ConnectionTestButton({ baseUrl, apiKey }: ConnectionTestButtonProps) {
   const disabled = testing || !baseUrl;
 
   return (
-    <div className="flex items-center gap-2">
+    <>
       <button
         type="button"
         onClick={() => {
           void runTest();
         }}
         disabled={disabled}
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-strong)] text-[var(--text-soft)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-strong)] px-3 text-xs font-medium text-[var(--text-soft)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
         aria-label="测试连接"
-        title="测试连接"
       >
-        <RefreshCw size={16} className={testing ? 'animate-spin' : undefined} aria-hidden />
+        <RefreshCw size={14} className={testing ? 'animate-spin' : undefined} aria-hidden />
+        {testing ? '测试中…' : '测试连接'}
       </button>
-      {status.kind === 'testing' && (
-        <span className="text-[12px] text-[var(--text-soft)]">测试中…</span>
-      )}
       {status.kind === 'success' && (
         <span className="text-[12px] font-medium text-[var(--accent)]">
           连接成功 · {status.latencyMs} ms
         </span>
       )}
       {status.kind === 'error' && (
-        <span className="text-[12px] leading-relaxed text-[var(--danger)]">
+        <span className="basis-full text-[12px] leading-relaxed text-[var(--danger)]">
           连接失败：{status.message}
         </span>
       )}
-    </div>
+    </>
   );
 }
 
