@@ -6,6 +6,7 @@ import type { ModelLogTurn } from '../services/model-log-store.js';
 import {
   ArrowLeft,
   Bot,
+  Database,
   FileSearch,
   LayoutTemplate,
   Logs,
@@ -23,6 +24,7 @@ import { SafetyTab } from './settings/SafetyTab.js';
 import { BridgeTab } from './settings/BridgeTab.js';
 import { BridgeLogsTab, ModelLogsTab } from './settings/LogsTab.js';
 import { VoiceTab } from './settings/VoiceTab.js';
+import { DataTab } from './settings/DataTab.js';
 import { PresetSelector } from './PresetSelector.js';
 import { WaveformsPanel } from './WaveformsPanel.js';
 
@@ -33,6 +35,7 @@ export type SettingsModalTab =
   | 'waveforms'
   | 'bridge'
   | 'voice'
+  | 'data'
   | 'bridge-logs'
   | 'model-tool-logs';
 
@@ -100,6 +103,13 @@ export const SETTINGS_NAV_ITEMS: Array<{
     },
   },
   {
+    value: 'data',
+    label: '数据',
+    description: '聊天记录导入与导出',
+    icon: Database,
+    sections: {},
+  },
+  {
     value: 'model-tool-logs',
     label: '模型日志',
     description: '永久保存的 LLM 请求与响应记录',
@@ -120,7 +130,7 @@ export const SETTINGS_NAV_GROUPS: Array<{
   values: SettingsModalTab[];
 }> = [
   { label: '配置', values: ['general', 'preset', 'safety', 'waveforms'] },
-  { label: '扩展', values: ['bridge', 'voice'] },
+  { label: '扩展', values: ['bridge', 'voice', 'data'] },
   { label: '日志', values: ['model-tool-logs', 'bridge-logs'] },
 ];
 
@@ -144,6 +154,9 @@ export interface SettingsDrawerProps {
   modelLogTurns: ModelLogTurn[];
   onClearModelLogs: () => void;
   settings: BrowserAppSettings;
+  sessionCount: number;
+  onExportSessions: () => void;
+  onImportSessions: (file: File) => void;
 }
 
 function SettingsTabContent({
@@ -161,6 +174,9 @@ function SettingsTabContent({
   modelLogTurns,
   onClearModelLogs,
   settings,
+  sessionCount,
+  onExportSessions,
+  onImportSessions,
 }: Omit<
   SettingsDrawerProps,
   'mobileNavOpen' | 'onMobileNavOpenChange' | 'onClose' | 'onRequestReset' | 'onTabChange'
@@ -192,6 +208,14 @@ function SettingsTabContent({
       return <BridgeTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
     case 'voice':
       return <VoiceTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
+    case 'data':
+      return (
+        <DataTab
+          sessionCount={sessionCount}
+          onExport={onExportSessions}
+          onImport={onImportSessions}
+        />
+      );
     case 'bridge-logs':
       return (
         <BridgeLogsTab bridgeLogs={bridgeLogs} bridgeStatus={bridgeStatus} settings={settings} />

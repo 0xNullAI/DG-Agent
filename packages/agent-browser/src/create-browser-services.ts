@@ -109,6 +109,10 @@ class UnavailableAgentClient implements AgentClient {
     return Promise.resolve([]);
   }
 
+  importSessions(_sessions: SessionSnapshot[]): Promise<void> {
+    return Promise.reject(new Error(this.message));
+  }
+
   deleteSession(_sessionId: string): Promise<void> {
     return Promise.resolve();
   }

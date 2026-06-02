@@ -59,11 +59,22 @@ const providerSettingsSchema = z.object({
 
 export const FREE_TRIAL_PROXY_URL = 'https://dg-agent-proxy-eloracuikl.cn-hangzhou.fcapp.run';
 
+/**
+ * Free-tier upstream. The free provider now talks to the OpenAI-compatible
+ * aihub gateway directly (model `openrouter/free`) instead of going through
+ * the Aliyun FC proxy — the gateway offers unmetered quota, so there's no key
+ * to protect server-side. The key below ships in the bundle by design; rotate
+ * it upstream if it ever needs revoking.
+ */
+export const FREE_API_BASE_URL = 'https://aihub.071129.xyz/v1';
+export const FREE_API_MODEL = 'openrouter/free';
+const FREE_API_KEY = 'sk-lz0QszGNk8VenY4tMWza8VLAGbONKb6QbIVGQj3FP8Ktj1MS';
+
 export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
   {
     id: 'free',
     name: '免费体验',
-    hint: '无需配置 API-Key，当前由 MapLeaf API 提供支持。',
+    hint: '无需配置 API-Key，当前由 aihub 免费网关提供支持。',
     browserSupported: true,
     fields: [],
   },
@@ -192,8 +203,8 @@ export function normalizeProviderSettings(input: ProviderSettings): ProviderSett
       normalized.endpoint = normalized.endpoint || 'responses';
       break;
     case 'free':
-      normalized.baseUrl = FREE_TRIAL_PROXY_URL + '/v1';
-      normalized.model = 'LongCat-Flash-Chat';
+      normalized.baseUrl = FREE_API_BASE_URL;
+      normalized.model = FREE_API_MODEL;
       normalized.endpoint = 'chat/completions';
       normalized.useStrict = false;
       break;
@@ -215,9 +226,9 @@ export function resolveProviderRuntimeSettings(input: ProviderSettings): Provide
   if (normalized.providerId === 'free') {
     return {
       ...normalized,
-      apiKey: 'free',
-      model: 'LongCat-Flash-Chat',
-      baseUrl: FREE_TRIAL_PROXY_URL + '/v1',
+      apiKey: FREE_API_KEY,
+      model: FREE_API_MODEL,
+      baseUrl: FREE_API_BASE_URL,
       endpoint: 'chat/completions',
       useStrict: false,
       browserSupported: true,

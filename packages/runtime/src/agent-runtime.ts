@@ -193,6 +193,17 @@ export class AgentRuntime {
     return session;
   }
 
+  /**
+   * Restore previously exported sessions into the store. Existing sessions with
+   * the same id are overwritten (import acts as backup/restore, not append).
+   */
+  async importSessions(sessions: SessionSnapshot[]): Promise<void> {
+    for (const session of sessions) {
+      this.deletedSessionIds.delete(session.id);
+      await this.sessions.save(session);
+    }
+  }
+
   async deleteSession(sessionId: string): Promise<void> {
     this.deletedSessionIds.add(sessionId);
     await this.abortCurrentReply(sessionId);
@@ -524,7 +535,7 @@ export class AgentRuntime {
           );
           turnState.workingItems.push(...iterationItems);
           return {
-            finalAssistantText: '设备未连接，请先点击“连接设备”',
+            finalAssistantText: '设备未连接，请先点击输入框旁的蓝牙图标连接郊狼。',
           };
         }
 

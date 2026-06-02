@@ -45,6 +45,7 @@ import { createSessionId, isReplyAbortError } from './utils/app-runtime-helpers.
 import { buildWarnings } from './utils/runtime-warnings.js';
 import { formatUiErrorMessage, isBluetoothChooserCancelledError } from './utils/ui-formatters.js';
 import { buildTraceFeed } from './utils/trace-feed.js';
+import { buildExportDocument, parseImportDocument } from './utils/session-transfer.js';
 
 export interface AppProps {
   /**
@@ -493,6 +494,45 @@ export function App({ servicesOverrides }: AppProps = {}) {
     }
   }
 
+  async function exportSessions(): Promise<void> {
+    try {
+      const sessions = await client.listSessions();
+      if (sessions.length === 0) {
+        setStatusMessage('暂无可导出的会话');
+        return;
+      }
+      const document_ = buildExportDocument(sessions, Date.now());
+      const blob = new Blob([JSON.stringify(document_, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = `dg-agent-chat-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      setStatusMessage(`已导出 ${sessions.length} 个会话`);
+    } catch (error) {
+      setErrorMessage(formatUiErrorMessage(error));
+    }
+  }
+
+  async function importSessions(file: File): Promise<void> {
+    try {
+      const text = await file.text();
+      const sessions = parseImportDocument(text);
+      if (sessions.length === 0) {
+        setStatusMessage('文件中没有会话');
+        return;
+      }
+      await client.importSessions(sessions);
+      setSavedSessions(await client.listSessions());
+      setStatusMessage(`已导入 ${sessions.length} 个会话`);
+    } catch (error) {
+      setErrorMessage(formatUiErrorMessage(error));
+    }
+  }
+
   function selectSession(sessionId: string): void {
     if (sessionId === activeSessionId) {
       if (settingsModalOpen) closeSettingsWorkspace();
@@ -685,6 +725,9 @@ export function App({ servicesOverrides }: AppProps = {}) {
                 modelLogTurns={modelLog.turns}
                 onClearModelLogs={modelLog.clear}
                 settings={settings}
+                sessionCount={savedSessions.length}
+                onExportSessions={() => void exportSessions()}
+                onImportSessions={(file) => void importSessions(file)}
               />
             ) : (
               <ChatPanel
