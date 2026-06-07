@@ -94,6 +94,24 @@ describe('createBuildBrowserInstructions', () => {
     expect(output).toContain('声称已经完成的动作');
   });
 
+  it('always includes 剧情与设备的映射 block regardless of preset', () => {
+    const build = createBuildBrowserInstructions(makeSettings({ promptPresetId: 'gentle' }));
+    const output = build(makeInput());
+    expect(output).toContain('[剧情与设备的映射]');
+  });
+
+  it('includes 剧情与设备的映射 block for custom saved presets too', () => {
+    const build = createBuildBrowserInstructions(
+      makeSettings({
+        promptPresetId: 'custom-1',
+        savedPromptPresets: [{ id: 'custom-1', name: 'My Custom', prompt: 'custom prompt' }],
+      }),
+    );
+    const output = build(makeInput());
+    expect(output).toContain('custom prompt');
+    expect(output).toContain('[剧情与设备的映射]');
+  });
+
   it('device status block shows effectiveCap = min(limitA, maxStrengthA)', () => {
     const build = createBuildBrowserInstructions(makeSettings({ maxStrengthA: 80 }));
     const deviceState = { ...createEmptyDeviceState(), connected: true, limitA: 150 };
