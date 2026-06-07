@@ -796,7 +796,9 @@ export function App({ servicesOverrides }: AppProps = {}) {
                 onOpenSidebar={() => setSidebarOpen(true)}
                 onOpenSettings={() => openSettingsModal('general')}
                 promptPresetId={settings.promptPresetId}
-                builtinPresets={BUILTIN_PROMPT_PRESETS}
+                builtinPresets={BUILTIN_PROMPT_PRESETS.filter(
+                  (p) => !settings.hiddenBuiltinPresetIds.includes(p.id),
+                )}
                 savedPresets={settings.savedPromptPresets}
                 onPresetChange={(id) => {
                   setSettingsDraft((prev) => ({ ...prev, promptPresetId: id }));
