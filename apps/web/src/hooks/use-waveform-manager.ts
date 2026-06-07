@@ -51,6 +51,20 @@ export function useWaveformManager(options: UseWaveformManagerOptions) {
     [refreshWaveforms, setErrorMessage, setStatusMessage, waveformLibrary],
   );
 
+  const importWaveformFromMarket = useCallback(
+    async (waveform: WaveformDefinition): Promise<void> => {
+      try {
+        setErrorMessage(null);
+        await waveformLibrary.saveCustom(waveform);
+        await refreshWaveforms();
+        setStatusMessage(`已从市场导入「${waveform.name}」`);
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : String(error));
+      }
+    },
+    [refreshWaveforms, setErrorMessage, setStatusMessage, waveformLibrary],
+  );
+
   const removeWaveform = useCallback(
     async (id: string): Promise<void> => {
       try {
@@ -98,6 +112,7 @@ export function useWaveformManager(options: UseWaveformManagerOptions) {
     setEditingWaveform,
     refreshWaveforms,
     importWaveformFiles,
+    importWaveformFromMarket,
     removeWaveform,
     openWaveformEditor,
     saveWaveformEdits,

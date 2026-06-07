@@ -230,6 +230,7 @@ export function App({ servicesOverrides }: AppProps = {}) {
     editingWaveform,
     setEditingWaveform,
     importWaveformFiles,
+    importWaveformFromMarket,
     removeWaveform,
     openWaveformEditor,
     saveWaveformEdits,
@@ -756,6 +757,7 @@ export function App({ servicesOverrides }: AppProps = {}) {
                 waveforms={waveforms}
                 customWaveforms={customWaveforms}
                 onImportWaveforms={(files) => void importWaveformFiles(files)}
+                onImportWaveformFromMarket={(waveform) => void importWaveformFromMarket(waveform)}
                 onRemoveWaveform={(id) => void removeWaveform(id)}
                 onEditWaveform={openWaveformEditor}
                 bridgeLogs={bridgeLogs}
