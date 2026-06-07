@@ -128,6 +128,7 @@ export class BrowserAppSettingsStore {
       bridge: settings.bridge,
       promptPresetId: settings.promptPresetId,
       savedPromptPresets: settings.savedPromptPresets,
+      hiddenBuiltinPresetIds: settings.hiddenBuiltinPresetIds,
       provider: {
         providerId: settings.provider.providerId,
         baseUrl: settings.provider.baseUrl,

@@ -61,6 +61,9 @@ export interface BrowserAppSettings {
   bridge: BridgeSettings;
   promptPresetId: string;
   savedPromptPresets: SavedPromptPreset[];
+  // Builtin preset ids the user has hidden from the picker. Hidden presets stay
+  // in code and remain usable if still selected; "恢复默认" clears this list.
+  hiddenBuiltinPresetIds: string[];
   provider: ProviderSettings;
   providerConfigs: ProviderConfigMap;
   voice: BrowserVoiceSettings;

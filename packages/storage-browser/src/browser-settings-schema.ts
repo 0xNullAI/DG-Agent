@@ -78,6 +78,7 @@ export const settingsSchema = z.object({
       }),
     )
     .optional(),
+  hiddenBuiltinPresetIds: z.array(z.string().min(1)).optional(),
   provider: z
     .object({
       providerId: z.enum(providerIds),

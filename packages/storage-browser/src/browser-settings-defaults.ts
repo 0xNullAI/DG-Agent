@@ -83,6 +83,7 @@ export function defaultBrowserAppSettings(env: BrowserAppEnvLike = {}): BrowserA
     bridge: DEFAULT_BRIDGE_SETTINGS,
     promptPresetId: 'gentle',
     savedPromptPresets: [],
+    hiddenBuiltinPresetIds: [],
     provider,
     providerConfigs: {
       [provider.providerId]: provider,
