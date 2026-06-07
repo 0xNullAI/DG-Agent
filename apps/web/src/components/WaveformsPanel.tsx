@@ -1,11 +1,15 @@
+import { useState } from 'react';
 import type { WaveformDefinition } from '@dg-agent/core';
-import { Pencil, Trash2, Upload } from 'lucide-react';
+import { Pencil, Store, Trash2, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import type { MarketItem, MarketWaveformContent } from '@/lib/market';
+import { MarketImportDialog } from './MarketImportDialog.js';
 
 interface WaveformsPanelProps {
   waveforms: WaveformDefinition[];
   customWaveforms: WaveformDefinition[];
   onImport: (files: FileList | null) => void;
+  onImportFromMarket: (waveform: WaveformDefinition) => void | Promise<void>;
   onRemove: (id: string) => void;
   onEdit: (waveform: WaveformDefinition) => void;
 }
@@ -14,9 +18,22 @@ export function WaveformsPanel({
   waveforms,
   customWaveforms,
   onImport,
+  onImportFromMarket,
   onRemove,
   onEdit,
 }: WaveformsPanelProps) {
+  const [marketOpen, setMarketOpen] = useState(false);
+
+  async function handleMarketImport(item: MarketItem) {
+    const { frames } = item.content as MarketWaveformContent;
+    await onImportFromMarket({
+      id: `market-${item.id}`,
+      name: item.name,
+      description: item.description,
+      frames,
+    });
+  }
+
   return (
     <div className="settings-panel-tab-content">
       <section className="settings-row-card">
@@ -65,18 +82,35 @@ export function WaveformsPanel({
           })}
         </div>
 
-        <label className="!flex flex-col w-full cursor-pointer items-center justify-center gap-2 rounded-[10px] border border-dashed border-[var(--surface-border)] px-4 py-2.5 text-sm text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
-          <Upload className="h-4 w-4" />
-          <span>导入波形文件</span>
-          <input
-            type="file"
-            accept=".pulse,.zip"
-            multiple
-            className="hidden"
-            onChange={(event) => onImport(event.target.files)}
-          />
-        </label>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <label className="!flex flex-1 cursor-pointer flex-col items-center justify-center gap-2 rounded-[10px] border border-dashed border-[var(--surface-border)] px-4 py-2.5 text-sm text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]">
+            <Upload className="h-4 w-4" />
+            <span>导入波形文件</span>
+            <input
+              type="file"
+              accept=".pulse,.zip"
+              multiple
+              className="hidden"
+              onChange={(event) => onImport(event.target.files)}
+            />
+          </label>
+          <button
+            type="button"
+            className="flex flex-1 cursor-pointer flex-col items-center justify-center gap-2 rounded-[10px] border border-dashed border-[var(--surface-border)] px-4 py-2.5 text-sm text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            onClick={() => setMarketOpen(true)}
+          >
+            <Store className="h-4 w-4" />
+            <span>从市场导入</span>
+          </button>
+        </div>
       </section>
+
+      <MarketImportDialog
+        open={marketOpen}
+        onOpenChange={setMarketOpen}
+        type="waveform"
+        onImport={handleMarketImport}
+      />
     </div>
   );
 }
