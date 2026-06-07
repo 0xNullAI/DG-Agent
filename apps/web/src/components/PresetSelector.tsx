@@ -1,11 +1,13 @@
 import { useRef, useState, type Dispatch, type SetStateAction } from 'react';
 import { BUILTIN_PROMPT_PRESETS, type SavedPromptPreset } from '@dg-agent/runtime';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
-import { Check, EyeOff, FileText, Pencil, Plus, RotateCcw, Trash2 } from 'lucide-react';
+import { Check, EyeOff, FileText, Pencil, Plus, RotateCcw, Store, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import type { MarketItem, MarketScenarioContent } from '@/lib/market';
+import { MarketImportDialog } from './MarketImportDialog.js';
 
 const DEFAULT_CUSTOM_ICON = '📝';
 
@@ -98,6 +100,7 @@ export function PresetSelector({
   const [newName, setNewName] = useState('');
   const [newIcon, setNewIcon] = useState(DEFAULT_CUSTOM_ICON);
   const [newPrompt, setNewPrompt] = useState('');
+  const [marketOpen, setMarketOpen] = useState(false);
 
   const hiddenIds = settingsDraft.hiddenBuiltinPresetIds ?? [];
   const visibleBuiltins = BUILTIN_PROMPT_PRESETS.filter((p) => !hiddenIds.includes(p.id));
@@ -169,6 +172,24 @@ export function PresetSelector({
     setNewName('');
     setNewIcon(DEFAULT_CUSTOM_ICON);
     setNewPrompt('');
+  }
+
+  function importFromMarket(item: MarketItem) {
+    const id = `market-${item.id}`;
+    const prompt = (item.content as MarketScenarioContent).prompt;
+    setSettingsDraft((current) => {
+      if (current.savedPromptPresets.some((p) => p.id === id)) {
+        return { ...current, promptPresetId: id };
+      }
+      return {
+        ...current,
+        promptPresetId: id,
+        savedPromptPresets: [
+          ...current.savedPromptPresets,
+          { id, name: item.name, icon: item.icon || DEFAULT_CUSTOM_ICON, prompt },
+        ],
+      };
+    });
   }
 
   return (
@@ -372,16 +393,33 @@ export function PresetSelector({
             </div>
           </div>
         ) : (
-          <Button
-            variant="ghost"
-            className="w-full justify-center gap-2 rounded-[10px] border border-dashed border-[var(--surface-border)] text-[var(--text-soft)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
-            onClick={startCreate}
-          >
-            <Plus className="h-4 w-4" />
-            <span className="-mt-[0.1em] text-sm">新建场景</span>
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              className="flex-1 justify-center gap-2 rounded-[10px] border border-dashed border-[var(--surface-border)] text-[var(--text-soft)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              onClick={startCreate}
+            >
+              <Plus className="h-4 w-4" />
+              <span className="-mt-[0.1em] text-sm">新建场景</span>
+            </Button>
+            <Button
+              variant="ghost"
+              className="flex-1 justify-center gap-2 rounded-[10px] border border-dashed border-[var(--surface-border)] text-[var(--text-soft)] hover:border-[var(--accent)] hover:text-[var(--accent)]"
+              onClick={() => setMarketOpen(true)}
+            >
+              <Store className="h-4 w-4" />
+              <span className="-mt-[0.1em] text-sm">从市场导入</span>
+            </Button>
+          </div>
         )}
       </section>
+
+      <MarketImportDialog
+        open={marketOpen}
+        onOpenChange={setMarketOpen}
+        type="scenario"
+        onImport={importFromMarket}
+      />
     </div>
   );
 }

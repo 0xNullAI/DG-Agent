@@ -147,6 +147,7 @@ export interface SettingsDrawerProps {
   waveforms: WaveformDefinition[];
   customWaveforms: WaveformDefinition[];
   onImportWaveforms: (files: FileList | null) => void;
+  onImportWaveformFromMarket: (waveform: WaveformDefinition) => void | Promise<void>;
   onRemoveWaveform: (id: string) => void;
   onEditWaveform: (waveform: WaveformDefinition) => void;
   bridgeLogs: BridgeLogEntry[];
@@ -167,6 +168,7 @@ function SettingsTabContent({
   waveforms,
   customWaveforms,
   onImportWaveforms,
+  onImportWaveformFromMarket,
   onRemoveWaveform,
   onEditWaveform,
   bridgeLogs,
@@ -200,6 +202,7 @@ function SettingsTabContent({
           waveforms={waveforms}
           customWaveforms={customWaveforms}
           onImport={(files) => onImportWaveforms(files)}
+          onImportFromMarket={onImportWaveformFromMarket}
           onRemove={(id) => onRemoveWaveform(id)}
           onEdit={onEditWaveform}
         />
