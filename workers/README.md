@@ -1,42 +1,41 @@
 # DG-Agent Cloudflare Workers
 
-Two free-tier relays, migrated off Aliyun Function Compute onto Cloudflare
-Workers. They replace the old `aliyun-fc/` proxy (which can be deleted once
-these are deployed and smoke-tested).
+Replaces the old `aliyun-fc/` proxy (delete it once `llm-proxy` is deployed and
+verified).
 
-| Worker                             | Path                 | Replaces                  | Upstream                                             | Custom domain         |
-| ---------------------------------- | -------------------- | ------------------------- | ---------------------------------------------------- | --------------------- |
-| `llm-proxy` (`dg-llm-proxy`)       | `/` POST             | `aliyun-fc/index.js`      | `aihub.071129.xyz` (OpenAI-compatible)               | `llm.0xnullai.com`    |
-| `speech-proxy` (`dg-speech-proxy`) | `/ws/asr`, `/ws/tts` | the DashScope FC WS proxy | `wss://dashscope.aliyuncs.com` (still Aliyun engine) | `speech.0xnullai.com` |
+| Worker                       | Hosted by 0xNullAi?         | Purpose                 | Upstream                               | Domain             |
+| ---------------------------- | --------------------------- | ----------------------- | -------------------------------------- | ------------------ |
+| `llm-proxy` (`dg-llm-proxy`) | **Yes** — free tier         | LLM text relay          | `aihub.071129.xyz` (OpenAI-compatible) | `llm.0xnullai.com` |
+| `speech-proxy`               | **No** — self-host template | DashScope ASR/TTS relay | `wss://dashscope.aliyuncs.com`         | (your own)         |
 
-The web client already points at these domains:
+## llm-proxy — hosted free LLM tier
 
-- `packages/providers-catalog/src/index.ts` → `FREE_TRIAL_PROXY_URL = https://llm.0xnullai.com`
-- `packages/audio-browser/src/dashscope-proxy.ts` → `FREE_PROXY_URL = https://speech.0xnullai.com`
-
-## Deploy
+The browser's "免费体验" provider points at `https://llm.0xnullai.com`
+(`packages/providers-catalog/src/index.ts`).
 
 ```bash
 cd workers/llm-proxy
 wrangler deploy
 wrangler secret put PROXY_API_KEY          # aihub.071129.xyz key
-
-cd ../speech-proxy
-wrangler deploy
-wrangler secret put DASHSCOPE_API_KEY       # DashScope (百炼) key
+# Dashboard: bind llm.0xnullai.com (Settings > Domains & Routes > Add custom domain)
 ```
 
-Then in the dashboard bind the custom domains (Workers & Pages > each worker >
-Settings > Domains & Routes > Add custom domain): `llm.0xnullai.com` and
-`speech.0xnullai.com`. DNS records are created automatically for a custom domain
-in the same zone.
+Rate limit is per-IP, 10/min, in-memory (best-effort per isolate). For strict
+global limits add a KV namespace or the Workers Rate Limiting binding.
 
-## Notes
+## speech-proxy — self-host template (not hosted)
 
-- **LLM rate limit** is per-IP, 10/min, in-memory (best-effort per isolate),
-  matching the old FC. For strict global limits add a KV namespace or the
-  Workers Rate Limiting binding.
-- **Speech** still uses DashScope as the engine — only the relay hop is
-  de-Aliyun'd. Smoke-test ASR + TTS after deploy; if DashScope rejects the
-  upgrade, adjust `DASHSCOPE_WS_URL` / auth header in `speech-proxy`.
-- Keys live as Worker **secrets**, never in the repo.
+DashScope no longer has a free tier, so there is **no shared speech relay**. The
+default voice mode is the browser's native Web Speech (free, zero config) — keep
+recommending that. Users who register their own DashScope account and want
+DashScope voice fill in the app's voice "API 密钥" + "代理地址", pointing the
+proxy URL at their own deployment of this template. The user's key flows in via
+`?api_key=` (no server secret required), so they can deploy it as-is:
+
+```bash
+cd workers/speech-proxy
+wrangler deploy
+# Then set the app's voice 代理地址 to your worker URL.
+```
+
+Keys live as request params / Worker secrets, never in the repo.

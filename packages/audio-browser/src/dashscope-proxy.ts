@@ -10,7 +10,6 @@ import {
   type SpeechSynthesizer,
 } from './types.js';
 
-const FREE_PROXY_URL = 'https://speech.0xnullai.com';
 const SAMPLE_RATE = 16000;
 const TTS_SAMPLE_RATE = 22050;
 const SILENCE_THRESHOLD = 0.02;
@@ -57,15 +56,20 @@ function createTaskId(): string {
 }
 
 function resolveProxyWsUrl(service: 'asr' | 'tts', proxyUrl?: string, apiKey?: string): string {
-  const usingCustomProxy = Boolean(proxyUrl?.trim());
-  const rawBase = usingCustomProxy ? proxyUrl!.trim() : FREE_PROXY_URL;
+  // DashScope no longer offers a free tier, so there is no shared relay. Users
+  // who want DashScope speech register their own key and point at their own
+  // proxy (the browser cannot set the WS auth header directly).
+  const rawBase = proxyUrl?.trim();
+  if (!rawBase) {
+    throw new Error('请先在语音设置中填写 DashScope 代理地址（需自行登记 DashScope 并自建代理）');
+  }
   const normalizedBase =
     rawBase.startsWith('ws://') || rawBase.startsWith('wss://')
       ? rawBase.replace(/\/+$/, '')
       : rawBase.replace(/^http/, 'ws').replace(/\/+$/, '');
   const url = `${normalizedBase}/ws/${service}`;
 
-  if (usingCustomProxy && apiKey?.trim()) {
+  if (apiKey?.trim()) {
     return `${url}?api_key=${encodeURIComponent(apiKey.trim())}`;
   }
 
