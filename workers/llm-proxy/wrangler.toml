@@ -3,6 +3,11 @@ main = "src/index.js"
 compatibility_date = "2024-09-23"
 workers_dev = true
 
+# Custom domain — wrangler creates the DNS record on deploy.
+[[routes]]
+pattern = "llm.0xnullai.com"
+custom_domain = true
+
 [vars]
 # Display/default upstream model. The worker forces this server-side; override
 # here without rebuilding the web app. Mirrors the old FC PROXY_MODEL env var.
@@ -10,6 +15,3 @@ PROXY_MODEL = "openrouter/free"
 
 # Secret (do NOT put in this file) — set once after first deploy:
 #   wrangler secret put PROXY_API_KEY
-#
-# Custom domain: bind llm.0xnullai.com in the dashboard
-#   (Workers & Pages > dg-llm-proxy > Settings > Domains & Routes > Add custom domain).
