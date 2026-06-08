@@ -6,7 +6,7 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](./LICENSE)
 [![@dg-kit](https://img.shields.io/badge/built%20on-%40dg--kit%2F*-0a84ff)](https://github.com/0xNullAI/DG-Kit)
-[![Demo](https://img.shields.io/badge/demo-online-success)](https://0xnullai.github.io/DG-Agent/)
+[![Demo](https://img.shields.io/badge/demo-online-success)](https://agent.0xnullai.com)
 
 [中文](./README.md) | English
 
@@ -14,7 +14,7 @@
 
 ## What it is
 
-DG-Agent is a browser-based AI device controller. Open the page, connect your Coyote, talk to the AI — it actually drives the device through tool calls: adjust strength, swap waveform, design a new waveform, schedule follow-ups.
+DG-Agent is a browser-based AI device controller. Open the page, connect your Coyote, talk to the AI — it actually drives the device through tool calls: adjust strength, swap waveform, design a new waveform, schedule follow-ups. See the whole lineup on our site, [0xNullAi](https://0xnullai.com).
 
 Unlike a regular chatbot, DG-Agent really gets its hands dirty. "Start channel A at strength 5 with the breath waveform" gets parsed into a sequence of tool calls; the AI executes them step-by-step, every step constrained by a policy engine.
 
@@ -23,7 +23,7 @@ Unlike a regular chatbot, DG-Agent really gets its hands dirty. "Start channel A
 - **Multi-LLM** — OpenAI / Anthropic / DeepSeek / Qwen / any OpenAI-compatible endpoint, plus a free-trial proxy
 - **Full toolset** — `start` / `stop` / `adjust_strength` / `change_wave` / `burst` / `design_wave` / `timer`
 - **AI-designed waveforms** — compose `ramp / hold / pulse / silence` segments into custom waveforms, auto-saved to the library
-- **Voice in/out** — native browser ASR + Aliyun DashScope ASR/TTS
+- **Voice in/out** — native browser ASR/TTS (free by default) + optional DashScope (bring your own key and self-hosted proxy)
 - **IM bridge** — QQ (NapCat/OneBot) or Telegram Bot, so chat-room friends can drive the device too
 - **Safety** — strength caps, per-turn call limits, cold-start clamp, emergency stop
 - **Fully local** — sessions, waveform library, and settings live in your browser (IndexedDB / localStorage)
@@ -32,7 +32,7 @@ Unlike a regular chatbot, DG-Agent really gets its hands dirty. "Start channel A
 
 ### Try online
 
-Open the [demo](https://0xnullai.github.io/DG-Agent/). Web Bluetooth requires **Chrome or Edge**; HTTPS is already configured.
+Open the [demo](https://agent.0xnullai.com). Web Bluetooth requires **Chrome or Edge**; HTTPS is already configured.
 
 ### Local development
 
