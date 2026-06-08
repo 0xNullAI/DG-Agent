@@ -2,7 +2,7 @@
 // 部署 DG-Market 后，把下面的 VITE_MARKET_BASE_URL 设为你的 Worker 地址，
 // 或直接改这里的兜底常量。
 
-const FALLBACK_BASE_URL = 'https://dg-market.0xnullai.workers.dev';
+const FALLBACK_BASE_URL = 'https://market.0xnullai.com';
 
 export const MARKET_BASE_URL: string =
   (import.meta.env.VITE_MARKET_BASE_URL as string | undefined)?.replace(/\/$/, '') ??

@@ -10,7 +10,7 @@ import {
   type SpeechSynthesizer,
 } from './types.js';
 
-const FREE_PROXY_URL = 'https://dg-agent-proxy-eloracuikl.cn-hangzhou.fcapp.run';
+const FREE_PROXY_URL = 'https://speech.0xnullai.com';
 const SAMPLE_RATE = 16000;
 const TTS_SAMPLE_RATE = 22050;
 const SILENCE_THRESHOLD = 0.02;

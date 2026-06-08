@@ -57,12 +57,12 @@ const providerSettingsSchema = z.object({
   useStrict: z.boolean(),
 });
 
-export const FREE_TRIAL_PROXY_URL = 'https://dg-agent-proxy-eloracuikl.cn-hangzhou.fcapp.run';
+export const FREE_TRIAL_PROXY_URL = 'https://llm.0xnullai.com';
 
 /**
- * Display model for the free tier. The Aliyun FC proxy forces the real upstream
- * model server-side (via the PROXY_MODEL env var), so this value is only used
- * for the UI label and the request body the proxy then overrides.
+ * Display model for the free tier. The Cloudflare Worker proxy forces the real
+ * upstream model server-side (via the PROXY_MODEL env var), so this value is only
+ * used for the UI label and the request body the proxy then overrides.
  */
 export const FREE_TRIAL_MODEL = 'openrouter/free';
 
