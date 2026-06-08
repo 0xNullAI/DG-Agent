@@ -164,8 +164,9 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
 
         {settingsDraft.voice.mode === 'dashscope-proxy' && (
           <div className="provider-hint">
-            兼容旧版语音识别 / 合成链路：浏览器采集麦克风，经过 WebSocket
-            代理完成语音识别和语音合成，留空代理地址时使用内置免费代理
+            DashScope 语音识别 / 合成：浏览器采集麦克风，经过 WebSocket 代理完成。DashScope
+            已无免费额度，需自行登记 DashScope
+            并填写下方的代理地址与密钥（推荐直接用「浏览器原生」免费方案）。
           </div>
         )}
 
@@ -234,7 +235,7 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
                 type="password"
                 value={settingsDraft.voice.apiKey}
                 onChange={(event) => updateVoiceSettings('apiKey', event.target.value)}
-                placeholder="sk-...（留空使用免费共享额度）"
+                placeholder="sk-...（你的 DashScope 密钥）"
               />
             </label>
 
@@ -243,7 +244,7 @@ export function VoiceTab({ settingsDraft, setSettingsDraft }: VoiceTabProps) {
               <Input
                 value={settingsDraft.voice.proxyUrl}
                 onChange={(event) => updateVoiceSettings('proxyUrl', event.target.value)}
-                placeholder="留空使用默认免费代理"
+                placeholder="wss://你的代理地址（必填）"
               />
             </label>
 

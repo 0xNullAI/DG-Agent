@@ -1,0 +1,15 @@
+name = "dg-speech-proxy"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+workers_dev = true
+
+[vars]
+# Upstream DashScope realtime WebSocket endpoint. Override here if the contract
+# changes or to point at a different speech backend.
+DASHSCOPE_WS_URL = "wss://dashscope.aliyuncs.com/api-ws/v1/inference"
+
+# Secret (do NOT put in this file) — set once after first deploy:
+#   wrangler secret put DASHSCOPE_API_KEY
+#
+# Custom domain: bind speech.0xnullai.com in the dashboard
+#   (Workers & Pages > dg-speech-proxy > Settings > Domains & Routes > Add custom domain).

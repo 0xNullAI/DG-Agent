@@ -168,6 +168,6 @@ packages/
   storage-browser/         浏览器设置 / 会话存储
   waveforms/               内置波形库 + 浏览器波形 IndexedDB 存储
 
-aliyun-fc/                 阿里云 FC 免费代理函数（独立 CommonJS）
+workers/                   Cloudflare Worker 免费代理（llm-proxy 等，独立部署）
 docs/                      文档
 ```

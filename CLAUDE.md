@@ -4,7 +4,7 @@ Guidance for Claude Code working in **DG-Agent** — the browser AI controller f
 
 ## Project Overview
 
-DG-Agent is a React 18 SPA that lets users chat with an LLM in natural language; the LLM calls device tools (`start` / `stop` / `adjust_strength` / `change_wave` / `burst` / `design_wave` / `timer`) which the runtime translates into BLE writes via Web Bluetooth. Bundled with Vite, deployed to GitHub Pages.
+DG-Agent is a React 18 SPA that lets users chat with an LLM in natural language; the LLM calls device tools (`start` / `stop` / `adjust_strength` / `change_wave` / `burst` / `design_wave` / `timer`) which the runtime translates into BLE writes via Web Bluetooth. Bundled with Vite, deployed to Cloudflare Pages (agent.0xnullai.com).
 
 The repo is a **monorepo** using npm workspaces, organized in a contract/adapter pattern. All shared code (BLE protocol, waveforms, tool definitions) is consumed from [`@dg-kit/*`](https://github.com/0xNullAI/DG-Kit) — DG-Agent's own packages are thin shims plus the React UI / runtime / bridge / providers / browser-only adapters.
 
@@ -26,7 +26,7 @@ packages/
   audio-browser/            DashScope ASR/TTS + native SpeechRecognition
   waveforms/                IndexedDB-backed library; basic/design/.pulse from @dg-kit/waveforms
   core/                     re-export of @dg-kit/core + agent-only contracts (LlmClient, SessionStore, …)
-aliyun-fc/                  serverless free proxy (CommonJS, separate)
+workers/                    Cloudflare Worker relays (llm-proxy free relay, speech-proxy template)
 ```
 
 ## Branch & PR Convention
@@ -116,7 +116,7 @@ When adding a new package, pick the suffix matching its category. Do not introdu
 
 ### Strings & i18n
 
-UI strings and error messages are in **Chinese (Simplified)**. The `aliyun-fc/` directory is a standalone CommonJS serverless function — not part of the TypeScript monorepo.
+UI strings and error messages are in **Chinese (Simplified)**. The `workers/llm-proxy` directory is a standalone Cloudflare Worker relay — not part of the TypeScript monorepo.
 
 ## UI Maintenance Notes
 
