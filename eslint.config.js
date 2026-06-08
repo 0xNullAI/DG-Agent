@@ -83,6 +83,29 @@ export default tseslint.config(
     },
   },
   {
+    // Cloudflare Worker relays（llm-proxy / speech-proxy）：运行在 Workers 运行时，
+    // 使用 Response/fetch/URL/WebSocketPair 等全局，需声明 worker 环境。
+    files: ['workers/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      globals: {
+        ...globals.serviceworker,
+        WebSocketPair: 'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars': [
+        'error',
+        {
+          argsIgnorePattern: '^_',
+          caughtErrorsIgnorePattern: '^_',
+          varsIgnorePattern: '^_',
+        },
+      ],
+    },
+  },
+  {
     files: ['vite.config.ts', 'apps/*/vite.config.ts'],
     languageOptions: {
       ecmaVersion: 'latest',
