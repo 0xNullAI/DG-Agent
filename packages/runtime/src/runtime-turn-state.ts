@@ -1,7 +1,9 @@
-import type { LlmConversationItem } from '@dg-agent/core';
+import type { ConversationMessage, LlmConversationItem } from '@dg-agent/core';
 import type { ModelContextStrategy, SessionSnapshot, ToolCall } from '@dg-agent/core';
 import { REPLY_ABORTED_NOTE, TOOL_LOOP_EXHAUSTED_MESSAGE } from './runtime-errors.js';
+import { hasCompleteToolRound } from './session-history.js';
 import type { ToolCallConfig } from './tool-call-config.js';
+import { RUNTIME_CONTEXT_TOOL_NAME } from './runtime-context-tool.js';
 
 export interface TurnState {
   workingItems: LlmConversationItem[];
@@ -38,18 +40,41 @@ export function buildConversationItems(
   ).filter((message) => shouldIncludePersistedMessage(message, turnState));
 
   return [
-    ...persistedMessages.map<LlmConversationItem>((message) => ({
+    ...persistedMessages.flatMap((message) => persistedMessageToConversationItems(message)),
+    ...(currentInput ? [currentInput] : []),
+    ...turnState.workingItems,
+  ];
+}
+
+function persistedMessageToConversationItems(message: ConversationMessage): LlmConversationItem[] {
+  const includeToolCalls = hasCompleteToolRound(message);
+  const items: LlmConversationItem[] = [
+    {
       kind: 'message',
       role: message.role,
       content: message.content,
       reasoningContent: message.reasoningContent,
-      // toolCalls intentionally omitted: tool results are not persisted to session.messages,
-      // so including tool_calls here would produce an assistant message with tool_calls
-      // but no following tool result messages, causing 400 on strict providers (e.g. DeepSeek).
-    })),
-    ...(currentInput ? [currentInput] : []),
-    ...turnState.workingItems,
+      ...(includeToolCalls ? { toolCalls: message.toolCalls } : {}),
+    },
   ];
+
+  if (!includeToolCalls || !message.toolCalls?.length || !message.toolResults?.length) {
+    return items;
+  }
+
+  for (const toolCall of message.toolCalls) {
+    const result = message.toolResults.find((entry) => entry.callId === toolCall.id);
+    if (!result) {
+      continue;
+    }
+    items.push({
+      kind: 'function_call_output',
+      callId: result.callId,
+      output: result.output,
+    });
+  }
+
+  return items;
 }
 
 export function safeStringify(value: Record<string, unknown>): string {
@@ -88,6 +113,9 @@ export function consumeTurnQuota(
   config: ToolCallConfig,
   toolArgs?: Record<string, unknown>,
 ): string | null {
+  if (toolName === RUNTIME_CONTEXT_TOOL_NAME) {
+    return null;
+  }
   if (turnState.totalToolCalls >= config.maxToolCallsPerTurn) {
     return `本回合工具调用总数已达上限 (${config.maxToolCallsPerTurn})，本次调用被拒绝。请直接回复用户，不要再发起工具调用。`;
   }
@@ -160,7 +188,9 @@ function shouldSkipModelContextMessage(message: SessionSnapshot['messages'][numb
   if (message.role === 'user') return false;
 
   const content = message.content.trim();
-  if (!content) return true;
+  if (!content) {
+    return !(message.role === 'assistant' && hasCompleteToolRound(message));
+  }
 
   if (message.role === 'system') {
     return true;
@@ -200,7 +230,7 @@ function shouldIncludePersistedMessage(
   );
 }
 
-function sameToolCallSequence(left?: ToolCall[], right?: ToolCall[]): boolean {
+export function sameToolCallSequence(left?: ToolCall[], right?: ToolCall[]): boolean {
   const leftCalls = Array.isArray(left) ? left : [];
   const rightCalls = Array.isArray(right) ? right : [];
 

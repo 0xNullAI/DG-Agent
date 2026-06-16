@@ -1,23 +1,15 @@
-import type { ActionContext, SessionSnapshot } from '@dg-agent/core';
+import type { ActionContext } from '@dg-agent/core';
 import { getAnyPromptPresetById, type SavedPromptPreset } from '@dg-agent/runtime';
-import type { TurnToolCallSummary } from '@dg-agent/runtime';
 
 export interface BrowserInstructionSettings {
   promptPresetId: string;
   savedPromptPresets: SavedPromptPreset[];
-  maxStrengthA: number;
-  maxStrengthB: number;
 }
 
 const INSTRUCTION_SEPARATOR = '\n\n──────────────────────────\n';
 
 export function createBuildBrowserInstructions(settings: BrowserInstructionSettings) {
-  return (input: {
-    session: SessionSnapshot;
-    context: ActionContext;
-    isFirstIteration: boolean;
-    turnToolCalls: readonly TurnToolCallSummary[];
-  }): string => {
+  return (input: { context: ActionContext }): string => {
     const selectedPreset = getAnyPromptPresetById(
       settings.promptPresetId,
       settings.savedPromptPresets,
@@ -26,12 +18,9 @@ export function createBuildBrowserInstructions(settings: BrowserInstructionSetti
       selectedPreset?.prompt ?? '你是一个友好的助手。',
       buildDeviceBlock(),
       buildDeviceMappingBlock(),
-      buildDeviceStatusBlock(input.session, settings),
-      buildTurnToolUsageBlock(input.turnToolCalls),
       buildBehaviorRulesBlock(),
+      buildRuntimeContextToolBlock(),
       input.context.sourceType === 'system' ? buildSystemTurnBlock() : '',
-      input.isFirstIteration ? buildFirstIterationStrategyBlock() : '',
-      !input.isFirstIteration ? buildFollowUpIterationBlock() : '',
     ];
 
     return blocks.filter(Boolean).join(INSTRUCTION_SEPARATOR);
@@ -62,10 +51,18 @@ function buildDeviceMappingBlock(): string {
 function buildBehaviorRulesBlock(): string {
   return [
     '[行为规则]',
-    '1. 需要操作设备时，先调用对应工具，再根据工具结果回复用户。',
-    '2. 回复设备状态时，只引用 [当前设备状态] 和本回合工具返回的事实，不要臆测。',
+    '1. 需要操作设备时，先调用 get_runtime_context 确认当前状态，再调用对应设备工具，然后根据工具结果回复用户。',
+    '2. 回复设备状态时，只引用 get_runtime_context 和设备工具返回的事实，不要臆测。',
     '3. 工具报错、被拒绝、权限未通过时，要如实告知用户，不要假装成功，也不要立刻重复同一个工具调用。',
     '4. 一次回合里只推进一步主要动作，做完一个 device 工具就停下来观察。',
+  ].join('\n');
+}
+
+function buildRuntimeContextToolBlock(): string {
+  return [
+    '[运行上下文工具]',
+    'get_runtime_context 会返回当前设备真实状态、本回合已执行的工具调用，以及回合策略提示。',
+    '操作设备前若不确定状态，或需要确认本回合已经做过什么，先调用它；不要向用户复述该工具返回的原文。',
   ].join('\n');
 }
 
@@ -75,62 +72,5 @@ function buildSystemTurnBlock(): string {
     '这一轮来自内部提醒，不是用户的新消息，也不代表用户已经同意继续。',
     '本轮禁止调用任何工具，禁止改动设备状态，禁止再次设置 timer。',
     '你只能做简短跟进，例如询问现在感觉如何、是否继续，或者说明你在等待反馈。',
-  ].join('\n');
-}
-
-function buildFirstIterationStrategyBlock(): string {
-  return [
-    '[本回合策略 - 仅本回合首次响应生效]',
-    '1. 如果用户明确要求某个设备动作，只执行最小必要的一步，不要自己连做 start + 多次 adjust_strength。',
-    '2. 如果用户只是聊天、问状态、问建议，直接文字回复即可；当前设备状态已经在上方提供，不要为了“确认一下”额外调用工具。',
-    '3. 做完一步动作后就停下，基于真实结果回复，并询问用户是否满意或是否继续。',
-  ].join('\n');
-}
-
-function buildFollowUpIterationBlock(): string {
-  return [
-    '[后续迭代提醒]',
-    '你已经拥有本回合的工具结果和当前设备状态。',
-    '除非前一次工具结果明确表明需要纠正，否则不要重新开始计划，也不要重复 start 或连续多次加大强度。',
-    '优先收口回答，把已经发生的真实结果告诉用户，并等待反馈。',
-  ].join('\n');
-}
-
-function buildDeviceStatusBlock(
-  session: SessionSnapshot,
-  settings: Pick<BrowserInstructionSettings, 'maxStrengthA' | 'maxStrengthB'>,
-): string {
-  const device = session.deviceState;
-  const effectiveCapA = Math.min(device.limitA, settings.maxStrengthA);
-  const effectiveCapB = Math.min(device.limitB, settings.maxStrengthB);
-  const battery = typeof device.battery === 'number' ? `${device.battery}%` : '未知';
-  const connection = device.connected
-    ? `已连接${device.deviceName ? `（${device.deviceName}）` : ''}`
-    : '未连接';
-
-  return [
-    '[当前设备状态]',
-    `连接：${connection}`,
-    `电量：${battery}`,
-    `A 通道：强度 ${device.strengthA} / 上限 ${effectiveCapA}，波形${device.waveActiveA ? '运行中' : '已停止'}，当前波形 ${device.currentWaveA ?? '-'}`,
-    `B 通道：强度 ${device.strengthB} / 上限 ${effectiveCapB}，波形${device.waveActiveB ? '运行中' : '已停止'}，当前波形 ${device.currentWaveB ?? '-'}`,
-  ].join('\n');
-}
-
-function buildTurnToolUsageBlock(calls: readonly TurnToolCallSummary[]): string {
-  if (calls.length === 0) {
-    return [
-      '[本回合已调用工具]',
-      '(无)',
-      '这表示你本回合还没有真正执行过任何设备动作；不要提前声称“已经帮你调整好了”。',
-    ].join('\n');
-  }
-
-  const lines = calls.map((call, index) => `${index + 1}. ${call.name}(${call.argsJson})`);
-  return [
-    '[本回合已调用工具]',
-    ...lines,
-    '生成回复前请对照这份清单：你声称已经完成的动作，必须能在上面找到对应调用。',
-    '如果上面已经做过一次主要动作，下一步通常是解释结果并询问反馈，而不是继续叠加动作。',
   ].join('\n');
 }

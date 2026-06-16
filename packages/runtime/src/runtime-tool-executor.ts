@@ -14,6 +14,7 @@ import { consumeTurnQuota, type TurnState } from './runtime-turn-state.js';
 import type { PolicyEngine } from './policy-engine.js';
 import type { ToolCallConfig } from './tool-call-config.js';
 import type { ToolRegistry } from './tool-registry.js';
+import { RUNTIME_CONTEXT_TOOL_NAME } from './runtime-context-tool.js';
 
 // Clamp rules are convergent in practice (each pass narrows the command),
 // but bound the loop in case a custom rule keeps clamping. 4 is enough for
@@ -41,6 +42,12 @@ export interface RuntimeToolExecutorOptions {
   policyEngine: PolicyEngine;
   logger: Logger;
   toolCallConfig: ToolCallConfig;
+  buildRuntimeContext?: (input: {
+    session: SessionSnapshot;
+    context: ActionContext;
+    turnState: TurnState;
+    isFirstIteration: boolean;
+  }) => string;
   emit: (event: RuntimeEvent) => void;
   enqueueTimerTrigger: (trigger: TimerFiredTrigger) => void;
   traceStore: SessionTraceStore;
@@ -52,6 +59,7 @@ export interface ExecuteToolCallInput {
   context: ActionContext;
   turnState: TurnState;
   abortSignal?: AbortSignal;
+  llmIteration?: number;
 }
 
 export class RuntimeToolExecutor {
@@ -60,13 +68,24 @@ export class RuntimeToolExecutor {
   constructor(private readonly options: RuntimeToolExecutorOptions) {}
 
   async execute(input: ExecuteToolCallInput): Promise<string> {
-    const { session, toolCall, context, turnState, abortSignal } = input;
+    const { session, toolCall, context, turnState, abortSignal, llmIteration = 0 } = input;
     const toolDisplayName = this.options.toolRegistry.getDisplayName(toolCall.name);
     const displayToolCall = toolDisplayName
       ? { ...toolCall, displayName: toolDisplayName }
       : toolCall;
 
     throwIfAborted(abortSignal);
+
+    if (toolCall.name === RUNTIME_CONTEXT_TOOL_NAME) {
+      return this.executeRuntimeContext({
+        session,
+        toolCall: displayToolCall,
+        context,
+        turnState,
+        isFirstIteration: llmIteration === 0,
+      });
+    }
+
     this.options.emit({
       type: 'tool-call-proposed',
       sessionId: session.id,
@@ -143,6 +162,43 @@ export class RuntimeToolExecutor {
       command: planResult.plan.command,
       abortSignal,
     });
+  }
+
+  private async executeRuntimeContext(input: {
+    session: SessionSnapshot;
+    toolCall: ToolCall;
+    context: ActionContext;
+    turnState: TurnState;
+    isFirstIteration: boolean;
+  }): Promise<string> {
+    const { session, toolCall, context, turnState, isFirstIteration } = input;
+    const buildRuntimeContext = this.options.buildRuntimeContext;
+    if (!buildRuntimeContext) {
+      return JSON.stringify({
+        error: 'runtime context provider is not configured',
+        _meta: { kind: 'tool-failed', toolName: toolCall.name },
+      });
+    }
+
+    session.deviceState = await this.options.device.getState();
+    const output = buildRuntimeContext({
+      session,
+      context,
+      turnState,
+      isFirstIteration,
+    });
+
+    await this.options.traceStore.append(session.id, {
+      kind: 'tool-result',
+      turnId: context.traceId,
+      sourceType: context.sourceType,
+      toolCallId: toolCall.id,
+      toolName: toolCall.name,
+      toolDisplayName: toolCall.displayName,
+      args: toolCall.args,
+      output,
+    });
+    return output;
   }
 
   private async recordInlineResult(input: {

@@ -505,12 +505,28 @@ class TestSessionStore implements SessionStore {
   }
 
   private cloneSession(session: TestSessionStoreEntry): TestSessionStoreEntry {
-    return {
-      ...session,
-      messages: session.messages.map((message) => ({ ...message })),
-      deviceState: { ...session.deviceState },
-      metadata: session.metadata ? structuredClone(session.metadata) : undefined,
-    };
+    return structuredClone(session);
+  }
+}
+
+class JsonRoundtripSessionStore implements SessionStore {
+  private readonly sessions = new Map<string, SessionSnapshot>();
+
+  async get(sessionId: string): Promise<SessionSnapshot | null> {
+    const session = this.sessions.get(sessionId);
+    return session ? structuredClone(session) : null;
+  }
+
+  async save(session: SessionSnapshot): Promise<void> {
+    this.sessions.set(session.id, JSON.parse(JSON.stringify(session)) as SessionSnapshot);
+  }
+
+  async list(): Promise<SessionSnapshot[]> {
+    return Array.from(this.sessions.values()).map((session) => structuredClone(session));
+  }
+
+  async delete(sessionId: string): Promise<void> {
+    this.sessions.delete(sessionId);
   }
 }
 
@@ -1695,5 +1711,138 @@ describe('AgentRuntime', () => {
     });
     const session = await runtime.getSessionSnapshot('legacy-burst');
     expect(session.deviceState.strengthA).toBe(35);
+  });
+
+  it('persists assistant tool rounds with results for later turns', async () => {
+    const llm = new InspectingTwoStepLlm();
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      llm,
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      buildRuntimeContext: () => JSON.stringify({ device: { connection: '未连接' } }),
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'tool-history',
+      text: '启动 A',
+      context: { sessionId: 'tool-history', sourceType: 'cli', traceId: 'trace-tool-history' },
+    });
+
+    const session = await runtime.getSessionSnapshot('tool-history');
+    const toolRound = session.messages.find(
+      (message) => message.role === 'assistant' && (message.toolCalls?.length ?? 0) > 0,
+    );
+    expect(toolRound?.toolCalls?.[0]?.name).toBe('start');
+    expect(toolRound?.toolResults).toHaveLength(1);
+    expect(toolRound?.toolResults?.[0]?.output).toContain('"ok"');
+
+    const secondTurnConversation = llm.conversations[1] ?? [];
+    expect(secondTurnConversation.some((item) => item.kind === 'function_call_output')).toBe(true);
+  });
+
+  it('keeps buildInstructions static across tool-loop iterations', async () => {
+    const instructionsLog: string[] = [];
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      llm: new TwoStepLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      buildInstructions: () => {
+        const value = 'static-system-prompt';
+        instructionsLog.push(value);
+        return value;
+      },
+      buildRuntimeContext: () => JSON.stringify({ device: { connection: '未连接' } }),
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'static-prompt',
+      text: '启动 A',
+      context: { sessionId: 'static-prompt', sourceType: 'cli', traceId: 'trace-static-prompt' },
+    });
+
+    expect(instructionsLog.length).toBeGreaterThanOrEqual(2);
+    expect(new Set(instructionsLog)).toEqual(new Set(['static-system-prompt']));
+  });
+
+  it('executes get_runtime_context without permission prompts', async () => {
+    class ContextToolLlm implements LlmClient {
+      async runTurn() {
+        return {
+          assistantMessage: '让我先看一下状态',
+          toolCalls: [
+            {
+              id: 'ctx-1',
+              name: 'get_runtime_context',
+              args: {},
+            },
+          ],
+        };
+      }
+    }
+
+    const permission = new CountingPermission();
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ connected: true, strengthA: 7, waveActiveA: true }),
+      llm: new ContextToolLlm(),
+      permission,
+      waveformLibrary: createBasicWaveformLibrary(),
+      buildRuntimeContext: () =>
+        JSON.stringify({ device: { channelA: { strength: 7, waveActive: true } } }),
+      toolCallConfig: { maxToolIterations: 2 },
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'runtime-context',
+      text: '现在怎么样',
+      context: {
+        sessionId: 'runtime-context',
+        sourceType: 'cli',
+        traceId: 'trace-runtime-context',
+      },
+    });
+
+    expect(permission.callCount).toBe(0);
+    const session = await runtime.getSessionSnapshot('runtime-context');
+    const contextRound = session.messages.find((message) =>
+      message.toolCalls?.some((call) => call.name === 'get_runtime_context'),
+    );
+    expect(contextRound?.toolResults?.[0]?.output).toContain('"strength":7');
+  });
+
+  it('reloads persisted toolResults from session store after runtime restart', async () => {
+    const store = new JsonRoundtripSessionStore();
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      llm: new TwoStepLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      sessionStore: store,
+      buildRuntimeContext: () => JSON.stringify({ device: { connection: '未连接' } }),
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'reload-tool-history',
+      text: '启动 A',
+      context: {
+        sessionId: 'reload-tool-history',
+        sourceType: 'cli',
+        traceId: 'trace-reload-tool-history',
+      },
+    });
+
+    const reloaded = new AgentRuntime({
+      device: new TestDevice(),
+      llm: new TwoStepLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      sessionStore: store,
+    });
+    const session = await reloaded.getSessionSnapshot('reload-tool-history');
+    const toolRound = session.messages.find(
+      (message) => message.role === 'assistant' && (message.toolCalls?.length ?? 0) > 0,
+    );
+    expect(toolRound?.toolResults).toHaveLength(1);
   });
 });

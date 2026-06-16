@@ -34,6 +34,11 @@ export interface ActionContext {
   traceId: string;
 }
 
+export interface ToolCallResult {
+  callId: string;
+  output: string;
+}
+
 export interface ConversationMessage {
   id: string;
   role: MessageRole;
@@ -41,6 +46,7 @@ export interface ConversationMessage {
   createdAt: number;
   reasoningContent?: string;
   toolCalls?: ToolCall[];
+  toolResults?: ToolCallResult[];
 }
 
 export interface SessionSnapshot {
@@ -217,7 +223,7 @@ export function createMessage(
   role: MessageRole,
   content: string,
   createdAt = Date.now(),
-  options?: Pick<ConversationMessage, 'reasoningContent' | 'toolCalls'>,
+  options?: Pick<ConversationMessage, 'reasoningContent' | 'toolCalls' | 'toolResults'>,
 ): ConversationMessage {
   return {
     id: `${createdAt}-${Math.random().toString(36).slice(2, 8)}`,
@@ -226,6 +232,7 @@ export function createMessage(
     createdAt,
     reasoningContent: options?.reasoningContent,
     toolCalls: options?.toolCalls ? structuredClone(options.toolCalls) : undefined,
+    toolResults: options?.toolResults ? structuredClone(options.toolResults) : undefined,
   };
 }
 

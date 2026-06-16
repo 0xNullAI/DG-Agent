@@ -22,6 +22,19 @@ export function buildTraceFeed(entries: RuntimeTraceEntry[]): TraceFeedItem[] {
     .sort((left, right) => left.createdAt - right.createdAt);
 }
 
+export function mergeTraceFeed(
+  historical: TraceFeedItem[],
+  live: TraceFeedItem[],
+): TraceFeedItem[] {
+  if (live.length === 0) {
+    return historical;
+  }
+
+  const seen = new Set(historical.map((item) => item.text));
+  const uniqueLive = live.filter((item) => !seen.has(item.text));
+  return [...historical, ...uniqueLive].sort((left, right) => left.createdAt - right.createdAt);
+}
+
 let liveTraceCounter = 0;
 
 export function buildLiveTraceFeedItemFromEvent(event: RuntimeEvent): TraceFeedItem | null {

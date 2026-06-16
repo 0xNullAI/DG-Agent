@@ -48,7 +48,7 @@ import {
   getSessionTitle,
   isBluetoothChooserCancelledError,
 } from './utils/ui-formatters.js';
-import { buildTraceFeed } from './utils/trace-feed.js';
+import { buildTraceFeed, mergeTraceFeed } from './utils/trace-feed.js';
 import {
   parseSessionsFromJson,
   serializeSessionFile,
@@ -185,10 +185,7 @@ export function App({ servicesOverrides }: AppProps = {}) {
     ...serviceInitWarnings,
   ];
   const historicalTraceFeed = buildTraceFeed(sessionTrace);
-  const traceFeed =
-    liveTraceItems.length > 0
-      ? [...historicalTraceFeed, ...liveTraceItems].sort((a, b) => a.createdAt - b.createdAt)
-      : historicalTraceFeed;
+  const traceFeed = mergeTraceFeed(historicalTraceFeed, liveTraceItems);
 
   const { visibleErrorItems, visibleWarnings, visibleEventToasts } = useToastManager({
     errorMessage,

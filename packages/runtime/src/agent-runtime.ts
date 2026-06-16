@@ -18,6 +18,7 @@ import {
   type ModelContextStrategy,
   type RuntimeTraceEntry,
   type SessionSnapshot,
+  type ToolCall,
 } from '@dg-agent/core';
 import { createDefaultPolicyRules } from './default-policies.js';
 import { DeviceCommandQueue } from './device-command-queue.js';
@@ -38,31 +39,28 @@ import {
   type ToolCallConfig,
   type ToolCallConfigInput,
 } from './tool-call-config.js';
-import {
-  buildConversationItems,
-  collectTurnToolCalls,
-  createTurnState,
-  type TurnState,
-  type TurnToolCallSummary,
-} from './runtime-turn-state.js';
+import { buildConversationItems, createTurnState, type TurnState } from './runtime-turn-state.js';
 import { InMemorySessionTraceStore } from './session-trace.js';
 import {
   normalizeSessionHistory,
   appendAssistantMessage,
+  appendAssistantToolRound,
   appendSkippedToolOutputs,
+  hydrateToolResultsFromTrace,
 } from './session-history.js';
-import { createDefaultToolRegistryWithDeps } from './tool-registry.js';
+import { createAgentToolRegistryWithDeps } from './agent-tool-registry.js';
 import type { ToolRegistry } from './tool-registry.js';
 
 export interface AgentRuntimeOptions {
   device: DeviceClient;
   llm: LlmClient;
   permission: PermissionService;
-  buildInstructions?: (input: {
+  buildInstructions?: (input: { context: ActionContext }) => string;
+  buildRuntimeContext?: (input: {
     session: SessionSnapshot;
     context: ActionContext;
+    turnState: TurnState;
     isFirstIteration: boolean;
-    turnToolCalls: readonly TurnToolCallSummary[];
   }) => string;
   waveformLibrary?: WaveformLibrary;
   sessionStore?: SessionStore;
@@ -116,7 +114,7 @@ export class AgentRuntime {
     this.queue = new DeviceCommandQueue(options.device);
     this.toolRegistry =
       options.toolRegistry ??
-      createDefaultToolRegistryWithDeps({ waveformLibrary: options.waveformLibrary });
+      createAgentToolRegistryWithDeps({ waveformLibrary: options.waveformLibrary });
     this.toolCallConfig = resolveToolCallConfig(options.toolCallConfig);
 
     const policyEngine = options.policyEngine ?? new PolicyEngine(createDefaultPolicyRules());
@@ -129,6 +127,7 @@ export class AgentRuntime {
       policyEngine,
       logger,
       toolCallConfig: this.toolCallConfig,
+      buildRuntimeContext: options.buildRuntimeContext,
       emit: (event) => {
         this.events.emit(event);
       },
@@ -375,10 +374,7 @@ export class AgentRuntime {
 
       const instructions =
         this.options.buildInstructions?.({
-          session,
           context: input.context,
-          isFirstIteration: iteration === 0,
-          turnToolCalls: collectTurnToolCalls(turnState),
         }) ?? '';
       const tools =
         input.context.sourceType === 'system' ? [] : await this.toolRegistry.listDefinitions();
@@ -464,29 +460,12 @@ export class AgentRuntime {
       const iterationHasAssistantState = hasTextOrReasoning || hasToolCalls;
 
       if (iterationHasAssistantState) {
-        if (hasTextOrReasoning) {
-          appendAssistantMessage(
-            session,
-            {
-              content: iterationAssistantContent,
-              reasoningContent: llmResult.reasoningContent,
-              toolCalls: llmResult.toolCalls,
-            },
-            turnStartIndex,
-          );
-        }
         iterationItems.push({
           kind: 'message',
           role: 'assistant',
           content: iterationAssistantContent,
           reasoningContent: llmResult.reasoningContent,
           toolCalls: llmResult.toolCalls,
-        });
-        session.updatedAt = Date.now();
-        await this.saveSessionIfAvailable(session);
-        this.events.emit({
-          type: 'session-updated',
-          sessionId: session.id,
         });
       }
 
@@ -500,6 +479,7 @@ export class AgentRuntime {
           context: input.context,
           turnState,
           abortSignal,
+          llmIteration: iteration,
         });
         const deniedTrigger = getEphemeralDeniedTrigger(toolCall, output);
         if (deniedTrigger) {
@@ -546,6 +526,15 @@ export class AgentRuntime {
         });
       }
 
+      if (hasToolCalls) {
+        await this.persistIterationToolRound(session, turnStartIndex, {
+          content: iterationAssistantContent,
+          reasoningContent: llmResult.reasoningContent,
+          toolCalls,
+          iterationItems,
+        });
+      }
+
       turnState.workingItems.push(...iterationItems);
     }
 
@@ -567,10 +556,7 @@ export class AgentRuntime {
       context: input.context,
       instructions:
         this.options.buildInstructions?.({
-          session,
           context: input.context,
-          isFirstIteration: false,
-          turnToolCalls: collectTurnToolCalls(turnState),
         }) ?? '',
       tools: [],
       conversation: buildConversationItems(
@@ -628,7 +614,9 @@ export class AgentRuntime {
   private async ensureSession(sessionId: string): Promise<SessionSnapshot> {
     const existing = await this.sessions.get(sessionId);
     if (existing) {
-      if (normalizeSessionHistory(existing)) {
+      const normalized = normalizeSessionHistory(existing);
+      const hydrated = await this.hydrateSessionToolResults(existing);
+      if (normalized || hydrated) {
         await this.saveSessionIfAvailable(existing);
       }
       return existing;
@@ -645,6 +633,55 @@ export class AgentRuntime {
 
     await this.saveSessionIfAvailable(created);
     return created;
+  }
+
+  private async hydrateSessionToolResults(session: SessionSnapshot): Promise<boolean> {
+    const trace = await this.traces.list(session.id);
+    return hydrateToolResultsFromTrace(session, trace);
+  }
+
+  private async persistIterationToolRound(
+    session: SessionSnapshot,
+    turnStartIndex: number,
+    input: {
+      content: string;
+      reasoningContent?: string;
+      toolCalls: ToolCall[];
+      iterationItems: LlmConversationItem[];
+    },
+  ): Promise<void> {
+    if (input.toolCalls.length === 0) {
+      return;
+    }
+
+    const toolResults = input.iterationItems.flatMap((item) =>
+      item.kind === 'function_call_output' ? [{ callId: item.callId, output: item.output }] : [],
+    );
+    const executedToolCalls = input.toolCalls.filter((toolCall) =>
+      toolResults.some((result) => result.callId === toolCall.id),
+    );
+    if (executedToolCalls.length === 0) {
+      return;
+    }
+
+    appendAssistantToolRound(
+      session,
+      {
+        content: input.content,
+        reasoningContent: input.reasoningContent,
+        toolCalls: executedToolCalls,
+        toolResults: toolResults.filter((result) =>
+          executedToolCalls.some((toolCall) => toolCall.id === result.callId),
+        ),
+      },
+      turnStartIndex,
+    );
+    session.updatedAt = Date.now();
+    await this.saveSessionIfAvailable(session);
+    this.events.emit({
+      type: 'session-updated',
+      sessionId: session.id,
+    });
   }
 
   private enqueueSystemWork(sessionId: string, work: QueuedSystemWork): void {
