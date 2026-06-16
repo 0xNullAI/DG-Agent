@@ -19,7 +19,11 @@ import { OpenAiHttpLlmClient } from '@dg-agent/providers-openai-http';
 import {
   PolicyEngine,
   createDefaultPolicyRules,
-  createDefaultToolRegistryWithDeps,
+  createAgentToolRegistryWithDeps,
+  buildRuntimeContextPayload,
+  collectTurnToolCalls,
+  serializeRuntimeContextPayload,
+  type RuntimeContextSettings,
 } from '@dg-agent/runtime';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { createBuildBrowserInstructions } from './build-browser-instructions.js';
@@ -112,7 +116,7 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
   return createEmbeddedAgentClient({
     device: options.device,
     llm,
-    toolRegistry: createDefaultToolRegistryWithDeps({
+    toolRegistry: createAgentToolRegistryWithDeps({
       waveformLibrary: options.waveformLibrary,
       toolDefinitionHints: {
         maxColdStartStrength: settings.maxColdStartStrength,
@@ -141,9 +145,20 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
     buildInstructions: createBuildBrowserInstructions({
       promptPresetId: settings.promptPresetId,
       savedPromptPresets: settings.savedPromptPresets,
-      maxStrengthA: settings.maxStrengthA,
-      maxStrengthB: settings.maxStrengthB,
     }),
+    buildRuntimeContext: ({ session, context, turnState, isFirstIteration }) =>
+      serializeRuntimeContextPayload(
+        buildRuntimeContextPayload({
+          session,
+          context,
+          turnToolCalls: collectTurnToolCalls(turnState),
+          isFirstIteration,
+          settings: {
+            maxStrengthA: settings.maxStrengthA,
+            maxStrengthB: settings.maxStrengthB,
+          } satisfies RuntimeContextSettings,
+        }),
+      ),
     toolCallConfig: {
       maxToolIterations: settings.maxToolIterations,
       maxToolCallsPerTurn: settings.maxToolCallsPerTurn,

@@ -134,6 +134,7 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
     let active = true;
     const sessionId = activeSessionId;
     setReplyBusy(false);
+    setLiveTraceItems([]);
 
     async function syncCurrentSession(): Promise<void> {
       const requestId = ++syncRequestIdRef.current;
@@ -211,11 +212,10 @@ export function useRuntimeSessionState(options: UseRuntimeSessionStateOptions) {
 
       if (shouldRefreshSessionForEvent(event)) {
         if (isActiveSessionEvent) {
-          const isTurnEnd =
-            event.type === 'assistant-message-completed' ||
-            event.type === 'assistant-message-aborted';
           void syncCurrentSession().then(() => {
-            if (isTurnEnd) setLiveTraceItems([]);
+            // Historical trace is authoritative once refreshed; keeping live
+            // items would duplicate device-command-executed pills.
+            setLiveTraceItems([]);
           });
         } else {
           void refreshSavedSessions();
