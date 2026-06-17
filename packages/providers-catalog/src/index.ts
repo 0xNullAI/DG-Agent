@@ -40,12 +40,16 @@ const PROVIDER_IDS = [
   'openai',
   'custom',
 ] as const satisfies ProviderId[];
+// These seed every freshly created provider config. For built-in providers
+// `normalizeProviderSettings` overrides `endpoint`/`useStrict` below, so these
+// values only survive for the user-editable `custom` provider — hence the
+// Chat-Completions + non-strict defaults requested for custom backends.
 const BASE_PROVIDER_SETTINGS = {
   apiKey: '',
   model: '',
   baseUrl: '',
-  endpoint: 'responses' as const,
-  useStrict: true,
+  endpoint: 'chat/completions' as const,
+  useStrict: false,
 };
 
 const providerSettingsSchema = z.object({
@@ -173,30 +177,33 @@ export function normalizeProviderSettings(input: ProviderSettings): ProviderSett
         normalized.baseUrl || 'https://dashscope.aliyuncs.com/compatible-mode/v1';
       normalized.model = normalized.model || 'qwen3.5-plus';
       normalized.endpoint = 'chat/completions';
-      normalized.useStrict = true;
+      normalized.useStrict = false;
       break;
     case 'deepseek':
       normalized.baseUrl = normalized.baseUrl || 'https://api.deepseek.com';
       normalized.model = normalized.model || 'deepseek-v4-pro';
       normalized.endpoint = 'chat/completions';
-      normalized.useStrict = true;
+      normalized.useStrict = false;
       break;
     case 'doubao':
       normalized.baseUrl = normalized.baseUrl || 'https://ark.cn-beijing.volces.com/api/v3';
       normalized.model = normalized.model || 'doubao-seed-2-0-mini-250415';
-      normalized.endpoint = 'responses';
-      normalized.useStrict = true;
+      normalized.endpoint = 'chat/completions';
+      normalized.useStrict = false;
       break;
     case 'openai':
       normalized.baseUrl = normalized.baseUrl || 'https://api.openai.com/v1';
       normalized.model = normalized.model || 'gpt-4o-mini';
       normalized.endpoint = 'chat/completions';
-      normalized.useStrict = true;
+      normalized.useStrict = false;
       break;
     case 'custom':
+      // endpoint/useStrict stay user-editable: only fill the endpoint when it's
+      // missing (seeded to chat/completions via BASE_PROVIDER_SETTINGS) and never
+      // clobber the user's strict toggle.
       normalized.baseUrl = normalized.baseUrl || 'https://api.example.com/v1';
       normalized.model = normalized.model || 'model-name';
-      normalized.endpoint = normalized.endpoint || 'responses';
+      normalized.endpoint = normalized.endpoint || 'chat/completions';
       break;
     case 'free':
       normalized.baseUrl = FREE_TRIAL_PROXY_URL + '/v1';

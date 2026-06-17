@@ -47,7 +47,7 @@ export function defaultBrowserAppSettings(env: BrowserAppEnvLike = {}): BrowserA
     baseUrl: env.VITE_OPENAI_BASE_URL ?? '',
     model: env.VITE_OPENAI_MODEL ?? '',
     endpoint: 'chat/completions',
-    useStrict: true,
+    useStrict: false,
   });
 
   return {

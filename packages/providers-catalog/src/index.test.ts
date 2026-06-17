@@ -21,7 +21,7 @@ describe('providers-catalog', () => {
     expect(normalized.baseUrl).toBe('https://api.openai.com/v1');
     expect(normalized.model).toBe('gpt-4o-mini');
     expect(normalized.endpoint).toBe('chat/completions');
-    expect(normalized.useStrict).toBe(true);
+    expect(normalized.useStrict).toBe(false);
   });
 
   it('maps the free provider to the browser proxy runtime settings', () => {
@@ -44,6 +44,24 @@ describe('providers-catalog', () => {
     expect(normalized.model).toBe('deepseek-v4-pro');
     expect(normalized.baseUrl).toBe('https://api.deepseek.com');
     expect(normalized.endpoint).toBe('chat/completions');
+  });
+
+  it('defaults the custom provider to the Chat endpoint with strict schema off', () => {
+    const normalized = createProviderSettings('custom');
+
+    expect(normalized.endpoint).toBe('chat/completions');
+    expect(normalized.useStrict).toBe(false);
+  });
+
+  it('keeps the custom strict toggle user-editable across normalization', () => {
+    const normalized = normalizeProviderSettings({
+      ...createProviderSettings('custom'),
+      useStrict: true,
+      endpoint: 'responses',
+    });
+
+    expect(normalized.useStrict).toBe(true);
+    expect(normalized.endpoint).toBe('responses');
   });
 
   it('detects whether a provider needs a user API key', () => {
