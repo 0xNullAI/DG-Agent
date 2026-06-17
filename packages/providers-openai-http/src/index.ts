@@ -20,7 +20,7 @@ const configSchema = z.object({
   model: z.string().min(1),
   temperature: z.number().min(0).max(2).default(0.3),
   endpoint: z.enum(['responses', 'chat/completions']).default('chat/completions'),
-  useStrict: z.boolean().default(true),
+  useStrict: z.boolean().default(false),
   extraHeaders: z
     .custom<() => Record<string, string> | Promise<Record<string, string>>>()
     .optional(),
