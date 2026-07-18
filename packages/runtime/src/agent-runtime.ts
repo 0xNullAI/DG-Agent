@@ -38,6 +38,7 @@ import {
 } from './runtime-errors.js';
 import {
   DEVICE_KIND_DISPLAY_NAME,
+  filterToolDefinitionsByConnectedDevices,
   resolveRequiredDeviceKind,
   RuntimeToolExecutor,
   type TimerFiredTrigger,
@@ -486,7 +487,12 @@ export class AgentRuntime {
           turnToolCalls: collectTurnToolCalls(turnState),
         }) ?? '';
       const tools =
-        input.context.sourceType === 'system' ? [] : await this.toolRegistry.listDefinitions();
+        input.context.sourceType === 'system'
+          ? []
+          : filterToolDefinitionsByConnectedDevices(
+              await this.toolRegistry.listDefinitions(),
+              await this.toolExecutor.getConnectedDeviceKinds(session),
+            );
       const conversation = buildConversationItems(
         session,
         turnState,

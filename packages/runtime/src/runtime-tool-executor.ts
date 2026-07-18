@@ -8,6 +8,7 @@ import {
   type RuntimeEvent,
   type SessionSnapshot,
   type ToolCall,
+  type ToolDefinition,
   type ToolExecutionPlan,
 } from '@dg-agent/core';
 import type { CivetEdgingClient, OpossumClient, PawPrintsClient } from './device-clients.js';
@@ -50,6 +51,69 @@ export function resolveRequiredDeviceKind(
     default:
       return null;
   }
+}
+
+const LED_CAPABLE_DEVICE_KINDS = ['paw-prints', 'civet-edging', 'opossum'] as const;
+
+/**
+ * Filters (and, for `set_indicator_color`, narrows) the tool definitions
+ * sent to the LLM so it only ever sees tools for device kinds that are
+ * actually connected right now. Device-tool calls were already denied at
+ * execution time when the target wasn't connected (`isDeviceKindConnected`
+ * below) — but that meant the LLM could still see and attempt e.g.
+ * `vibrate_start` with no Opossum connected, burning a turn on a call that
+ * was always going to fail. Tools that need no device (`timer`,
+ * `design_wave`) are unaffected.
+ */
+export function filterToolDefinitionsByConnectedDevices(
+  definitions: ToolDefinition[],
+  connectedKinds: ReadonlySet<DeviceKind>,
+): ToolDefinition[] {
+  const result: ToolDefinition[] = [];
+  for (const definition of definitions) {
+    if (definition.name === 'set_indicator_color') {
+      const allowedKinds = LED_CAPABLE_DEVICE_KINDS.filter((kind) => connectedKinds.has(kind));
+      if (allowedKinds.length === 0) continue;
+      result.push(narrowIndicatorColorDeviceKindEnum(definition, allowedKinds));
+      continue;
+    }
+
+    const requiredKind = resolveRequiredDeviceKind(definition.name, undefined);
+    if (requiredKind && !connectedKinds.has(requiredKind)) continue;
+    result.push(definition);
+  }
+  return result;
+}
+
+/**
+ * `set_indicator_color` targets whichever device kind its `deviceKind`
+ * argument names, so it can't be dropped outright the way a
+ * single-device-kind tool can — instead narrow the parameter's enum to only
+ * the kinds actually connected, so the LLM can't pick a disconnected target
+ * and get an immediate denial.
+ */
+function narrowIndicatorColorDeviceKindEnum(
+  definition: ToolDefinition,
+  allowedKinds: readonly DeviceKind[],
+): ToolDefinition {
+  const parameters = definition.parameters as {
+    properties?: Record<string, unknown>;
+  };
+  const deviceKindProperty = parameters.properties?.deviceKind as
+    | Record<string, unknown>
+    | undefined;
+  if (!deviceKindProperty) return definition;
+
+  return {
+    ...definition,
+    parameters: {
+      ...definition.parameters,
+      properties: {
+        ...parameters.properties,
+        deviceKind: { ...deviceKindProperty, enum: allowedKinds },
+      },
+    },
+  };
 }
 
 // Clamp rules are convergent in practice (each pass narrows the command),
@@ -218,27 +282,36 @@ export class RuntimeToolExecutor {
    * device kinds don't have a slot in `SessionSnapshot.deviceState`, which
    * stays Coyote-shaped by design).
    */
+  /**
+   * Which device kinds are connected right now. Public so `agent-runtime.ts`
+   * can filter the tool list sent to the LLM before each turn, not just deny
+   * a call after the fact — see `filterToolDefinitionsByConnectedDevices`.
+   */
+  async getConnectedDeviceKinds(session: SessionSnapshot): Promise<Set<DeviceKind>> {
+    const connected = new Set<DeviceKind>();
+
+    const coyoteState = await this.options.device.getState();
+    session.deviceState = coyoteState;
+    if (coyoteState.connected) connected.add('coyote');
+
+    if (this.options.opossum && (await this.options.opossum.getState()).connected) {
+      connected.add('opossum');
+    }
+    if (this.options.pawPrints && (await this.options.pawPrints.getState()).connected) {
+      connected.add('paw-prints');
+    }
+    if (this.options.civetEdging && (await this.options.civetEdging.getState()).connected) {
+      connected.add('civet-edging');
+    }
+
+    return connected;
+  }
+
   private async isDeviceKindConnected(
     kind: DeviceKind,
     session: SessionSnapshot,
   ): Promise<boolean> {
-    switch (kind) {
-      case 'coyote': {
-        const state = await this.options.device.getState();
-        session.deviceState = state;
-        return state.connected;
-      }
-      case 'opossum':
-        return this.options.opossum ? (await this.options.opossum.getState()).connected : false;
-      case 'paw-prints':
-        return this.options.pawPrints ? (await this.options.pawPrints.getState()).connected : false;
-      case 'civet-edging':
-        return this.options.civetEdging
-          ? (await this.options.civetEdging.getState()).connected
-          : false;
-      default:
-        return false;
-    }
+    return (await this.getConnectedDeviceKinds(session)).has(kind);
   }
 
   private getIndicatorCapableClient(
