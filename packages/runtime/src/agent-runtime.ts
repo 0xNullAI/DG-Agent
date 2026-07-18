@@ -1,5 +1,6 @@
 import type {
   DeviceClient,
+  DeviceKind,
   LlmConversationItem,
   LlmClient,
   Logger,
@@ -12,18 +13,21 @@ import {
   createEmptyDeviceState,
   createMessage,
   isDeviceToolName,
+  isSensorTriggersEnabled,
   mergeBridgeOriginMetadata,
+  withSensorTriggersEnabled,
   type ActionContext,
   type ConversationMessage,
   type ModelContextStrategy,
   type RuntimeTraceEntry,
   type SessionSnapshot,
 } from '@dg-agent/core';
-import { createDefaultPolicyRules } from './default-policies.js';
-import { DeviceCommandQueue } from './device-command-queue.js';
+import { createDefaultOpossumPolicyRules, createDefaultPolicyRules } from './default-policies.js';
+import type { CivetEdgingClient, OpossumClient, PawPrintsClient } from './device-clients.js';
+import { DeviceCommandQueue, OpossumCommandQueue } from './device-command-queue.js';
 import { InMemoryEventBus, type RuntimeListener } from './event-bus.js';
 import { InMemorySessionStore } from './in-memory-session-store.js';
-import { PolicyEngine } from './policy-engine.js';
+import { OpossumPolicyEngine, PolicyEngine } from './policy-engine.js';
 import {
   isAbortError,
   normalizeAssistantErrorMessage,
@@ -32,7 +36,17 @@ import {
   throwIfAborted,
   TOOL_LOOP_EXHAUSTED_MESSAGE,
 } from './runtime-errors.js';
-import { RuntimeToolExecutor, type TimerFiredTrigger } from './runtime-tool-executor.js';
+import {
+  DEVICE_KIND_DISPLAY_NAME,
+  resolveRequiredDeviceKind,
+  RuntimeToolExecutor,
+  type TimerFiredTrigger,
+} from './runtime-tool-executor.js';
+import {
+  SensorTriggerEngine,
+  type SensorFiredTrigger,
+  type SensorTriggerEngineOptions,
+} from './sensor-trigger-engine.js';
 import {
   resolveToolCallConfig,
   type ToolCallConfig,
@@ -56,6 +70,12 @@ import type { ToolRegistry } from './tool-registry.js';
 
 export interface AgentRuntimeOptions {
   device: DeviceClient;
+  /** At most one connected Opossum vibration controller, alongside Coyote. */
+  opossum?: OpossumClient;
+  /** At most one connected paw-prints button/motion sensor, alongside Coyote. */
+  pawPrints?: PawPrintsClient;
+  /** At most one connected civet-edging pressure sensor, alongside Coyote. */
+  civetEdging?: CivetEdgingClient;
   llm: LlmClient;
   permission: PermissionService;
   buildInstructions?: (input: {
@@ -70,8 +90,14 @@ export interface AgentRuntimeOptions {
   logger?: Logger;
   toolRegistry?: ToolRegistry;
   policyEngine?: PolicyEngine;
+  opossumPolicyEngine?: OpossumPolicyEngine;
   toolCallConfig?: ToolCallConfigInput;
   modelContextStrategy?: ModelContextStrategy;
+  /** Thresholds for the Sensor Trigger Engine (see `setSensorTriggersEnabled`). */
+  sensorTriggerOptions?: Pick<
+    SensorTriggerEngineOptions,
+    'civetPressureDeltaThresholdKPa' | 'debounceMs' | 'now'
+  >;
 }
 
 export interface SendUserMessageInput {
@@ -108,25 +134,36 @@ export class AgentRuntime {
   private readonly drainingSessions = new Set<string>();
   private readonly deletedSessionIds = new Set<string>();
   private readonly disposeDeviceListener: () => void;
+  private readonly opossumQueue?: OpossumCommandQueue;
+  private sensorTriggerEngine: SensorTriggerEngine | null = null;
+  private sensorTriggerSessionId: string | null = null;
   private disposed = false;
 
   constructor(private readonly options: AgentRuntimeOptions) {
     this.sessions = options.sessionStore ?? new InMemorySessionStore();
     this.traces = options.sessionTraceStore ?? new InMemorySessionTraceStore();
     this.queue = new DeviceCommandQueue(options.device);
+    this.opossumQueue = options.opossum ? new OpossumCommandQueue(options.opossum) : undefined;
     this.toolRegistry =
       options.toolRegistry ??
       createDefaultToolRegistryWithDeps({ waveformLibrary: options.waveformLibrary });
     this.toolCallConfig = resolveToolCallConfig(options.toolCallConfig);
 
     const policyEngine = options.policyEngine ?? new PolicyEngine(createDefaultPolicyRules());
+    const opossumPolicyEngine =
+      options.opossumPolicyEngine ?? new OpossumPolicyEngine(createDefaultOpossumPolicyRules());
     const logger = options.logger ?? defaultLogger;
     this.toolExecutor = new RuntimeToolExecutor({
       device: options.device,
+      opossum: options.opossum,
+      pawPrints: options.pawPrints,
+      civetEdging: options.civetEdging,
       permission: options.permission,
       queue: this.queue,
+      opossumQueue: this.opossumQueue,
       toolRegistry: this.toolRegistry,
       policyEngine,
+      opossumPolicyEngine,
       logger,
       toolCallConfig: this.toolCallConfig,
       emit: (event) => {
@@ -148,11 +185,72 @@ export class AgentRuntime {
     this.disposed = true;
     this.disposeDeviceListener();
     this.toolExecutor.cancelScheduledTimers();
+    this.teardownSensorTriggerEngine();
     for (const controller of this.activeTurns.values()) {
       controller.abort();
     }
     this.activeTurns.clear();
     this.pendingSystemWork.clear();
+  }
+
+  /**
+   * Opt-in gate for the Sensor Trigger Engine (see sensor-trigger-engine.ts).
+   * Defaults to off — connecting a paw-prints/civet-edging sensor is never
+   * enough on its own to start feeding ephemeral prompts into a session; the
+   * user has to explicitly flip this on per session first, mirroring the
+   * "explicit consent, default off" pattern used elsewhere in this app
+   * (e.g. permissions-browser's timed grants).
+   *
+   * At most one engine is active at a time, scoped to a single session (the
+   * device connections themselves are process-global, same as Coyote's
+   * `device`, but "let sensor events interrupt the AI" is a per-conversation
+   * decision). Enabling it for a different session tears down the previous
+   * one first.
+   */
+  async setSensorTriggersEnabled(sessionId: string, enabled: boolean): Promise<void> {
+    const session = await this.ensureSession(sessionId);
+    session.metadata = withSensorTriggersEnabled(session.metadata, enabled);
+    session.updatedAt = Date.now();
+    await this.saveSessionIfAvailable(session);
+
+    if (this.sensorTriggerSessionId && this.sensorTriggerSessionId !== sessionId) {
+      this.teardownSensorTriggerEngine();
+    }
+
+    if (!enabled) {
+      this.teardownSensorTriggerEngine();
+      return;
+    }
+
+    if (this.sensorTriggerEngine) return;
+
+    if (!this.options.pawPrints && !this.options.civetEdging) {
+      // Nothing connected to subscribe to right now. The flag is persisted
+      // above so a future connect step (out of this task's scope — see
+      // report) can attach the engine once a sensor is actually available.
+      return;
+    }
+
+    this.sensorTriggerEngine = new SensorTriggerEngine({
+      sessionId,
+      pawPrints: this.options.pawPrints,
+      civetEdging: this.options.civetEdging,
+      ...this.options.sensorTriggerOptions,
+      onTrigger: (trigger) =>
+        this.enqueueSystemWork(trigger.sessionId, { kind: 'sensor-fired', trigger }),
+    });
+    this.sensorTriggerSessionId = sessionId;
+  }
+
+  async isSensorTriggersEnabledForSession(sessionId: string): Promise<boolean> {
+    const session = await this.sessions.get(sessionId);
+    return isSensorTriggersEnabled(session?.metadata);
+  }
+
+  private teardownSensorTriggerEngine(): void {
+    this.sensorTriggerEngine?.dispose();
+    this.sensorTriggerEngine = null;
+    this.sensorTriggerSessionId = null;
   }
 
   subscribe(listener: RuntimeListener): () => void {
@@ -210,6 +308,9 @@ export class AgentRuntime {
     this.toolExecutor.cancelScheduledTimers(sessionId);
     this.pendingSystemWork.delete(sessionId);
     this.drainingSessions.delete(sessionId);
+    if (this.sensorTriggerSessionId === sessionId) {
+      this.teardownSensorTriggerEngine();
+    }
     await this.sessions.delete(sessionId);
     await this.traces.clear(sessionId);
   }
@@ -231,6 +332,10 @@ export class AgentRuntime {
       command: { type: 'emergencyStop' },
       result,
     });
+    // Best-effort: the panic button should also silence Opossum vibration,
+    // not just Coyote stim. Bypasses the opossum queue the same way Coyote's
+    // emergencyStop bypasses `DeviceCommandQueue`'s normal serialization.
+    await this.options.opossum?.emergencyStop();
   }
 
   async abortCurrentReply(sessionId: string): Promise<void> {
@@ -522,7 +627,12 @@ export class AgentRuntime {
             abortSignal,
           );
         }
-        if (shouldStopTurnForDisconnectedDevice(toolCall.name, output)) {
+        const disconnectedDeviceKind = getDisconnectedDeviceKind(
+          toolCall.name,
+          toolCall.args,
+          output,
+        );
+        if (disconnectedDeviceKind !== undefined) {
           iterationItems.push({
             kind: 'function_call_output',
             callId: toolCall.id,
@@ -535,7 +645,7 @@ export class AgentRuntime {
           );
           turnState.workingItems.push(...iterationItems);
           return {
-            finalAssistantText: '设备未连接，请先点击输入框旁的蓝牙图标连接郊狼。',
+            finalAssistantText: buildDeviceDisconnectedMessage(disconnectedDeviceKind),
           };
         }
 
@@ -625,6 +735,46 @@ export class AgentRuntime {
     });
   }
 
+  /**
+   * Mirrors `processTimerTrigger`: a `SensorFiredTrigger` from the Sensor
+   * Trigger Engine becomes a trace entry plus one ephemeral, non-persisted
+   * system turn — never a raw sensor reading forwarded verbatim, and never
+   * written into `session.messages` (see docs/architecture.md's "ephemeral
+   * trigger" concept).
+   */
+  private async processSensorTrigger(trigger: SensorFiredTrigger): Promise<void> {
+    if (this.isSessionDeleted(trigger.sessionId)) {
+      return;
+    }
+    // Defense in depth: even though `setSensorTriggersEnabled(false)` tears
+    // down the engine (so this shouldn't normally fire once disabled), a
+    // trigger emitted just before teardown could still be in flight in the
+    // system-work queue. Re-check the persisted flag before acting on it.
+    if (!(await this.isSensorTriggersEnabledForSession(trigger.sessionId))) {
+      return;
+    }
+    await this.ensureSession(trigger.sessionId);
+    await this.traces.append(trigger.sessionId, {
+      kind: 'sensor-fired',
+      turnId: `sensor-${trigger.firedAt}`,
+      sourceType: 'system',
+      synthetic: true,
+      detail: trigger.summary,
+      firedAt: trigger.firedAt,
+    });
+
+    await this.sendUserMessage({
+      sessionId: trigger.sessionId,
+      text: buildSensorTriggerPrompt(trigger),
+      context: {
+        sessionId: trigger.sessionId,
+        sourceType: 'system',
+        traceId: `sensor-${trigger.firedAt}`,
+      },
+      persistMessage: false,
+    });
+  }
+
   private async ensureSession(sessionId: string): Promise<SessionSnapshot> {
     const existing = await this.sessions.get(sessionId);
     if (existing) {
@@ -691,6 +841,11 @@ export class AgentRuntime {
           continue;
         }
 
+        if (next.kind === 'sensor-fired') {
+          await this.processSensorTrigger(next.trigger);
+          continue;
+        }
+
         await this.sendUserMessage(next.input);
       }
     } finally {
@@ -718,6 +873,10 @@ type QueuedSystemWork =
   | {
       kind: 'timer-fired';
       trigger: TimerFiredTrigger;
+    }
+  | {
+      kind: 'sensor-fired';
+      trigger: SensorFiredTrigger;
     };
 
 function createIncomingMessage(input: SendUserMessageInput): ConversationMessage {
@@ -729,6 +888,21 @@ function buildTimerTriggerPrompt(trigger: TimerFiredTrigger): string {
     `[内部提醒] 你之前设置的定时“${trigger.label}”已到期。`,
     '这不是用户的新消息，用户没有提供新的反馈。',
     '请基于当前设备状态和最近一轮对话做一次简短跟进，不要自动操作设备，也不要再次设置定时。',
+  ].join('\n');
+}
+
+/**
+ * Mirrors `buildTimerTriggerPrompt`'s tone/structure: state what happened,
+ * make explicit this isn't a real user message, then a guardrail line — but
+ * "don't over-act" instead of "don't auto-operate the device", since a
+ * sensor trigger (unlike a timer firing) is a plausible signal the user
+ * actually wants a reaction to, just not an automatic one.
+ */
+function buildSensorTriggerPrompt(trigger: SensorFiredTrigger): string {
+  return [
+    `[内部提醒] 传感器事件：${trigger.summary}。`,
+    '这不是用户的新消息，用户没有提供新的反馈。',
+    '你可以选择是否响应，不要过度操作设备。',
   ].join('\n');
 }
 
@@ -758,13 +932,31 @@ function getEphemeralDeniedTrigger(toolCall: { name: string }, output: string): 
   }
 }
 
-function shouldStopTurnForDisconnectedDevice(toolName: string, output: string): boolean {
-  if (!isDeviceToolName(toolName)) return false;
+/**
+ * Tri-state on purpose: `undefined` means "this output isn't a disconnected-
+ * device denial at all, keep going normally"; `null`/a `DeviceKind` both
+ * mean "stop the turn", differing only in whether we know which device kind
+ * to name in the guidance message (set_indicator_color with a malformed
+ * `deviceKind` arg can't be resolved, so it falls back to a generic name).
+ */
+function getDisconnectedDeviceKind(
+  toolName: string,
+  args: Record<string, unknown>,
+  output: string,
+): DeviceKind | null | undefined {
+  if (!isDeviceToolName(toolName)) return undefined;
 
   try {
     const parsed = JSON.parse(output) as { error?: string };
-    return parsed.error === '设备未连接';
+    if (parsed.error !== '设备未连接') return undefined;
   } catch {
-    return false;
+    return undefined;
   }
+
+  return resolveRequiredDeviceKind(toolName, args);
+}
+
+function buildDeviceDisconnectedMessage(kind: DeviceKind | null): string {
+  const name = kind ? DEVICE_KIND_DISPLAY_NAME[kind] : '设备';
+  return `设备未连接，请先点击输入框旁的蓝牙图标连接${name}。`;
 }

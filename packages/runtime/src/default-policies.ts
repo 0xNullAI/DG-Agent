@@ -1,4 +1,5 @@
-import type { DeviceCommand } from '@dg-agent/core';
+import type { DeviceCommand, OpossumCommand } from '@dg-agent/core';
+import type { OpossumPolicyRule } from './policy-engine.js';
 import type { PolicyRule } from './policy-engine.js';
 
 export const DEFAULT_MAX_COLD_START_STRENGTH = 10;
@@ -7,6 +8,12 @@ export const DEFAULT_MAX_BURST_DURATION_MS = 5_000;
 const MAX_ADJUST_STEP_LIMIT = 200;
 const MAX_BURST_DURATION_LIMIT_MS = 20_000;
 const DEFAULT_USER_MAX_STRENGTH = 50;
+
+// Opossum intensity is also a 0-200 range (see OpossumCommand doc comment in
+// @dg-kit/core), so its safety caps default to the same magnitude as
+// Coyote's cold-start / step-adjust caps rather than inventing new numbers.
+export const DEFAULT_MAX_OPOSSUM_COLD_START_INTENSITY = 10;
+export const DEFAULT_MAX_OPOSSUM_ADJUST_STEP = 10;
 
 export interface DefaultPolicyOptions {
   maxStrengthA?: number;
@@ -225,4 +232,94 @@ function clamp(value: number, min: number, max: number): number {
   const number = Number(value);
   if (!Number.isFinite(number)) return min;
   return Math.max(min, Math.min(max, Math.round(number)));
+}
+
+export interface DefaultOpossumPolicyOptions {
+  maxColdStartIntensity?: number;
+  maxAdjustStep?: number;
+}
+
+function opossumRequiresConfirmation(command: OpossumCommand): boolean {
+  return command.type !== 'vibrateStop';
+}
+
+/**
+ * Mirrors `createDefaultPolicyRules` in spirit: require-connection first,
+ * then a cold-start intensity clamp, then a step-adjust clamp, then a
+ * permission gate. Deliberately narrower than Coyote's rule set — no
+ * per-channel hardware limit (Opossum has no `limitA`/`limitB` concept) and
+ * no burst-shaped caps (Opossum has no `burst` command).
+ */
+export function createDefaultOpossumPolicyRules(
+  options: DefaultOpossumPolicyOptions = {},
+): OpossumPolicyRule[] {
+  const maxColdStartIntensity = normalizeOpossumIntensityLimit(
+    options.maxColdStartIntensity,
+    DEFAULT_MAX_OPOSSUM_COLD_START_INTENSITY,
+  );
+  const maxAdjustStep = normalizeOpossumAdjustStepLimit(options.maxAdjustStep);
+
+  return [
+    {
+      name: 'require-opossum-connection',
+      evaluate({ deviceState }) {
+        if (!deviceState.connected) {
+          return { type: 'deny', reason: '设备未连接' };
+        }
+        return null;
+      },
+    },
+    {
+      name: 'opossum-cold-start',
+      evaluate({ command, deviceState }) {
+        if (command.type !== 'vibrateStart') return null;
+
+        const current = command.channel === 'A' ? deviceState.intensityA : deviceState.intensityB;
+        if (current > 0) return null;
+        if (command.intensity <= maxColdStartIntensity) return null;
+
+        return {
+          type: 'clamp',
+          command: { ...command, intensity: maxColdStartIntensity },
+          reason: `负鼠冷启动强度上限为 ${maxColdStartIntensity}`,
+        };
+      },
+    },
+    {
+      name: 'opossum-step-adjust',
+      evaluate({ command }) {
+        if (command.type !== 'vibrateAdjust') return null;
+        if (Math.abs(command.delta) <= maxAdjustStep) return null;
+
+        return {
+          type: 'clamp',
+          command: {
+            ...command,
+            delta: Math.sign(command.delta || 1) * maxAdjustStep,
+          },
+          reason: `负鼠单次调节幅度上限为 ±${maxAdjustStep}`,
+        };
+      },
+    },
+    {
+      name: 'opossum-permission-gate',
+      evaluate({ command }) {
+        if (!opossumRequiresConfirmation(command)) return null;
+        return {
+          type: 'require-confirm',
+          reason: '该操作会修改设备状态，需要先获取权限',
+        };
+      },
+    },
+  ];
+}
+
+function normalizeOpossumIntensityLimit(value: number | undefined, fallback: number): number {
+  const raw = typeof value === 'number' ? value : fallback;
+  return clamp(raw, 0, 200);
+}
+
+function normalizeOpossumAdjustStepLimit(value: number | undefined): number {
+  const raw = typeof value === 'number' ? value : DEFAULT_MAX_OPOSSUM_ADJUST_STEP;
+  return clamp(raw, 1, MAX_ADJUST_STEP_LIMIT);
 }
