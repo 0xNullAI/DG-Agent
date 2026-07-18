@@ -7,6 +7,7 @@
   "types": "./src/index.ts",
   "dependencies": {
     "@dg-agent/core": "0.1.0",
+    "@dg-agent/runtime": "0.1.0",
     "@dg-kit/protocol": "file:/Users/chengaoshen/Downloads/Project/DG/DG-Kit/packages/protocol",
     "@dg-kit/transport-webbluetooth": "file:/Users/chengaoshen/Downloads/Project/DG/DG-Kit/packages/transport-webbluetooth"
   },

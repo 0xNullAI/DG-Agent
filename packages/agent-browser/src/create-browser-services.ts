@@ -21,8 +21,15 @@ import type {
   RuntimeTraceEntry,
   SessionSnapshot,
 } from '@dg-agent/core';
-import { CoyoteProtocolAdapter, WebBluetoothDeviceClient } from '@dg-agent/device-webbluetooth';
+import {
+  CoyoteProtocolAdapter,
+  WebBluetoothCivetEdgingClient,
+  WebBluetoothDeviceClient,
+  WebBluetoothOpossumClient,
+  WebBluetoothPawPrintsClient,
+} from '@dg-agent/device-webbluetooth';
 import { BrowserPermissionService } from '@dg-agent/permissions-browser';
+import type { CivetEdgingClient, OpossumClient, PawPrintsClient } from '@dg-agent/runtime';
 import {
   BrowserSessionStore,
   BrowserSessionTraceStore,
@@ -58,6 +65,19 @@ export interface BrowserServicesOptions {
    */
   createDeviceClient?: (protocol: CoyoteProtocolAdapter) => DeviceClient;
   /**
+   * Pre-built auxiliary device clients (opossum, paw-prints, civet-edging),
+   * reused across settings-driven service rebuilds the same way `device` is
+   * — each defaults to a lazily-constructed `WebBluetoothOpossumClient` /
+   * `WebBluetoothPawPrintsClient` / `WebBluetoothCivetEdgingClient` when not
+   * supplied. Unlike `device`/`createDeviceClient`, there is no non-browser
+   * override hook yet: none of these three kinds have a Tauri/Android
+   * transport (see DG-Chat's `DeviceSession` doc comment — Android WebView
+   * has no Web Bluetooth), so the shells that need one don't exist yet.
+   */
+  opossum?: OpossumClient;
+  pawPrints?: PawPrintsClient;
+  civetEdging?: CivetEdgingClient;
+  /**
    * If true, speech recognition / synthesis are stubbed with no-op controllers
    * and capabilities report nothing supported. Used by shells (Android WebView)
    * that lack Web Speech APIs.
@@ -81,6 +101,9 @@ export interface BrowserServicesOptions {
 export interface BrowserServices {
   client: AgentClient;
   device: DeviceClient;
+  opossum: OpossumClient;
+  pawPrints: PawPrintsClient;
+  civetEdging: CivetEdgingClient;
   bridgeManager: BridgeManager;
   waveformLibrary: BrowserWaveformLibrary;
   speechRecognition: ReturnType<typeof createSpeechRecognitionController>;
@@ -166,6 +189,9 @@ export function createBrowserServices(options: BrowserServicesOptions): BrowserS
         ? options.createDeviceClient(deviceProtocol)
         : new WebBluetoothDeviceClient({ protocol: deviceProtocol });
     })();
+  const opossum = options.opossum ?? new WebBluetoothOpossumClient();
+  const pawPrints = options.pawPrints ?? new WebBluetoothPawPrintsClient();
+  const civetEdging = options.civetEdging ?? new WebBluetoothCivetEdgingClient();
 
   const speechRecognition = options.disableSpeech
     ? createNullSpeechRecognitionController()
@@ -215,6 +241,9 @@ export function createBrowserServices(options: BrowserServicesOptions): BrowserS
     client = createBrowserAgentClient({
       settings,
       device,
+      opossum,
+      pawPrints,
+      civetEdging,
       sessionStore,
       sessionTraceStore,
       waveformLibrary,
@@ -257,6 +286,9 @@ export function createBrowserServices(options: BrowserServicesOptions): BrowserS
   return {
     client,
     device,
+    opossum,
+    pawPrints,
+    civetEdging,
     bridgeManager,
     waveformLibrary,
     speechRecognition,
