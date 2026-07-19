@@ -252,8 +252,10 @@ function opossumRequiresConfirmation(command: OpossumCommand): boolean {
  * Mirrors `createDefaultPolicyRules` in spirit: require-connection first,
  * then a cold-start intensity clamp, then a step-adjust clamp, then a
  * permission gate. Deliberately narrower than Coyote's rule set — no
- * per-channel hardware limit (Opossum has no `limitA`/`limitB` concept) and
- * no burst-shaped caps (Opossum has no `burst` command).
+ * per-channel hardware limit (Opossum has no `limitA`/`limitB` concept).
+ * `vibrateBurst` shares the same per-channel intensity ceiling as
+ * `vibrateStart` rather than growing Coyote-style burst-specific
+ * absolute/relative caps.
  */
 export function createDefaultOpossumPolicyRules(
   options: DefaultOpossumPolicyOptions = {},
@@ -307,9 +309,10 @@ export function createDefaultOpossumPolicyRules(
       // protocol max (200) one step at a time.
       name: 'opossum-user-intensity-cap',
       evaluate({ command, deviceState }) {
+        if (command.type === 'vibrateSetPattern') return null;
         const effectiveLimit = command.channel === 'A' ? maxIntensityA : maxIntensityB;
 
-        if (command.type === 'vibrateStart') {
+        if (command.type === 'vibrateStart' || command.type === 'vibrateBurst') {
           if (command.intensity <= effectiveLimit) return null;
           return {
             type: 'clamp',

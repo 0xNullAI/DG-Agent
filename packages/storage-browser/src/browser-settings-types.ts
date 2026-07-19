@@ -57,6 +57,7 @@ export interface BrowserAppSettings {
   maxOpossumColdStartIntensity: number;
   maxOpossumAdjustStep: number;
   maxVibrateAdjustCallsPerTurn: number;
+  maxVibrateBurstCallsPerTurn: number;
   // —— 传感器触发引擎（爪印 / 灵猫）阈值 ——
   civetPressureDeltaThresholdKPa: number;
   sensorTriggerDebounceMs: number;

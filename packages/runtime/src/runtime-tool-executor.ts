@@ -51,6 +51,8 @@ export function resolveRequiredDeviceKind(
     case 'vibrate_start':
     case 'vibrate_stop':
     case 'vibrate_adjust':
+    case 'vibrate_change_pattern':
+    case 'vibrate_burst':
       return 'opossum';
     case 'set_indicator_color': {
       const kind = args?.deviceKind;
