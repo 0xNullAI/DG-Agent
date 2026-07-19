@@ -36,6 +36,10 @@ const ADJUST_STEP_MIN = 1;
 const ADJUST_STEP_MAX = 200;
 const BURST_DURATION_MIN = 100;
 const BURST_DURATION_MAX = 20_000;
+const CIVET_THRESHOLD_MIN = 0.1;
+const CIVET_THRESHOLD_MAX = 50;
+const SENSOR_DEBOUNCE_MIN = 0;
+const SENSOR_DEBOUNCE_MAX = 60_000;
 
 function getStrengthTone(value: number): 'normal' | 'warning' | 'danger' {
   if (value > 150) return 'danger';
@@ -89,6 +93,20 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
     setSettingsDraft((current) => ({
       ...current,
       maxOpossumAdjustStep: clamp(value, ADJUST_STEP_MIN, ADJUST_STEP_MAX),
+    }));
+  }
+
+  function setCivetPressureDeltaThresholdKPa(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      civetPressureDeltaThresholdKPa: clamp(value, CIVET_THRESHOLD_MIN, CIVET_THRESHOLD_MAX),
+    }));
+  }
+
+  function setSensorTriggerDebounceMs(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      sensorTriggerDebounceMs: clamp(value, SENSOR_DEBOUNCE_MIN, SENSOR_DEBOUNCE_MAX),
     }));
   }
 
@@ -395,6 +413,29 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
             onChange={setOpossumAdjustStep}
           />
         </label>
+
+        <label htmlFor="civet-pressure-delta-threshold" className="settings-inline-field">
+          <SettingLabel>灵猫压力变化触发阈值（kPa）</SettingLabel>
+          <ConfigNumberField
+            id="civet-pressure-delta-threshold"
+            value={settingsDraft.civetPressureDeltaThresholdKPa}
+            min={CIVET_THRESHOLD_MIN}
+            max={CIVET_THRESHOLD_MAX}
+            onChange={setCivetPressureDeltaThresholdKPa}
+            allowDecimal
+          />
+        </label>
+
+        <label htmlFor="sensor-trigger-debounce" className="settings-inline-field">
+          <SettingLabel>传感器触发去抖间隔（ms）</SettingLabel>
+          <ConfigNumberField
+            id="sensor-trigger-debounce"
+            value={settingsDraft.sensorTriggerDebounceMs}
+            min={SENSOR_DEBOUNCE_MIN}
+            max={SENSOR_DEBOUNCE_MAX}
+            onChange={setSensorTriggerDebounceMs}
+          />
+        </label>
       </AdvancedSection>
     </div>
   );
@@ -494,12 +535,15 @@ function ConfigNumberField({
   min,
   max,
   onChange,
+  allowDecimal = false,
 }: {
   id: string;
   value: number;
   min: number;
   max: number;
   onChange: (value: number) => void;
+  /** Allows one decimal point (e.g. kPa thresholds) instead of the default integer-only input. */
+  allowDecimal?: boolean;
 }) {
   const [draftValue, setDraftValue] = useState(String(value));
   const [prevValue, setPrevValue] = useState(value);
@@ -509,9 +553,14 @@ function ConfigNumberField({
     setDraftValue(String(value));
   }
 
+  const sanitize = (raw: string): string =>
+    allowDecimal
+      ? raw.replace(/[^0-9.]+/g, '').replace(/(\..*)\./g, '$1')
+      : raw.replace(/\D+/g, '');
+
   function commit(nextDraftValue: string) {
-    const digitsOnly = nextDraftValue.replace(/\D+/g, '');
-    const nextValue = digitsOnly ? clamp(Number(digitsOnly), min, max) : min;
+    const sanitized = sanitize(nextDraftValue);
+    const nextValue = sanitized ? clamp(Number(sanitized), min, max) : min;
 
     setDraftValue(String(nextValue));
     if (nextValue !== value) {
@@ -523,11 +572,11 @@ function ConfigNumberField({
     <Input
       id={id}
       type="text"
-      inputMode="numeric"
-      pattern="[0-9]*"
+      inputMode={allowDecimal ? 'decimal' : 'numeric'}
+      pattern={allowDecimal ? undefined : '[0-9]*'}
       value={draftValue}
       onChange={(event) => {
-        setDraftValue(event.target.value.replace(/\D+/g, ''));
+        setDraftValue(sanitize(event.target.value));
       }}
       onBlur={(event) => commit(event.target.value)}
       onKeyDown={(event) => {

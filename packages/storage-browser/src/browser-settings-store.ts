@@ -123,6 +123,8 @@ export class BrowserAppSettingsStore {
       maxOpossumColdStartIntensity: settings.maxOpossumColdStartIntensity,
       maxOpossumAdjustStep: settings.maxOpossumAdjustStep,
       maxVibrateAdjustCallsPerTurn: settings.maxVibrateAdjustCallsPerTurn,
+      civetPressureDeltaThresholdKPa: settings.civetPressureDeltaThresholdKPa,
+      sensorTriggerDebounceMs: settings.sensorTriggerDebounceMs,
       safetyStopOnLeave: settings.safetyStopOnLeave,
       rememberApiKey: settings.rememberApiKey,
       modelLogEnabled: settings.modelLogEnabled,
