@@ -167,6 +167,8 @@ export interface SettingsDrawerProps {
   opossum: OpossumClient;
   pawPrints: PawPrintsClient;
   civetEdging: CivetEdgingClient;
+  sensorTriggersEnabled: boolean;
+  onToggleSensorTriggers: (enabled: boolean) => void;
   bridgeLogs: BridgeLogEntry[];
   bridgeStatus: BridgeManagerStatus | null;
   modelLogTurns: ModelLogTurn[];
@@ -191,6 +193,8 @@ function SettingsTabContent({
   opossum,
   pawPrints,
   civetEdging,
+  sensorTriggersEnabled,
+  onToggleSensorTriggers,
   bridgeLogs,
   bridgeStatus,
   modelLogTurns,
@@ -228,7 +232,15 @@ function SettingsTabContent({
         />
       );
     case 'devices':
-      return <DevicesTab opossum={opossum} pawPrints={pawPrints} civetEdging={civetEdging} />;
+      return (
+        <DevicesTab
+          opossum={opossum}
+          pawPrints={pawPrints}
+          civetEdging={civetEdging}
+          sensorTriggersEnabled={sensorTriggersEnabled}
+          onToggleSensorTriggers={onToggleSensorTriggers}
+        />
+      );
     case 'bridge':
       return <BridgeTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
     case 'voice':

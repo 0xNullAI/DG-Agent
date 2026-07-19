@@ -4,8 +4,13 @@ import {
   type BridgeManagerStatus,
   type MessageOrigin,
 } from '@dg-agent/bridge';
-import { createEmptyDeviceState, type PermissionDecision } from '@dg-agent/core';
+import {
+  createEmptyDeviceState,
+  createEmptySensorState,
+  type PermissionDecision,
+} from '@dg-agent/core';
 import { connectAnyDgLabDevice } from '@dg-agent/agent-browser';
+import { createEmptyOpossumState } from '@dg-agent/device-webbluetooth';
 import { BrowserSafetyGuard } from './services/safety-guard.js';
 import { applyTheme, subscribeThemeChanges } from './services/theme.js';
 import type { UpdateCheckerStatus } from './services/update-checker.js';
@@ -36,6 +41,7 @@ import {
   type PendingPermissionRequest,
   type ServicesOverrides,
 } from './composition/use-browser-app-services.js';
+import { useAuxDeviceState } from './hooks/use-aux-device-state.js';
 import { useModelLog } from './hooks/use-model-log.js';
 import { useRuntimeSessionState } from './hooks/use-runtime-session-state.js';
 import { useSettingsManager } from './hooks/use-settings-manager.js';
@@ -182,6 +188,36 @@ export function App({ servicesOverrides }: AppProps = {}) {
 
   const busy = pendingSend || replyBusy;
   const deviceState = liveDeviceState ?? createEmptyDeviceState();
+  const opossumState = useAuxDeviceState(opossum, createEmptyOpossumState());
+  const pawPrintsState = useAuxDeviceState(pawPrints, createEmptySensorState());
+  const civetEdgingState = useAuxDeviceState(civetEdging, createEmptySensorState());
+
+  const [sensorTriggersEnabled, setSensorTriggersEnabledState] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve()
+      .then(() =>
+        activeSessionId ? client.isSensorTriggersEnabledForSession(activeSessionId) : false,
+      )
+      .then((enabled) => {
+        if (!cancelled) setSensorTriggersEnabledState(enabled);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId, client]);
+  const toggleSensorTriggers = useCallback(
+    async (enabled: boolean): Promise<void> => {
+      if (!activeSessionId) return;
+      try {
+        await client.setSensorTriggersEnabled(activeSessionId, enabled);
+        setSensorTriggersEnabledState(enabled);
+      } catch (error) {
+        setErrorMessage(formatUiErrorMessage(error));
+      }
+    },
+    [activeSessionId, client],
+  );
   const warnings = [
     ...buildWarnings(settings, modes, speechCapabilities, {
       suppressBridge: servicesOverrides?.disableBridge,
@@ -385,6 +421,30 @@ export function App({ servicesOverrides }: AppProps = {}) {
       setErrorMessage(formatUiErrorMessage(error));
     }
   }, [activeSessionId, client, refreshCurrentSession]);
+
+  const disconnectOpossum = useCallback(async (): Promise<void> => {
+    try {
+      await opossum.disconnect();
+    } catch (error) {
+      setErrorMessage(formatUiErrorMessage(error));
+    }
+  }, [opossum]);
+
+  const disconnectPawPrints = useCallback(async (): Promise<void> => {
+    try {
+      await pawPrints.disconnect();
+    } catch (error) {
+      setErrorMessage(formatUiErrorMessage(error));
+    }
+  }, [pawPrints]);
+
+  const disconnectCivetEdging = useCallback(async (): Promise<void> => {
+    try {
+      await civetEdging.disconnect();
+    } catch (error) {
+      setErrorMessage(formatUiErrorMessage(error));
+    }
+  }, [civetEdging]);
 
   const sendTextMessage = useCallback(
     async (message: string): Promise<'sent' | 'aborted' | 'failed'> => {
@@ -783,6 +843,8 @@ export function App({ servicesOverrides }: AppProps = {}) {
                 opossum={opossum}
                 pawPrints={pawPrints}
                 civetEdging={civetEdging}
+                sensorTriggersEnabled={sensorTriggersEnabled}
+                onToggleSensorTriggers={(enabled) => void toggleSensorTriggers(enabled)}
                 bridgeLogs={bridgeLogs}
                 bridgeStatus={bridgeStatus}
                 modelLogTurns={modelLog.turns}
@@ -816,7 +878,15 @@ export function App({ servicesOverrides }: AppProps = {}) {
                 deviceState={deviceState}
                 maxStrengthA={settings.maxStrengthA}
                 maxStrengthB={settings.maxStrengthB}
+                opossumState={opossumState}
+                maxOpossumIntensityA={settings.maxOpossumIntensityA}
+                maxOpossumIntensityB={settings.maxOpossumIntensityB}
+                pawPrintsState={pawPrintsState}
+                civetEdgingState={civetEdgingState}
                 onConnect={() => void connect()}
+                onDisconnectOpossum={() => void disconnectOpossum()}
+                onDisconnectPawPrints={() => void disconnectPawPrints()}
+                onDisconnectCivetEdging={() => void disconnectCivetEdging()}
                 onEmergencyStop={() => void stop()}
                 onOpenSidebar={() => setSidebarOpen(true)}
                 onOpenSettings={() => openSettingsModal('general')}
