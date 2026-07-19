@@ -83,6 +83,7 @@ export function defaultBrowserAppSettings(env: BrowserAppEnvLike = {}): BrowserA
     maxOpossumColdStartIntensity: DEFAULT_MAX_OPOSSUM_COLD_START_INTENSITY,
     maxOpossumAdjustStep: DEFAULT_MAX_OPOSSUM_ADJUST_STEP,
     maxVibrateAdjustCallsPerTurn: toolCallConfig.maxVibrateAdjustCallsPerTurn,
+    maxVibrateBurstCallsPerTurn: toolCallConfig.maxVibrateBurstCallsPerTurn,
     civetPressureDeltaThresholdKPa: DEFAULT_CIVET_PRESSURE_DELTA_KPA,
     sensorTriggerDebounceMs: DEFAULT_SENSOR_TRIGGER_DEBOUNCE_MS,
     safetyStopOnLeave: true,

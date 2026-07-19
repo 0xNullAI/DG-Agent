@@ -206,6 +206,7 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
         maxVibrateStartIntensity: settings.maxOpossumColdStartIntensity,
         maxVibrateAdjustStep: settings.maxOpossumAdjustStep,
         maxVibrateAdjustCallsPerTurn: settings.maxVibrateAdjustCallsPerTurn,
+        maxVibrateBurstCallsPerTurn: settings.maxVibrateBurstCallsPerTurn,
       },
     }),
     permission:
@@ -247,6 +248,7 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
       maxBurstCallsPerTurn: settings.maxBurstCallsPerTurn,
       burstRequiresActiveChannel: settings.burstRequiresActiveChannel,
       maxVibrateAdjustCallsPerTurn: settings.maxVibrateAdjustCallsPerTurn,
+      maxVibrateBurstCallsPerTurn: settings.maxVibrateBurstCallsPerTurn,
     },
     sensorTriggerOptions: {
       civetPressureDeltaThresholdKPa: settings.civetPressureDeltaThresholdKPa,

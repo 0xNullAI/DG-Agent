@@ -1774,7 +1774,7 @@ class TestOpossumClient implements OpossumClient {
     return this.state;
   }
   async execute(command: OpossumCommand): Promise<OpossumCommandResult> {
-    if (command.type === 'vibrateStart') {
+    if (command.type === 'vibrateStart' || command.type === 'vibrateBurst') {
       this.state =
         command.channel === 'A'
           ? { ...this.state, intensityA: command.intensity }
@@ -1979,6 +1979,93 @@ describe('AgentRuntime multi-device (opossum / sensors)', () => {
     const state = await opossum.getState();
     // current 10 + clamped delta (10, the default step cap) = 20, not 35.
     expect(state.intensityA).toBe(20);
+  });
+
+  it('clamps vibrate_burst intensity to the opossum per-channel cap', async () => {
+    class OpossumBurstLlm implements LlmClient {
+      async runTurn() {
+        return {
+          assistantMessage: '来一段短促强振',
+          toolCalls: [
+            {
+              id: 'tool-vibrate-burst-1',
+              name: 'vibrate_burst',
+              args: { channel: 'A', intensity: 200, durationMs: 800 },
+            },
+          ],
+        };
+      }
+    }
+
+    const opossum = new TestOpossumClient({ intensityA: 20 });
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ connected: false }),
+      opossum,
+      llm: new OpossumBurstLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      toolCallConfig: { maxToolIterations: 1 },
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'opossum-burst-cap',
+      text: '猛一下',
+      context: {
+        sessionId: 'opossum-burst-cap',
+        sourceType: 'cli',
+        traceId: 'trace-opossum-burst',
+      },
+    });
+
+    const state = await opossum.getState();
+    // 200 requested, clamped to DEFAULT_USER_MAX_OPOSSUM_INTENSITY (50).
+    expect(state.intensityA).toBe(50);
+  });
+
+  it('executes vibrate_change_pattern as an opossum plan', async () => {
+    class OpossumPatternLlm implements LlmClient {
+      async runTurn() {
+        return {
+          assistantMessage: '切换节奏',
+          toolCalls: [
+            {
+              id: 'tool-vibrate-pattern-1',
+              name: 'vibrate_change_pattern',
+              args: { channel: 'A', pattern: 'heartbeat' },
+            },
+          ],
+        };
+      }
+    }
+
+    const opossum = new TestOpossumClient({ intensityA: 20 });
+    const executed: OpossumCommand[] = [];
+    const originalExecute = opossum.execute.bind(opossum);
+    opossum.execute = async (command) => {
+      executed.push(command);
+      return originalExecute(command);
+    };
+
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ connected: false }),
+      opossum,
+      llm: new OpossumPatternLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      toolCallConfig: { maxToolIterations: 1 },
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'opossum-pattern',
+      text: '换成心跳节奏',
+      context: {
+        sessionId: 'opossum-pattern',
+        sourceType: 'cli',
+        traceId: 'trace-opossum-pattern',
+      },
+    });
+
+    expect(executed).toEqual([{ type: 'vibrateSetPattern', channel: 'A', pattern: 'heartbeat' }]);
   });
 
   it('denies vibrate_start with a device-specific message when opossum is not connected, without touching coyote', async () => {

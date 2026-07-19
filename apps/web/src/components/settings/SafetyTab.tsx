@@ -139,6 +139,14 @@ export function SafetyTab({
     }));
   }
 
+  function setVibrateBurstCallsPerTurn(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      // Same 0-as-disable opt-out as the Coyote burst cap above.
+      maxVibrateBurstCallsPerTurn: clamp(value, 0, TOOL_LIMIT_MAX),
+    }));
+  }
+
   function setColdStartStrength(value: number) {
     setSettingsDraft((current) => ({
       ...current,
@@ -452,6 +460,16 @@ export function SafetyTab({
             min={ADJUST_STEP_MIN}
             max={ADJUST_STEP_MAX}
             onChange={setOpossumAdjustStep}
+          />
+        </label>
+
+        <label htmlFor="max-vibrate-burst-calls-per-turn" className="settings-inline-field">
+          <SettingLabel>负鼠单轮振动脉冲次数上限（0 表示关闭）</SettingLabel>
+          <ToolLimitField
+            id="max-vibrate-burst-calls-per-turn"
+            value={settingsDraft.maxVibrateBurstCallsPerTurn}
+            onChange={setVibrateBurstCallsPerTurn}
+            min={0}
           />
         </label>
       </AdvancedSection>

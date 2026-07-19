@@ -9,6 +9,7 @@ export interface TurnState {
   adjustStrengthCalls: number;
   vibrateAdjustCalls: number;
   burstCallsByChannel: { A: number; B: number };
+  vibrateBurstCallsByChannel: { A: number; B: number };
   narrations: string[];
 }
 
@@ -24,6 +25,7 @@ export function createTurnState(): TurnState {
     adjustStrengthCalls: 0,
     vibrateAdjustCalls: 0,
     burstCallsByChannel: { A: 0, B: 0 },
+    vibrateBurstCallsByChannel: { A: 0, B: 0 },
     narrations: [],
   };
 }
@@ -129,6 +131,16 @@ export function consumeTurnQuota(
     }
   }
 
+  if (toolName === 'vibrate_burst') {
+    if (config.maxVibrateBurstCallsPerTurn === 0) {
+      return 'vibrate_burst 已被用户在设置中关闭（单轮振动脉冲次数上限为 0），本次调用被拒绝。请改用 vibrate_adjust 逐步推进强度，不要再尝试 vibrate_burst。';
+    }
+    const channel = normalizeBurstChannel(toolArgs);
+    if (turnState.vibrateBurstCallsByChannel[channel] >= config.maxVibrateBurstCallsPerTurn) {
+      return `vibrate_burst 通道 ${channel} 本回合调用已达上限 (${config.maxVibrateBurstCallsPerTurn} 次)，本次调用被拒绝。同一通道的振动脉冲每回合只允许一次，请直接回复用户，不要重复触发。`;
+    }
+  }
+
   turnState.totalToolCalls += 1;
   if (isShockAdjustTool(toolName)) {
     turnState.adjustStrengthCalls += 1;
@@ -139,6 +151,10 @@ export function consumeTurnQuota(
   if (isShockBurstTool(toolName)) {
     const channel = normalizeBurstChannel(toolArgs);
     turnState.burstCallsByChannel[channel] += 1;
+  }
+  if (toolName === 'vibrate_burst') {
+    const channel = normalizeBurstChannel(toolArgs);
+    turnState.vibrateBurstCallsByChannel[channel] += 1;
   }
 
   return null;

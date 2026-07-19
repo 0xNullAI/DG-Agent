@@ -105,6 +105,15 @@ export class WebBluetoothOpossumClient implements OpossumClient {
       case 'vibrateAdjust':
         await this.adapter.adjustIntensity(command.channel, command.delta);
         break;
+      case 'vibrateSetPattern':
+        this.adapter.setVibrationPattern(
+          command.channel,
+          OPOSSUM_VIBRATION_PATTERNS[command.pattern],
+        );
+        break;
+      case 'vibrateBurst':
+        await this.adapter.vibrateBurst(command.channel, command.intensity, command.durationMs);
+        break;
     }
     return { state: this.adapter.getState() };
   }
