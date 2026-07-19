@@ -431,7 +431,7 @@ export function App({ servicesOverrides, connectDeviceTauri }: AppProps = {}) {
     refreshCurrentSession,
   ]);
 
-  const _disconnect = useCallback(async (): Promise<void> => {
+  const disconnectDevice = useCallback(async (): Promise<void> => {
     try {
       setErrorMessage(null);
       await client.disconnectDevice();
@@ -903,6 +903,7 @@ export function App({ servicesOverrides, connectDeviceTauri }: AppProps = {}) {
                 pawPrintsState={pawPrintsState}
                 civetEdgingState={civetEdgingState}
                 onConnect={() => void connect()}
+                onDisconnectDevice={() => void disconnectDevice()}
                 onDisconnectOpossum={() => void disconnectOpossum()}
                 onDisconnectPawPrints={() => void disconnectPawPrints()}
                 onDisconnectCivetEdging={() => void disconnectCivetEdging()}
