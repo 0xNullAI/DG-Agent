@@ -15,7 +15,12 @@ import {
   type RuntimeEvent,
 } from '@dg-agent/core';
 import { createBasicWaveformLibrary } from '@dg-agent/waveforms';
-import type { OpossumState, PawPrintsReading, SensorState } from '@dg-kit/protocol';
+import type {
+  CivetPressureReading,
+  OpossumState,
+  PawPrintsReading,
+  SensorState,
+} from '@dg-kit/protocol';
 import type {
   CivetEdgingClient,
   OpossumClient,
@@ -1797,6 +1802,7 @@ class TestPawPrintsClient implements PawPrintsClient {
 
 class TestCivetEdgingClient implements CivetEdgingClient {
   private state: SensorState;
+  private readingListeners = new Set<(reading: CivetPressureReading) => void>();
 
   constructor(initialState: Partial<SensorState> = {}) {
     this.state = { connected: true, battery: 100, ...initialState };
@@ -1806,11 +1812,18 @@ class TestCivetEdgingClient implements CivetEdgingClient {
   async getState(): Promise<SensorState> {
     return this.state;
   }
-  subscribe(): () => void {
-    return () => {};
+  subscribe(listener: (reading: CivetPressureReading) => void): () => void {
+    this.readingListeners.add(listener);
+    return () => {
+      this.readingListeners.delete(listener);
+    };
   }
   onStateChanged(): () => void {
     return () => {};
+  }
+  /** Test hook: simulate a raw pressure reading reaching subscribers. */
+  pushReading(reading: CivetPressureReading): void {
+    for (const listener of this.readingListeners) listener(reading);
   }
   // Deliberately no setIndicatorColor override here in some tests to check
   // the "client exists but doesn't support LED" branch; individual test
@@ -2027,6 +2040,59 @@ describe('AgentRuntime multi-device (opossum / sensors)', () => {
     expect(session.messages.at(-1)?.content).toBe(
       '设备未连接，请先点击输入框旁的蓝牙图标连接灵猫。',
     );
+  });
+
+  it('buffers paw-prints trigger and civet-edging pressure readings into rolling summaries, independent of the sensor-trigger opt-in toggle', async () => {
+    class PlainReplyLlm implements LlmClient {
+      async runTurn() {
+        return { assistantMessage: '好的' };
+      }
+    }
+
+    const pawPrints = new TestPawPrintsClient();
+    const civetEdging = new TestCivetEdgingClient();
+    let capturedPawPrintsSummary: string | undefined;
+    let capturedCivetSummary: string | undefined;
+
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ connected: false }),
+      pawPrints,
+      civetEdging,
+      llm: new PlainReplyLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      buildInstructions: (input) => {
+        capturedPawPrintsSummary = input.pawPrintsSummary;
+        capturedCivetSummary = input.civetSummary;
+        return '';
+      },
+    });
+
+    // Deliberately never called setSensorTriggersEnabled — the buffer must
+    // still accumulate, unlike SensorTriggerEngine's own opt-in prompts.
+    pawPrints.pushReading({ type: 'trigger', eventId: 1, parameterValue: 5 });
+    // physical readings are posture/acceleration noise, not trigger events —
+    // must not count toward the buffered trigger total.
+    pawPrints.pushReading({
+      type: 'physical',
+      sequence: 1,
+      pressState: 0,
+      acceleration: 0,
+      angleX: 0,
+      angleY: 0,
+      angleZ: 0,
+      extVoltage: 0,
+    });
+    civetEdging.pushReading({ type: 'pressure', kPa: 12 });
+
+    await runtime.sendUserMessage({
+      sessionId: 'buffer-session',
+      text: '你好',
+      context: { sessionId: 'buffer-session', sourceType: 'cli', traceId: 'trace-buffer-1' },
+    });
+
+    expect(capturedPawPrintsSummary).toBe('60s 内触发 1 次，最近事件1');
+    expect(capturedCivetSummary).toContain('当前 12.0kPa');
   });
 
   it('enforces configurable per-turn vibrate_adjust quotas', async () => {

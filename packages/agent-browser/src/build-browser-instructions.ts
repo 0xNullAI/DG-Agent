@@ -25,6 +25,10 @@ export interface BrowserInstructionsInput {
   pawPrintsState?: SensorState;
   /** Present only when a civet-edging client is configured, connected or not. */
   civetEdgingState?: SensorState;
+  /** Rolling 60s trigger-count trend; absent until the buffer has at least one reading. */
+  pawPrintsSummary?: string;
+  /** Rolling 30s pressure trend; absent until the buffer has at least one reading. */
+  civetSummary?: string;
 }
 
 const INSTRUCTION_SEPARATOR = '\n\n──────────────────────────\n';
@@ -199,13 +203,25 @@ function buildDeviceStatusBlock(
 
   if (input.pawPrintsState) {
     lines.push(
-      ...buildSensorStatusLines('爪印', input.pawPrintsState, input.session, 'paw-prints'),
+      ...buildSensorStatusLines(
+        '爪印',
+        input.pawPrintsState,
+        input.session,
+        'paw-prints',
+        input.pawPrintsSummary,
+      ),
     );
   }
 
   if (input.civetEdgingState) {
     lines.push(
-      ...buildSensorStatusLines('灵猫', input.civetEdgingState, input.session, 'civet-edging'),
+      ...buildSensorStatusLines(
+        '灵猫',
+        input.civetEdgingState,
+        input.session,
+        'civet-edging',
+        input.civetSummary,
+      ),
     );
   }
 
@@ -217,6 +233,7 @@ function buildSensorStatusLines(
   state: SensorState,
   session: SessionSnapshot,
   kind: 'paw-prints' | 'civet-edging',
+  summary: string | undefined,
 ): string[] {
   const connection = state.connected
     ? `已连接${state.deviceName ? `（${state.deviceName}）` : ''}`
@@ -232,6 +249,7 @@ function buildSensorStatusLines(
     `  连接：${connection}`,
     `  电量：${battery}`,
     `  最近读数：${lastReadingLine}`,
+    ...(summary ? [`  近段汇总：${summary}`] : []),
   ];
 }
 

@@ -118,4 +118,30 @@ describe('createBuildBrowserInstructions', () => {
 
     expect(instructions).toContain('最近读数：暂无');
   });
+
+  it('includes a 近段汇总 line under 最近读数 when a rolling summary is provided', () => {
+    const build = createBuildBrowserInstructions(settings);
+    const instructions = build(
+      baseInput({
+        pawPrintsState: { ...createEmptySensorState(), connected: true },
+        civetEdgingState: { ...createEmptySensorState(), connected: true },
+        pawPrintsSummary: '60s 内触发 3 次，最近事件5',
+        civetSummary: '当前 12.0kPa，30s 内 10.0~14.0kPa，趋势上升',
+      }),
+    );
+
+    expect(instructions).toContain('近段汇总：60s 内触发 3 次，最近事件5');
+    expect(instructions).toContain('近段汇总：当前 12.0kPa，30s 内 10.0~14.0kPa，趋势上升');
+  });
+
+  it('omits the 近段汇总 line entirely when no summary is provided yet', () => {
+    const build = createBuildBrowserInstructions(settings);
+    const instructions = build(
+      baseInput({
+        pawPrintsState: { ...createEmptySensorState(), connected: true },
+      }),
+    );
+
+    expect(instructions).not.toContain('近段汇总');
+  });
 });
