@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
 import type { DeviceState, SensorState, SessionSnapshot } from '@dg-agent/core';
 import type { OpossumState } from '@dg-agent/device-webbluetooth';
 import type { PromptPreset, SavedPromptPreset } from '@dg-agent/runtime';
@@ -297,19 +298,12 @@ export function ChatPanel({
 
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5">
             {deviceState.connected && (
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <button
-                  type="button"
-                  className="flex shrink-0 items-center gap-1 rounded-[8px] px-1.5 py-1 text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] sm:gap-1.5 sm:px-2"
-                  onClick={onConnect}
-                  title="重连设备"
-                >
-                  <Zap className="h-3.5 w-3.5 text-[var(--success)]" />
-                  <BatteryIcon level={deviceState.battery} />
-                  <span className="hidden text-[11px] tabular-nums sm:inline">
-                    {typeof deviceState.battery === 'number' ? `${deviceState.battery}%` : '--'}
-                  </span>
-                </button>
+              <DeviceStatusChip
+                icon={<Zap className="h-3.5 w-3.5 text-[var(--success)]" />}
+                battery={deviceState.battery}
+                onClick={onConnect}
+                title="重连设备"
+              >
                 <div className="flex gap-3 sm:gap-4">
                   <ChannelStrengthBar
                     channel="A"
@@ -322,23 +316,16 @@ export function ChatPanel({
                     max={maxStrengthB}
                   />
                 </div>
-              </div>
+              </DeviceStatusChip>
             )}
 
             {opossumState.connected && (
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <button
-                  type="button"
-                  className="flex shrink-0 items-center gap-1 rounded-[8px] px-1.5 py-1 text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] sm:gap-1.5 sm:px-2"
-                  onClick={onDisconnectOpossum}
-                  title="断开负鼠"
-                >
-                  <Vibrate className="h-3.5 w-3.5 text-[var(--success)]" />
-                  <BatteryIcon level={opossumState.battery} />
-                  <span className="hidden text-[11px] tabular-nums sm:inline">
-                    {typeof opossumState.battery === 'number' ? `${opossumState.battery}%` : '--'}
-                  </span>
-                </button>
+              <DeviceStatusChip
+                icon={<Vibrate className="h-3.5 w-3.5 text-[var(--success)]" />}
+                battery={opossumState.battery}
+                onClick={onDisconnectOpossum}
+                title="断开负鼠"
+              >
                 <div className="flex gap-3 sm:gap-4">
                   <ChannelStrengthBar
                     channel="A"
@@ -351,39 +338,25 @@ export function ChatPanel({
                     max={maxOpossumIntensityB}
                   />
                 </div>
-              </div>
+              </DeviceStatusChip>
             )}
 
             {pawPrintsState.connected && (
-              <button
-                type="button"
-                className="flex shrink-0 items-center gap-1 rounded-[8px] px-1.5 py-1 text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] sm:gap-1.5 sm:px-2"
+              <DeviceStatusChip
+                icon={<PawPrint className="h-3.5 w-3.5 text-[var(--success)]" />}
+                battery={pawPrintsState.battery}
                 onClick={onDisconnectPawPrints}
                 title="断开爪印"
-              >
-                <PawPrint className="h-3.5 w-3.5 text-[var(--success)]" />
-                <BatteryIcon level={pawPrintsState.battery} />
-                <span className="hidden text-[11px] tabular-nums sm:inline">
-                  {typeof pawPrintsState.battery === 'number' ? `${pawPrintsState.battery}%` : '--'}
-                </span>
-              </button>
+              />
             )}
 
             {civetEdgingState.connected && (
-              <button
-                type="button"
-                className="flex shrink-0 items-center gap-1 rounded-[8px] px-1.5 py-1 text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] sm:gap-1.5 sm:px-2"
+              <DeviceStatusChip
+                icon={<Gauge className="h-3.5 w-3.5 text-[var(--success)]" />}
+                battery={civetEdgingState.battery}
                 onClick={onDisconnectCivetEdging}
                 title="断开灵猫"
-              >
-                <Gauge className="h-3.5 w-3.5 text-[var(--success)]" />
-                <BatteryIcon level={civetEdgingState.battery} />
-                <span className="hidden text-[11px] tabular-nums sm:inline">
-                  {typeof civetEdgingState.battery === 'number'
-                    ? `${civetEdgingState.battery}%`
-                    : '--'}
-                </span>
-              </button>
+              />
             )}
           </div>
 
@@ -704,6 +677,42 @@ export function ChatPanel({
           </p>
         </>
       )}
+    </div>
+  );
+}
+
+interface DeviceStatusChipProps {
+  icon: ReactNode;
+  battery: number | undefined;
+  onClick: () => void;
+  title: string;
+  /** Strength/intensity bars for control-type devices (Coyote, Opossum) — omitted for sensing-type devices. */
+  children?: ReactNode;
+}
+
+/**
+ * Shared status-bar chip for all 4 device kinds: icon + battery, click to
+ * reconnect/disconnect. Control-type devices (Coyote, Opossum) pass channel
+ * strength bars as `children`; sensing-type devices (paw-prints,
+ * civet-edging) omit them — the wrapping div still renders identically with
+ * a single child.
+ */
+function DeviceStatusChip({ icon, battery, onClick, title, children }: DeviceStatusChipProps) {
+  return (
+    <div className="flex items-center gap-1.5 sm:gap-2">
+      <button
+        type="button"
+        className="flex shrink-0 items-center gap-1 rounded-[8px] px-1.5 py-1 text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] sm:gap-1.5 sm:px-2"
+        onClick={onClick}
+        title={title}
+      >
+        {icon}
+        <BatteryIcon level={battery} />
+        <span className="hidden text-[11px] tabular-nums sm:inline">
+          {typeof battery === 'number' ? `${battery}%` : '--'}
+        </span>
+      </button>
+      {children}
     </div>
   );
 }
