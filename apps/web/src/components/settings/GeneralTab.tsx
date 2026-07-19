@@ -20,6 +20,11 @@ import {
   type ProviderId,
 } from '@dg-agent/providers-catalog';
 import { ListModelsError, listModels } from '@dg-agent/providers-openai-http';
+import {
+  listModelsForProvider,
+  type PiAiModelInfo,
+  type PiAiProviderKey,
+} from '@dg-agent/providers-pi-ai';
 import { HelpTip } from '../HelpTip.js';
 import { SettingLabel } from './SettingLabel.js';
 import { SettingSelect } from './SettingSelect.js';
@@ -120,6 +125,28 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
     }
 
     if (field.key === 'model') {
+      // Native/pi-ai-routed providers have no baseUrl to hit a `/models`
+      // endpoint on — pi-ai ships its own generated model catalog per
+      // provider instead, so the picker here is catalog-driven (offline,
+      // no network probe) rather than the OpenAI-compat picker's live
+      // `/models` fetch + "测试连接" button below.
+      if (selectedProviderDef?.dialect === 'pi-ai' && selectedProviderDef.piProviderKey) {
+        return (
+          <div key={field.key} className="grid gap-2">
+            <label htmlFor={fieldId} className="settings-inline-field">
+              <SettingLabel>{field.label}</SettingLabel>
+              <PiAiModelPicker
+                inputId={fieldId}
+                placeholder={field.placeholder}
+                providerKey={selectedProviderDef.piProviderKey as PiAiProviderKey}
+                value={settingsDraft.provider.model}
+                onChange={(next) => updateProviderField('model', next)}
+              />
+            </label>
+          </div>
+        );
+      }
+
       return (
         <div key={field.key} className="grid gap-2">
           <label htmlFor={fieldId} className="settings-inline-field">
@@ -437,6 +464,122 @@ function ModelPicker({
         {trailing}
       </div>
       {error && <div className="text-[12px] leading-relaxed text-[var(--text-faint)]">{error}</div>}
+    </div>
+  );
+}
+
+interface PiAiModelPickerProps {
+  inputId: string;
+  placeholder?: string;
+  providerKey: PiAiProviderKey;
+  value: string;
+  onChange: (next: string) => void;
+}
+
+function formatTokenCount(value: number): string {
+  if (value >= 1_000_000) {
+    return `${Number((value / 1_000_000).toFixed(1)).toString()}M`;
+  }
+  if (value >= 1_000) {
+    return `${Math.round(value / 1000)}K`;
+  }
+  return String(value);
+}
+
+/**
+ * Model input for native/pi-ai-routed providers. Unlike `ModelPicker`
+ * (OpenAI-compat, live `/models` HTTP fetch), this always stays a free-text
+ * field — pi-ai's catalog is generated ahead of time and new model ids ship
+ * before it's regenerated, so forcing a dropdown-only choice would block
+ * users from typing a brand-new model id. "模型信息" is a manual, offline
+ * lookup against pi-ai's bundled catalog (no network request) that annotates
+ * the typed id with context window / max output / reasoning-support — the
+ * "surface pi-ai's model catalog metadata" ask, kept intentionally small.
+ */
+function PiAiModelPicker({
+  inputId,
+  placeholder,
+  providerKey,
+  value,
+  onChange,
+}: PiAiModelPickerProps) {
+  const [models, setModels] = useState<PiAiModelInfo[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const lastProviderRef = useRef(providerKey);
+
+  useEffect(() => {
+    if (lastProviderRef.current !== providerKey) {
+      lastProviderRef.current = providerKey;
+      setModels(null);
+      setError(null);
+    }
+  }, [providerKey]);
+
+  async function refresh(): Promise<void> {
+    setLoading(true);
+    setError(null);
+    try {
+      setModels(await listModelsForProvider(providerKey));
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : '未知错误');
+      setModels(null);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const activeModel = models?.find((model) => model.id === value.trim());
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1 basis-[200px]">
+          <Input
+            id={inputId}
+            type="text"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder={placeholder}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            void refresh();
+          }}
+          disabled={loading}
+          className="h-10 shrink-0 rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-strong)] px-3 text-xs font-medium text-[var(--text-soft)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="查看模型信息"
+        >
+          {loading ? '加载中…' : '模型信息'}
+        </button>
+      </div>
+      {error && (
+        <div className="text-[12px] leading-relaxed text-[var(--text-faint)]">
+          无法读取模型目录：{error}
+        </div>
+      )}
+      {!error && models && (
+        <div className="text-[12px] leading-relaxed text-[var(--text-faint)]">
+          {activeModel ? (
+            <>
+              上下文 {formatTokenCount(activeModel.contextWindow)} · 最大输出{' '}
+              {formatTokenCount(activeModel.maxTokens)}
+              {activeModel.reasoning ? ' · 支持推理' : ''}
+            </>
+          ) : (
+            <>
+              目录中暂无该模型 id，将按输入的名称直接调用。已知模型：
+              {models
+                .slice(0, 5)
+                .map((model) => model.id)
+                .join('、')}
+              {models.length > 5 ? ' 等' : ''}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }

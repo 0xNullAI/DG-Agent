@@ -5,6 +5,7 @@ import {
   FREE_TRIAL_PROXY_URL,
   createFreeProxyHmacHeaders,
   createProviderSettings,
+  getProviderDefinition,
   normalizeProviderSettings,
   providerRequiresUserApiKey,
   resolveProviderRuntimeSettings,
@@ -67,6 +68,62 @@ describe('providers-catalog', () => {
   it('detects whether a provider needs a user API key', () => {
     expect(providerRequiresUserApiKey('free')).toBe(false);
     expect(providerRequiresUserApiKey('openai')).toBe(true);
+  });
+
+  it('tags the original six providers as openai-compat, unchanged', () => {
+    for (const id of ['free', 'qwen', 'deepseek', 'doubao', 'openai', 'custom'] as const) {
+      expect(getProviderDefinition(id)?.dialect).toBe('openai-compat');
+    }
+  });
+
+  it('tags anthropic/google and the newly added providers as pi-ai with a piProviderKey', () => {
+    for (const id of [
+      'anthropic',
+      'google',
+      'openrouter',
+      'groq',
+      'moonshotai',
+      'moonshotai-cn',
+      'zai',
+      'zai-coding-cn',
+      'minimax',
+      'minimax-cn',
+      'xai',
+      'cerebras',
+      'together',
+      'huggingface',
+      'mistral',
+      'fireworks',
+      'xiaomi',
+    ] as const) {
+      const definition = getProviderDefinition(id);
+      expect(definition?.dialect).toBe('pi-ai');
+      expect(definition?.piProviderKey).toBe(id);
+    }
+  });
+
+  it('clears baseUrl/endpoint/useStrict for pi-ai-dialect providers and fills a default model', () => {
+    const normalized = normalizeProviderSettings({
+      ...createProviderSettings('anthropic'),
+      baseUrl: 'https://should-be-ignored.example.com',
+      model: '',
+    });
+
+    expect(normalized.baseUrl).toBe('');
+    expect(normalized.model).toBe('claude-sonnet-4-5');
+    expect(normalized.endpoint).toBe('chat/completions');
+    expect(normalized.useStrict).toBe(false);
+  });
+
+  it('resolves runtime settings for a pi-ai provider with dialect + piProviderKey', () => {
+    const runtime = resolveProviderRuntimeSettings({
+      ...createProviderSettings('google'),
+      apiKey: 'test-key',
+    });
+
+    expect(runtime.dialect).toBe('pi-ai');
+    expect(runtime.piProviderKey).toBe('google');
+    expect(runtime.browserSupported).toBe(true);
   });
 
   it('signs the timestamp with HMAC-SHA256 so the proxy can verify the caller', async () => {

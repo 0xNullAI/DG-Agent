@@ -16,6 +16,7 @@ import {
   resolveProviderRuntimeSettings,
 } from '@dg-agent/providers-catalog';
 import { OpenAiHttpLlmClient } from '@dg-agent/providers-openai-http';
+import { PiAiLlmClient, type PiAiProviderKey } from '@dg-agent/providers-pi-ai';
 import {
   OpossumPolicyEngine,
   PolicyEngine,
@@ -94,6 +95,31 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
     llm = new UnavailableLlmClient(
       '当前模型服务还没有配置完成，请先在设置里选择服务提供方并补全凭证',
     );
+  } else if (provider.dialect === 'pi-ai') {
+    // Native/pi-ai-routed providers (Anthropic, Google, and the OpenAI-/
+    // Anthropic-compatible providers in providers-pi-ai's registry) have no
+    // baseUrl/endpoint concept — providers-catalog already clears those
+    // fields for this dialect (see normalizeProviderSettings), so there is
+    // no isValidHttpUrl() check to run here, unlike the openai-compat path
+    // below.
+    if (!provider.piProviderKey) {
+      llm = new UnavailableLlmClient(
+        `当前服务提供方“${config.provider.providerId}”配置无效：缺少 pi-ai 提供方标识`,
+      );
+    } else {
+      try {
+        llm = new PiAiLlmClient({
+          apiKey: provider.apiKey,
+          model: provider.model,
+          providerKey: provider.piProviderKey as PiAiProviderKey,
+          temperature: settings.temperature,
+        });
+      } catch (error) {
+        llm = new UnavailableLlmClient(
+          formatProviderConfigError(error, config.provider.providerId),
+        );
+      }
+    }
   } else if (!isValidHttpUrl(provider.baseUrl)) {
     llm = new UnavailableLlmClient(
       `当前服务提供方“${config.provider.providerId}”配置无效：接口地址不是有效的 URL`,

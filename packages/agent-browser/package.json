@@ -14,6 +14,7 @@
     "@dg-agent/permissions-browser": "0.1.0",
     "@dg-agent/providers-catalog": "0.1.0",
     "@dg-agent/providers-openai-http": "0.1.0",
+    "@dg-agent/providers-pi-ai": "0.1.0",
     "@dg-agent/runtime": "0.1.0",
     "@dg-agent/storage-browser": "0.1.0",
     "@dg-agent/waveforms": "0.1.0"
