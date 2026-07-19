@@ -7,6 +7,7 @@ export interface TurnState {
   workingItems: LlmConversationItem[];
   totalToolCalls: number;
   adjustStrengthCalls: number;
+  vibrateAdjustCalls: number;
   burstCallsByChannel: { A: number; B: number };
   narrations: string[];
 }
@@ -21,6 +22,7 @@ export function createTurnState(): TurnState {
     workingItems: [],
     totalToolCalls: 0,
     adjustStrengthCalls: 0,
+    vibrateAdjustCalls: 0,
     burstCallsByChannel: { A: 0, B: 0 },
     narrations: [],
   };
@@ -99,6 +101,13 @@ export function consumeTurnQuota(
     return `adjust_strength 本回合调用已达上限 (${config.maxAdjustStrengthCallsPerTurn} 次)，本次调用被拒绝。本回合已经调整过足够多次了，请直接回复用户，不要再继续爬升强度。`;
   }
 
+  if (
+    toolName === 'vibrate_adjust' &&
+    turnState.vibrateAdjustCalls >= config.maxVibrateAdjustCallsPerTurn
+  ) {
+    return `vibrate_adjust 本回合调用已达上限 (${config.maxVibrateAdjustCallsPerTurn} 次)，本次调用被拒绝。本回合已经调整过足够多次了，请直接回复用户，不要再继续爬升强度。`;
+  }
+
   if (toolName === 'burst') {
     if (config.maxBurstCallsPerTurn === 0) {
       return 'burst 已被用户在设置中关闭（单轮突增次数上限为 0），本次调用被拒绝。请改用 adjust_strength 逐步推进强度，不要再尝试 burst。';
@@ -112,6 +121,9 @@ export function consumeTurnQuota(
   turnState.totalToolCalls += 1;
   if (toolName === 'adjust_strength') {
     turnState.adjustStrengthCalls += 1;
+  }
+  if (toolName === 'vibrate_adjust') {
+    turnState.vibrateAdjustCalls += 1;
   }
   if (toolName === 'burst') {
     const channel = normalizeBurstChannel(toolArgs);
