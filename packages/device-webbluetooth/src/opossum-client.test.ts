@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  OPOSSUM_VIBRATION_PATTERNS,
   V3_BATTERY_CHAR,
   V3_BATTERY_SERVICE,
   V3_NOTIFY_CHAR,
   V3_PRIMARY_SERVICE,
   V3_WRITE_CHAR,
   type OpossumState,
+  type OpossumVibrateAdapter,
 } from '@dg-kit/protocol';
 import { WebBluetoothOpossumClient } from './opossum-client.js';
 import { OPOSSUM_REQUEST_DEVICE_OPTIONS } from './request-device-options.js';
@@ -136,8 +138,12 @@ describe('WebBluetoothOpossumClient', () => {
 
     device.gatt.connected = false;
     device.dispatchEvent(new Event('gattserverdisconnected'));
-    await Promise.resolve();
-    await Promise.resolve();
+    // handleGattDisconnected() fires adapter.onDisconnected() without
+    // awaiting it; that method now chains through the B0 tick loop's
+    // waitForIdle() plus disconnectSensorGatt()'s stopNotifications(),
+    // more microtask hops than a couple of bare Promise.resolve() flushes
+    // reliably drain — a macrotask flush lets all of them settle first.
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(seen.at(-1)?.connected).toBe(false);
     unsubscribe();
@@ -171,6 +177,34 @@ describe('WebBluetoothOpossumClient', () => {
     expect(state.intensityB).toBe(0);
   });
 
+  it('vibrateStart with a pattern sets the vibration pattern before applying intensity', async () => {
+    const { nav } = setup();
+    const client = new WebBluetoothOpossumClient({ navigatorRef: nav });
+    await client.connect();
+
+    const adapter = (client as unknown as { adapter: OpossumVibrateAdapter }).adapter;
+    const setPatternSpy = vi.spyOn(adapter, 'setVibrationPattern');
+
+    await client.execute({ type: 'vibrateStart', channel: 'A', intensity: 50, pattern: 'pulse' });
+
+    expect(setPatternSpy).toHaveBeenCalledWith('A', OPOSSUM_VIBRATION_PATTERNS.pulse);
+    const state = await client.getState();
+    expect(state.intensityA).toBe(50);
+  });
+
+  it('vibrateStart without a pattern leaves the vibration pattern untouched', async () => {
+    const { nav } = setup();
+    const client = new WebBluetoothOpossumClient({ navigatorRef: nav });
+    await client.connect();
+
+    const adapter = (client as unknown as { adapter: OpossumVibrateAdapter }).adapter;
+    const setPatternSpy = vi.spyOn(adapter, 'setVibrationPattern');
+
+    await client.execute({ type: 'vibrateStart', channel: 'A', intensity: 50 });
+
+    expect(setPatternSpy).not.toHaveBeenCalled();
+  });
+
   it('setIndicatorColor writes the LED packet with button reporting kept on', async () => {
     const { nav, device } = setup();
     const client = new WebBluetoothOpossumClient({ navigatorRef: nav });
@@ -178,10 +212,12 @@ describe('WebBluetoothOpossumClient', () => {
 
     await client.setIndicatorColor(3);
 
-    // The connect handshake also writes a 15-byte 0x50 init packet
-    // (V3_INIT_PACKET), so match on the 3-byte LED command specifically
-    // rather than the first 0x50-prefixed write.
-    const ledWrite = device.gatt.writeChar.writes.find(
+    // The connect handshake writes a 15-byte 0x50 init packet
+    // (V3_INIT_PACKET) AND its own 3-byte button-reporting-enable 0x50
+    // write, so match the *last* 3-byte 0x50 command rather than the
+    // first — that's the one this test's own setIndicatorColor(3) call
+    // actually produced.
+    const ledWrite = device.gatt.writeChar.writes.findLast(
       (bytes) => bytes[0] === 0x50 && bytes.length === 3,
     );
     expect(ledWrite).toEqual([0x50, 3, 1]);

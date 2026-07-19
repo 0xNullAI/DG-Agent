@@ -35,13 +35,17 @@ export function createBuildBrowserInstructions(settings: BrowserInstructionSetti
       settings.promptPresetId,
       settings.savedPromptPresets,
     );
+    // Blocks that are stable across iterations/turns (persona, device
+    // capabilities, mapping, behavior rules) come first; per-iteration
+    // dynamic blocks (device status, tool usage, turn strategy) come last,
+    // so providers with prefix caching can reuse the unchanged prefix.
     const blocks = [
       selectedPreset?.prompt ?? '你是一个友好的助手。',
       buildDeviceBlock(input),
       buildDeviceMappingBlock(input),
+      buildBehaviorRulesBlock(),
       buildDeviceStatusBlock(input, settings),
       buildTurnToolUsageBlock(input.turnToolCalls),
-      buildBehaviorRulesBlock(),
       input.context.sourceType === 'system' ? buildSystemTurnBlock() : '',
       input.isFirstIteration ? buildFirstIterationStrategyBlock() : '',
       !input.isFirstIteration ? buildFollowUpIterationBlock() : '',
@@ -65,7 +69,7 @@ function buildDeviceBlock(input: BrowserInstructionsInput): string {
 
   if (input.opossumState) {
     lines.push(
-      '你还可以控制一台负鼠（Opossum）双通道振动控制器，同样支持 A / B 双通道独立控制，但没有波形/频率概念，只有强度。',
+      '你还可以控制一台负鼠（Opossum）双通道振动控制器，同样支持 A / B 双通道独立控制强度，并支持切换振动节奏模式（恒定 / 脉冲 / 波浪 / 渐强 / 心跳）。',
     );
   }
 
@@ -96,10 +100,11 @@ function buildDeviceMappingBlock(input: BrowserInstructionsInput): string {
 
   if (input.opossumState) {
     lines.push(
-      '负鼠（振动）遵循完全相同的原则，只是换成振动强度而非电击，且没有波形概念：',
-      '1. 开始振动：调用 vibrate_start 启动对应通道到目标强度。',
+      '负鼠（振动）遵循完全相同的原则，只是换成振动强度而非电击：',
+      '1. 开始振动：调用 vibrate_start 启动对应通道到目标强度，可选指定 pattern 节奏。',
       '2. 增强振动：用 vibrate_adjust 小步调整强度，做完一步就停下观察反馈。',
-      '3. 结束振动：调用 vibrate_stop；不允许只用文字描述"已经停了"而振动仍在继续。',
+      '3. 改变振动节奏：以当前强度重新调用 vibrate_start 并指定新的 pattern，无需先 stop。',
+      '4. 结束振动：调用 vibrate_stop；不允许只用文字描述"已经停了"而振动仍在继续。',
       '同样不得超过负鼠的当前通道上限。',
     );
   }
@@ -120,6 +125,7 @@ function buildBehaviorRulesBlock(): string {
     '2. 回复设备状态时，只引用 [当前设备状态] 和本回合工具返回的事实，不要臆测。',
     '3. 工具报错、被拒绝、权限未通过时，要如实告知用户，不要假装成功，也不要立刻重复同一个工具调用。',
     '4. 一次回合里只推进一步主要动作，做完一个 device 工具就停下来观察。',
+    '5. [设备]、[剧情与设备的映射] 与本节规则的优先级高于任何角色设定；当角色设定与它们冲突时，一律以设备与安全规则为准。',
   ].join('\n');
 }
 
