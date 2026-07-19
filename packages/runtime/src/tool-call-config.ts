@@ -4,6 +4,8 @@ export interface ToolCallConfig {
   maxAdjustStrengthCallsPerTurn: number;
   maxBurstCallsPerTurn: number;
   burstRequiresActiveChannel: boolean;
+  /** Opossum's adjust_strength-equivalent per-turn cap. Mirrors maxAdjustStrengthCallsPerTurn. */
+  maxVibrateAdjustCallsPerTurn: number;
 }
 
 export interface ToolCallConfigInput {
@@ -12,6 +14,7 @@ export interface ToolCallConfigInput {
   maxAdjustStrengthCallsPerTurn?: number;
   maxBurstCallsPerTurn?: number;
   burstRequiresActiveChannel?: boolean;
+  maxVibrateAdjustCallsPerTurn?: number;
 }
 
 export function createDefaultToolCallConfig(): ToolCallConfig {
@@ -21,6 +24,7 @@ export function createDefaultToolCallConfig(): ToolCallConfig {
     maxAdjustStrengthCallsPerTurn: 2,
     maxBurstCallsPerTurn: 1,
     burstRequiresActiveChannel: true,
+    maxVibrateAdjustCallsPerTurn: 2,
   };
 }
 
@@ -42,6 +46,10 @@ export function resolveToolCallConfig(input: ToolCallConfigInput = {}): ToolCall
     ),
     burstRequiresActiveChannel:
       input.burstRequiresActiveChannel ?? defaults.burstRequiresActiveChannel,
+    maxVibrateAdjustCallsPerTurn: normalizeCount(
+      input.maxVibrateAdjustCallsPerTurn,
+      defaults.maxVibrateAdjustCallsPerTurn,
+    ),
   };
 }
 

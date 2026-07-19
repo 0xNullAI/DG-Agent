@@ -29,6 +29,9 @@ export interface AgentClient {
   deleteSession(sessionId: string): Promise<void>;
   connectDevice(sessionId?: string): Promise<void>;
   disconnectDevice(): Promise<void>;
+  /** Opt-in gate for the Sensor Trigger Engine — see AgentRuntime's doc comment. */
+  setSensorTriggersEnabled(sessionId: string, enabled: boolean): Promise<void>;
+  isSensorTriggersEnabledForSession(sessionId: string): Promise<boolean>;
   emergencyStop(sessionId: string): Promise<void>;
   abortCurrentReply(sessionId: string): Promise<void>;
   sendUserMessage(input: SendUserMessageInput): Promise<void>;
@@ -73,6 +76,14 @@ class EmbeddedAgentClient implements AgentClient {
 
   disconnectDevice(): Promise<void> {
     return this.runtime.disconnectDevice();
+  }
+
+  setSensorTriggersEnabled(sessionId: string, enabled: boolean): Promise<void> {
+    return this.runtime.setSensorTriggersEnabled(sessionId, enabled);
+  }
+
+  isSensorTriggersEnabledForSession(sessionId: string): Promise<boolean> {
+    return this.runtime.isSensorTriggersEnabledForSession(sessionId);
   }
 
   emergencyStop(sessionId: string): Promise<void> {
@@ -140,6 +151,14 @@ export class HttpAgentClient implements AgentClient {
 
   async disconnectDevice(): Promise<void> {
     return Promise.resolve();
+  }
+
+  async setSensorTriggersEnabled(_sessionId: string, _enabled: boolean): Promise<void> {
+    throw new Error('当前传输方式不支持传感器触发开关');
+  }
+
+  async isSensorTriggersEnabledForSession(_sessionId: string): Promise<boolean> {
+    return false;
   }
 
   async emergencyStop(sessionId: string): Promise<void> {

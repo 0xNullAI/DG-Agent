@@ -4,12 +4,21 @@ import {
   type BridgeManagerStatus,
   type MessageOrigin,
 } from '@dg-agent/bridge';
-import { createEmptyDeviceState, type PermissionDecision } from '@dg-agent/core';
+import {
+  createEmptyDeviceState,
+  createEmptySensorState,
+  type DeviceClient,
+  type DeviceKind,
+  type PermissionDecision,
+} from '@dg-agent/core';
+import { connectAnyDgLabDevice } from '@dg-agent/agent-browser';
+import { createEmptyOpossumState } from '@dg-agent/device-webbluetooth';
+import type { CivetEdgingClient, OpossumClient, PawPrintsClient } from '@dg-agent/runtime';
 import { BrowserSafetyGuard } from './services/safety-guard.js';
 import { applyTheme, subscribeThemeChanges } from './services/theme.js';
 import type { UpdateCheckerStatus } from './services/update-checker.js';
 import { X } from 'lucide-react';
-import { BUILTIN_PROMPT_PRESETS } from '@dg-agent/runtime';
+import { BUILTIN_PROMPT_PRESETS, DEVICE_KIND_DISPLAY_NAME } from '@dg-agent/runtime';
 import { ChatPanel } from './components/ChatPanel.js';
 import { PermissionModal } from './components/PermissionModal.js';
 import { SafetyNoticeModal } from './components/SafetyNoticeModal.js';
@@ -35,6 +44,7 @@ import {
   type PendingPermissionRequest,
   type ServicesOverrides,
 } from './composition/use-browser-app-services.js';
+import { useAuxDeviceState } from './hooks/use-aux-device-state.js';
 import { useModelLog } from './hooks/use-model-log.js';
 import { useRuntimeSessionState } from './hooks/use-runtime-session-state.js';
 import { useSettingsManager } from './hooks/use-settings-manager.js';
@@ -64,9 +74,26 @@ export interface AppProps {
    * shell supplies a Tauri device factory and disables speech/bridge.
    */
   servicesOverrides?: ServicesOverrides;
+  /**
+   * Override for `connect()`'s device-picking step. Defaults to
+   * `connectAnyDgLabDevice()` (a single Web Bluetooth chooser scoped to all
+   * 4 kinds, auto-detected). The Tauri Android shell supplies the matching
+   * Tauri implementation: `@dg-kit/transport-tauri-blec`'s
+   * `requestDgLabDeviceTauri()` runs one shared scan+picker across all 4
+   * kinds, auto-detects which was picked, and routes it to that kind's
+   * client via `connectDevice(device, server)` — the same one-click
+   * experience as web. See
+   * `apps/tauri-android/src/connect-any-device-tauri.ts`.
+   */
+  connectDeviceTauri?: (clients: {
+    device: DeviceClient;
+    opossum: OpossumClient;
+    pawPrints: PawPrintsClient;
+    civetEdging: CivetEdgingClient;
+  }) => Promise<{ kind: DeviceKind; name: string }>;
 }
 
-export function App({ servicesOverrides }: AppProps = {}) {
+export function App({ servicesOverrides, connectDeviceTauri }: AppProps = {}) {
   const activeSessionIdRef = useRef<string | null>(null);
   const bridgeSessionResolverRef = useRef<
     (origin: MessageOrigin) => Promise<string | null> | string | null
@@ -116,6 +143,7 @@ export function App({ servicesOverrides }: AppProps = {}) {
     bridgeManager,
     serviceInitWarnings,
     resetPermissionGrants,
+    device,
     opossum,
     pawPrints,
     civetEdging,
@@ -180,6 +208,36 @@ export function App({ servicesOverrides }: AppProps = {}) {
 
   const busy = pendingSend || replyBusy;
   const deviceState = liveDeviceState ?? createEmptyDeviceState();
+  const opossumState = useAuxDeviceState(opossum, createEmptyOpossumState());
+  const pawPrintsState = useAuxDeviceState(pawPrints, createEmptySensorState());
+  const civetEdgingState = useAuxDeviceState(civetEdging, createEmptySensorState());
+
+  const [sensorTriggersEnabled, setSensorTriggersEnabledState] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void Promise.resolve()
+      .then(() =>
+        activeSessionId ? client.isSensorTriggersEnabledForSession(activeSessionId) : false,
+      )
+      .then((enabled) => {
+        if (!cancelled) setSensorTriggersEnabledState(enabled);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeSessionId, client]);
+  const toggleSensorTriggers = useCallback(
+    async (enabled: boolean): Promise<void> => {
+      if (!activeSessionId) return;
+      try {
+        await client.setSensorTriggersEnabled(activeSessionId, enabled);
+        setSensorTriggersEnabledState(enabled);
+      } catch (error) {
+        setErrorMessage(formatUiErrorMessage(error));
+      }
+    },
+    [activeSessionId, client],
+  );
   const warnings = [
     ...buildWarnings(settings, modes, speechCapabilities, {
       suppressBridge: servicesOverrides?.disableBridge,
@@ -332,13 +390,21 @@ export function App({ servicesOverrides }: AppProps = {}) {
     }
   }
 
+  /**
+   * Single unified connect entry point: one chooser scoped to all four
+   * DG-Lab device kinds, auto-detected and routed to the right client.
+   * Click again to add another device — each call opens its own chooser
+   * (Web Bluetooth's own security model requires an explicit click per
+   * prompt, never auto-repeated).
+   */
   const connect = useCallback(async (): Promise<boolean> => {
     if (!activeSessionId) return false;
 
     try {
       setErrorMessage(null);
-      await client.connectDevice(activeSessionId);
-      setStatusMessage('设备已连接');
+      const pickDevice = connectDeviceTauri ?? connectAnyDgLabDevice;
+      const { kind } = await pickDevice({ device, opossum, pawPrints, civetEdging });
+      setStatusMessage(`${DEVICE_KIND_DISPLAY_NAME[kind]}已连接`);
       await refreshCurrentSession(activeSessionId);
       return true;
     } catch (error) {
@@ -354,7 +420,16 @@ export function App({ servicesOverrides }: AppProps = {}) {
       setErrorMessage(formatUiErrorMessage(error));
       return false;
     }
-  }, [activeSessionId, client, liveDeviceState.connected, refreshCurrentSession]);
+  }, [
+    activeSessionId,
+    device,
+    opossum,
+    pawPrints,
+    civetEdging,
+    connectDeviceTauri,
+    liveDeviceState.connected,
+    refreshCurrentSession,
+  ]);
 
   const _disconnect = useCallback(async (): Promise<void> => {
     try {
@@ -368,6 +443,30 @@ export function App({ servicesOverrides }: AppProps = {}) {
       setErrorMessage(formatUiErrorMessage(error));
     }
   }, [activeSessionId, client, refreshCurrentSession]);
+
+  const disconnectOpossum = useCallback(async (): Promise<void> => {
+    try {
+      await opossum.disconnect();
+    } catch (error) {
+      setErrorMessage(formatUiErrorMessage(error));
+    }
+  }, [opossum]);
+
+  const disconnectPawPrints = useCallback(async (): Promise<void> => {
+    try {
+      await pawPrints.disconnect();
+    } catch (error) {
+      setErrorMessage(formatUiErrorMessage(error));
+    }
+  }, [pawPrints]);
+
+  const disconnectCivetEdging = useCallback(async (): Promise<void> => {
+    try {
+      await civetEdging.disconnect();
+    } catch (error) {
+      setErrorMessage(formatUiErrorMessage(error));
+    }
+  }, [civetEdging]);
 
   const sendTextMessage = useCallback(
     async (message: string): Promise<'sent' | 'aborted' | 'failed'> => {
@@ -763,9 +862,8 @@ export function App({ servicesOverrides }: AppProps = {}) {
                 onImportWaveformFromMarket={(waveform) => void importWaveformFromMarket(waveform)}
                 onRemoveWaveform={(id) => void removeWaveform(id)}
                 onEditWaveform={openWaveformEditor}
-                opossum={opossum}
-                pawPrints={pawPrints}
-                civetEdging={civetEdging}
+                sensorTriggersEnabled={sensorTriggersEnabled}
+                onToggleSensorTriggers={(enabled) => void toggleSensorTriggers(enabled)}
                 bridgeLogs={bridgeLogs}
                 bridgeStatus={bridgeStatus}
                 modelLogTurns={modelLog.turns}
@@ -799,7 +897,15 @@ export function App({ servicesOverrides }: AppProps = {}) {
                 deviceState={deviceState}
                 maxStrengthA={settings.maxStrengthA}
                 maxStrengthB={settings.maxStrengthB}
+                opossumState={opossumState}
+                maxOpossumIntensityA={settings.maxOpossumIntensityA}
+                maxOpossumIntensityB={settings.maxOpossumIntensityB}
+                pawPrintsState={pawPrintsState}
+                civetEdgingState={civetEdgingState}
                 onConnect={() => void connect()}
+                onDisconnectOpossum={() => void disconnectOpossum()}
+                onDisconnectPawPrints={() => void disconnectPawPrints()}
+                onDisconnectCivetEdging={() => void disconnectCivetEdging()}
                 onEmergencyStop={() => void stop()}
                 onOpenSidebar={() => setSidebarOpen(true)}
                 onOpenSettings={() => openSettingsModal('general')}

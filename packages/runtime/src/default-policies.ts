@@ -14,6 +14,8 @@ const DEFAULT_USER_MAX_STRENGTH = 50;
 // Coyote's cold-start / step-adjust caps rather than inventing new numbers.
 export const DEFAULT_MAX_OPOSSUM_COLD_START_INTENSITY = 10;
 export const DEFAULT_MAX_OPOSSUM_ADJUST_STEP = 10;
+// Absolute per-channel ceiling, mirroring Coyote's DEFAULT_USER_MAX_STRENGTH.
+export const DEFAULT_USER_MAX_OPOSSUM_INTENSITY = 50;
 
 export interface DefaultPolicyOptions {
   maxStrengthA?: number;
@@ -237,6 +239,9 @@ function clamp(value: number, min: number, max: number): number {
 export interface DefaultOpossumPolicyOptions {
   maxColdStartIntensity?: number;
   maxAdjustStep?: number;
+  /** User absolute intensity cap per channel — mirrors Coyote's maxStrengthA/B. */
+  maxIntensityA?: number;
+  maxIntensityB?: number;
 }
 
 function opossumRequiresConfirmation(command: OpossumCommand): boolean {
@@ -258,6 +263,14 @@ export function createDefaultOpossumPolicyRules(
     DEFAULT_MAX_OPOSSUM_COLD_START_INTENSITY,
   );
   const maxAdjustStep = normalizeOpossumAdjustStepLimit(options.maxAdjustStep);
+  const maxIntensityA = normalizeOpossumIntensityLimit(
+    options.maxIntensityA,
+    DEFAULT_USER_MAX_OPOSSUM_INTENSITY,
+  );
+  const maxIntensityB = normalizeOpossumIntensityLimit(
+    options.maxIntensityB,
+    DEFAULT_USER_MAX_OPOSSUM_INTENSITY,
+  );
 
   return [
     {
@@ -283,6 +296,41 @@ export function createDefaultOpossumPolicyRules(
           command: { ...command, intensity: maxColdStartIntensity },
           reason: `负鼠冷启动强度上限为 ${maxColdStartIntensity}`,
         };
+      },
+    },
+    {
+      // Mirrors Coyote's 'user-strength-cap': an absolute per-channel
+      // ceiling the AI can never exceed regardless of how many small
+      // vibrate_adjust steps it stacks up. Without this, cold-start +
+      // step-adjust alone bound each individual call but not the
+      // accumulated total — the AI could still walk intensity up to the
+      // protocol max (200) one step at a time.
+      name: 'opossum-user-intensity-cap',
+      evaluate({ command, deviceState }) {
+        const effectiveLimit = command.channel === 'A' ? maxIntensityA : maxIntensityB;
+
+        if (command.type === 'vibrateStart') {
+          if (command.intensity <= effectiveLimit) return null;
+          return {
+            type: 'clamp',
+            command: { ...command, intensity: effectiveLimit },
+            reason: `负鼠 ${command.channel} 通道强度上限为 ${effectiveLimit}`,
+          };
+        }
+
+        if (command.type === 'vibrateAdjust') {
+          const current = command.channel === 'A' ? deviceState.intensityA : deviceState.intensityB;
+          const target = clamp(current + command.delta, 0, effectiveLimit);
+          const clampedDelta = target - current;
+          if (clampedDelta === command.delta) return null;
+          return {
+            type: 'clamp',
+            command: { ...command, delta: clampedDelta },
+            reason: `调整后的强度需遵守负鼠 ${command.channel} 通道上限 ${effectiveLimit}`,
+          };
+        }
+
+        return null;
       },
     },
     {

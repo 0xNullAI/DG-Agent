@@ -19,6 +19,8 @@ import styles from './SafetyTab.module.css';
 interface SafetyTabProps {
   settingsDraft: BrowserAppSettings;
   setSettingsDraft: Dispatch<SetStateAction<BrowserAppSettings>>;
+  sensorTriggersEnabled: boolean;
+  onToggleSensorTriggers: (enabled: boolean) => void;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -36,6 +38,10 @@ const ADJUST_STEP_MIN = 1;
 const ADJUST_STEP_MAX = 200;
 const BURST_DURATION_MIN = 100;
 const BURST_DURATION_MAX = 20_000;
+const CIVET_THRESHOLD_MIN = 0.1;
+const CIVET_THRESHOLD_MAX = 50;
+const SENSOR_DEBOUNCE_MIN = 0;
+const SENSOR_DEBOUNCE_MAX = 60_000;
 
 function getStrengthTone(value: number): 'normal' | 'warning' | 'danger' {
   if (value > 150) return 'danger';
@@ -49,7 +55,26 @@ function getStrengthStatus(value: number): string {
   return '常规';
 }
 
-export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
+export function SafetyTab({
+  settingsDraft,
+  setSettingsDraft,
+  sensorTriggersEnabled,
+  onToggleSensorTriggers,
+}: SafetyTabProps) {
+  function setCivetPressureDeltaThresholdKPa(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      civetPressureDeltaThresholdKPa: clamp(value, CIVET_THRESHOLD_MIN, CIVET_THRESHOLD_MAX),
+    }));
+  }
+
+  function setSensorTriggerDebounceMs(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      sensorTriggerDebounceMs: clamp(value, SENSOR_DEBOUNCE_MIN, SENSOR_DEBOUNCE_MAX),
+    }));
+  }
+
   function setStrengthA(value: number) {
     setSettingsDraft((current) => ({
       ...current,
@@ -64,8 +89,40 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
     }));
   }
 
+  function setOpossumIntensityA(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      maxOpossumIntensityA: clamp(value, STRENGTH_MIN, STRENGTH_MAX),
+    }));
+  }
+
+  function setOpossumIntensityB(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      maxOpossumIntensityB: clamp(value, STRENGTH_MIN, STRENGTH_MAX),
+    }));
+  }
+
+  function setOpossumColdStartIntensity(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      maxOpossumColdStartIntensity: clamp(value, COLD_START_MIN, COLD_START_MAX),
+    }));
+  }
+
+  function setOpossumAdjustStep(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      maxOpossumAdjustStep: clamp(value, ADJUST_STEP_MIN, ADJUST_STEP_MAX),
+    }));
+  }
+
   function setToolLimit(
-    key: 'maxToolIterations' | 'maxToolCallsPerTurn' | 'maxAdjustStrengthCallsPerTurn',
+    key:
+      | 'maxToolIterations'
+      | 'maxToolCallsPerTurn'
+      | 'maxAdjustStrengthCallsPerTurn'
+      | 'maxVibrateAdjustCallsPerTurn',
     value: number,
   ) {
     setSettingsDraft((current) => ({
@@ -132,13 +189,29 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
 
   return (
     <div className="settings-panel-tab-content">
-      <section className="settings-row-card">
-        <h3 className="settings-card-legend">最大强度上限</h3>
+      <CollapsibleSection title="郊狼最大强度上限">
         <div className={styles.strengthControlList}>
           <StrengthControl channel="A" value={settingsDraft.maxStrengthA} onChange={setStrengthA} />
           <StrengthControl channel="B" value={settingsDraft.maxStrengthB} onChange={setStrengthB} />
         </div>
-      </section>
+      </CollapsibleSection>
+
+      <CollapsibleSection title="负鼠最大强度上限">
+        <div className={styles.strengthControlList}>
+          <StrengthControl
+            channel="A"
+            value={settingsDraft.maxOpossumIntensityA}
+            onChange={setOpossumIntensityA}
+            idPrefix="max-opossum-intensity"
+          />
+          <StrengthControl
+            channel="B"
+            value={settingsDraft.maxOpossumIntensityB}
+            onChange={setOpossumIntensityB}
+            idPrefix="max-opossum-intensity"
+          />
+        </div>
+      </CollapsibleSection>
 
       <section className="settings-row-card">
         <h3 className="settings-card-legend">工具调用确认模式</h3>
@@ -206,6 +279,42 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
             }
           />
         </div>
+      </section>
+
+      <section className="settings-row-card grid gap-3">
+        <h3 className="settings-card-legend">传感器触发</h3>
+        <p className="text-[12px] leading-relaxed text-[var(--text-faint)]">
+          开启后，爪印按键触发或灵猫压力明显变化会作为内部提醒推送给
+          AI，由它自行判断是否响应；不会自动改变设备状态。默认关闭。
+        </p>
+        <SettingToggle
+          label="允许传感器事件驱动 AI 主动响应"
+          checked={sensorTriggersEnabled}
+          onCheckedChange={onToggleSensorTriggers}
+        />
+
+        <label htmlFor="civet-pressure-delta-threshold" className="settings-inline-field">
+          <SettingLabel>灵猫压力变化触发阈值（kPa）</SettingLabel>
+          <ConfigNumberField
+            id="civet-pressure-delta-threshold"
+            value={settingsDraft.civetPressureDeltaThresholdKPa}
+            min={CIVET_THRESHOLD_MIN}
+            max={CIVET_THRESHOLD_MAX}
+            onChange={setCivetPressureDeltaThresholdKPa}
+            allowDecimal
+          />
+        </label>
+
+        <label htmlFor="sensor-trigger-debounce" className="settings-inline-field">
+          <SettingLabel>传感器触发去抖间隔（ms）</SettingLabel>
+          <ConfigNumberField
+            id="sensor-trigger-debounce"
+            value={settingsDraft.sensorTriggerDebounceMs}
+            min={SENSOR_DEBOUNCE_MIN}
+            max={SENSOR_DEBOUNCE_MAX}
+            onChange={setSensorTriggerDebounceMs}
+          />
+        </label>
       </section>
 
       <AdvancedSection>
@@ -314,6 +423,37 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
             }
           />
         </div>
+
+        <label htmlFor="max-vibrate-adjust-calls-per-turn" className="settings-inline-field">
+          <SettingLabel>负鼠单轮振动调整次数上限</SettingLabel>
+          <ToolLimitField
+            id="max-vibrate-adjust-calls-per-turn"
+            value={settingsDraft.maxVibrateAdjustCallsPerTurn}
+            onChange={(value) => setToolLimit('maxVibrateAdjustCallsPerTurn', value)}
+          />
+        </label>
+
+        <label htmlFor="max-opossum-cold-start" className="settings-inline-field">
+          <SettingLabel>负鼠单次冷启动强度上限</SettingLabel>
+          <ConfigNumberField
+            id="max-opossum-cold-start"
+            value={settingsDraft.maxOpossumColdStartIntensity}
+            min={COLD_START_MIN}
+            max={COLD_START_MAX}
+            onChange={setOpossumColdStartIntensity}
+          />
+        </label>
+
+        <label htmlFor="max-opossum-adjust-step" className="settings-inline-field">
+          <SettingLabel>负鼠单次振动调整幅度上限</SettingLabel>
+          <ConfigNumberField
+            id="max-opossum-adjust-step"
+            value={settingsDraft.maxOpossumAdjustStep}
+            min={ADJUST_STEP_MIN}
+            max={ADJUST_STEP_MAX}
+            onChange={setOpossumAdjustStep}
+          />
+        </label>
       </AdvancedSection>
     </div>
   );
@@ -332,6 +472,32 @@ function ToolLimitField({
 }) {
   return (
     <ConfigNumberField id={id} value={value} min={min} max={TOOL_LIMIT_MAX} onChange={onChange} />
+  );
+}
+
+function CollapsibleSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <section className="settings-row-card">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between text-left"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <h3 className="settings-card-legend mb-0">{title}</h3>
+        <div className="flex items-center gap-1">
+          <span className="text-[12px] text-[var(--text-faint)]">{open ? '收起' : '展开'}</span>
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 text-[var(--text-faint)] transition-transform duration-200',
+              open && 'rotate-180',
+            )}
+          />
+        </div>
+      </button>
+      {open && <div className="mt-3">{children}</div>}
+    </section>
   );
 }
 
@@ -407,18 +573,21 @@ function AdvancedSection({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ConfigNumberField({
+export function ConfigNumberField({
   id,
   value,
   min,
   max,
   onChange,
+  allowDecimal = false,
 }: {
   id: string;
   value: number;
   min: number;
   max: number;
   onChange: (value: number) => void;
+  /** Allows one decimal point (e.g. kPa thresholds) instead of the default integer-only input. */
+  allowDecimal?: boolean;
 }) {
   const [draftValue, setDraftValue] = useState(String(value));
   const [prevValue, setPrevValue] = useState(value);
@@ -428,9 +597,14 @@ function ConfigNumberField({
     setDraftValue(String(value));
   }
 
+  const sanitize = (raw: string): string =>
+    allowDecimal
+      ? raw.replace(/[^0-9.]+/g, '').replace(/(\..*)\./g, '$1')
+      : raw.replace(/\D+/g, '');
+
   function commit(nextDraftValue: string) {
-    const digitsOnly = nextDraftValue.replace(/\D+/g, '');
-    const nextValue = digitsOnly ? clamp(Number(digitsOnly), min, max) : min;
+    const sanitized = sanitize(nextDraftValue);
+    const nextValue = sanitized ? clamp(Number(sanitized), min, max) : min;
 
     setDraftValue(String(nextValue));
     if (nextValue !== value) {
@@ -442,11 +616,11 @@ function ConfigNumberField({
     <Input
       id={id}
       type="text"
-      inputMode="numeric"
-      pattern="[0-9]*"
+      inputMode={allowDecimal ? 'decimal' : 'numeric'}
+      pattern={allowDecimal ? undefined : '[0-9]*'}
       value={draftValue}
       onChange={(event) => {
-        setDraftValue(event.target.value.replace(/\D+/g, ''));
+        setDraftValue(sanitize(event.target.value));
       }}
       onBlur={(event) => commit(event.target.value)}
       onKeyDown={(event) => {
@@ -468,13 +642,15 @@ function StrengthControl({
   channel,
   value,
   onChange,
+  idPrefix = 'max-strength',
 }: {
   channel: 'A' | 'B';
   value: number;
   onChange: (value: number) => void;
+  idPrefix?: string;
 }) {
   const tone = getStrengthTone(value);
-  const inputId = `max-strength-${channel.toLowerCase()}`;
+  const inputId = `${idPrefix}-${channel.toLowerCase()}`;
   const strengthStyle = {
     '--strength-value': `${(clamp(value, STRENGTH_MIN, STRENGTH_MAX) / STRENGTH_MAX) * 100}%`,
   } as CSSProperties;

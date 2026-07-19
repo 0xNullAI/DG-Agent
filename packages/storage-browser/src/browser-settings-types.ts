@@ -51,6 +51,15 @@ export interface BrowserAppSettings {
   // 0 = disabled. Both caps may be enabled and the tighter one wins.
   maxBurstStrengthRelative: number;
   burstRequiresActiveChannel: boolean;
+  // —— Opossum（负鼠双通道振动控制器）安全设置，与郊狼的同名字段同构 ——
+  maxOpossumIntensityA: number;
+  maxOpossumIntensityB: number;
+  maxOpossumColdStartIntensity: number;
+  maxOpossumAdjustStep: number;
+  maxVibrateAdjustCallsPerTurn: number;
+  // —— 传感器触发引擎（爪印 / 灵猫）阈值 ——
+  civetPressureDeltaThresholdKPa: number;
+  sensorTriggerDebounceMs: number;
   safetyStopOnLeave: boolean;
   rememberApiKey: boolean;
   modelLogEnabled: boolean;

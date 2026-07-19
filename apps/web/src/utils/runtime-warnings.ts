@@ -1,5 +1,9 @@
 import type { getBrowserSpeechCapabilities } from '@dg-agent/audio-browser';
-import { isProviderUsableInBrowser, providerRequiresUserApiKey } from '@dg-agent/providers-catalog';
+import {
+  getProviderDefinition,
+  isProviderUsableInBrowser,
+  providerRequiresUserApiKey,
+} from '@dg-agent/providers-catalog';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import type { describeBrowserModes } from '@dg-agent/agent-browser';
 
@@ -43,9 +47,13 @@ export function buildWarnings(
     warnings.push(`当前服务提供方「${settings.provider.providerId}」不支持浏览器直连`);
   }
 
+  // Native/pi-ai-routed providers have no baseUrl concept — providers-catalog
+  // always normalizes their baseUrl to '' (see normalizeProviderSettings),
+  // which would otherwise trip this check for every one of them.
   if (
     settings.llmMode === 'provider-http' &&
     isProviderUsableInBrowser(settings.provider) &&
+    getProviderDefinition(settings.provider.providerId)?.dialect !== 'pi-ai' &&
     settings.provider.apiKey.trim() &&
     !isValidHttpUrl(settings.provider.baseUrl)
   ) {

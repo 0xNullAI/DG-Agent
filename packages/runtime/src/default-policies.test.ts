@@ -60,18 +60,23 @@ describe('createDefaultOpossumPolicyRules', () => {
 
   it('clamps an adjust step above the default cap, preserving sign', () => {
     const engine = new OpossumPolicyEngine(createDefaultOpossumPolicyRules());
+    // current ± delta lands exactly on the default absolute cap's boundaries
+    // (0 and 50) without exceeding either, so the user-intensity-cap rule
+    // sees no violation and this isolates the step-size rule alone — see the
+    // dedicated user-intensity-cap tests below for the absolute-ceiling
+    // behavior.
     const positive: OpossumCommand = { type: 'vibrateAdjust', channel: 'A', delta: 25 };
     const negative: OpossumCommand = { type: 'vibrateAdjust', channel: 'A', delta: -25 };
 
     const positiveDecision = engine.evaluate({
       context,
       command: positive,
-      deviceState: state({ intensityA: 30 }),
+      deviceState: state({ intensityA: 25 }),
     });
     const negativeDecision = engine.evaluate({
       context,
       command: negative,
-      deviceState: state({ intensityA: 30 }),
+      deviceState: state({ intensityA: 25 }),
     });
 
     expect(positiveDecision.type).toBe('clamp');
@@ -81,6 +86,54 @@ describe('createDefaultOpossumPolicyRules', () => {
     }
     expect(positiveDecision.command).toMatchObject({ delta: 10 });
     expect(negativeDecision.command).toMatchObject({ delta: -10 });
+  });
+
+  it('clamps vibrateStart intensity to the user absolute cap (independent of cold-start cap)', () => {
+    // maxColdStartIntensity left high so only the absolute cap is exercised.
+    const engine = new OpossumPolicyEngine(
+      createDefaultOpossumPolicyRules({ maxColdStartIntensity: 200, maxIntensityA: 40 }),
+    );
+    const command: OpossumCommand = { type: 'vibrateStart', channel: 'A', intensity: 80 };
+
+    const decision = engine.evaluate({ context, command, deviceState: state() });
+
+    expect(decision.type).toBe('clamp');
+    if (decision.type !== 'clamp') throw new Error('expected clamp');
+    expect(decision.command).toMatchObject({ intensity: 40 });
+  });
+
+  it('clamps vibrateAdjust so the resulting intensity never exceeds the user absolute cap', () => {
+    const engine = new OpossumPolicyEngine(
+      createDefaultOpossumPolicyRules({ maxAdjustStep: 200, maxIntensityA: 50 }),
+    );
+    const command: OpossumCommand = { type: 'vibrateAdjust', channel: 'A', delta: 25 };
+
+    const decision = engine.evaluate({
+      context,
+      command,
+      deviceState: state({ intensityA: 30 }),
+    });
+
+    expect(decision.type).toBe('clamp');
+    if (decision.type !== 'clamp') throw new Error('expected clamp');
+    // current 30 + delta 25 = 55 > cap 50, so delta is clamped to land exactly at 50.
+    expect(decision.command).toMatchObject({ delta: 20 });
+  });
+
+  it('does not clamp when the absolute cap is not exceeded', () => {
+    const engine = new OpossumPolicyEngine(createDefaultOpossumPolicyRules({ maxIntensityB: 50 }));
+    // current > 0 so the cold-start rule doesn't apply and this isolates the
+    // absolute-cap rule.
+    const command: OpossumCommand = { type: 'vibrateStart', channel: 'B', intensity: 30 };
+
+    const decision = engine.evaluate({
+      context,
+      command,
+      deviceState: state({ intensityB: 5 }),
+    });
+
+    // Falls through to permission-gate, not a clamp.
+    expect(decision.type).toBe('require-confirm');
   });
 
   it('requires confirmation for vibrateStart/vibrateAdjust but not vibrateStop', () => {

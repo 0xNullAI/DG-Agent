@@ -1,6 +1,35 @@
 import { z } from 'zod';
 
-const providerIds = ['free', 'qwen', 'deepseek', 'doubao', 'openai', 'custom'] as const;
+// Mirrors @dg-agent/providers-catalog's ProviderId. Duplicated here (rather
+// than imported) because this schema only needs the string literals for
+// persisted-settings validation — widening this list is purely additive, so
+// old persisted configs for the original six providers keep parsing
+// unmodified. Keep in sync when providers-catalog adds/removes an id.
+const providerIds = [
+  'free',
+  'qwen',
+  'deepseek',
+  'doubao',
+  'openai',
+  'custom',
+  'anthropic',
+  'google',
+  'openrouter',
+  'groq',
+  'moonshotai',
+  'moonshotai-cn',
+  'zai',
+  'zai-coding-cn',
+  'minimax',
+  'minimax-cn',
+  'xai',
+  'cerebras',
+  'together',
+  'huggingface',
+  'mistral',
+  'fireworks',
+  'xiaomi',
+] as const;
 
 export const settingsSchema = z.object({
   version: z.literal(1),
@@ -27,6 +56,13 @@ export const settingsSchema = z.object({
   maxBurstStrengthAbsolute: z.number().int().min(0).max(200).optional(),
   maxBurstStrengthRelative: z.number().int().min(0).max(200).optional(),
   burstRequiresActiveChannel: z.boolean().optional(),
+  maxOpossumIntensityA: z.number().int().min(0).max(200).optional(),
+  maxOpossumIntensityB: z.number().int().min(0).max(200).optional(),
+  maxOpossumColdStartIntensity: z.number().int().min(0).max(200).optional(),
+  maxOpossumAdjustStep: z.number().int().min(1).max(200).optional(),
+  maxVibrateAdjustCallsPerTurn: z.number().int().min(1).optional(),
+  civetPressureDeltaThresholdKPa: z.number().min(0.1).max(50).optional(),
+  sensorTriggerDebounceMs: z.number().int().min(0).max(60_000).optional(),
   safetyStopOnLeave: z.boolean().optional(),
   rememberApiKey: z.boolean().optional(),
   modelLogEnabled: z.boolean().optional(),

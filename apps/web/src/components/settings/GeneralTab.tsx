@@ -7,8 +7,9 @@ import {
   type ReactNode,
   type SetStateAction,
 } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { Check, ChevronDown, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
+import { cn } from '@/lib/utils';
 
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import {
@@ -16,15 +17,29 @@ import {
   createProviderSettings,
   getProviderDefinition,
   normalizeProviderSettings,
+  type ProviderDefinition,
   type ProviderFieldDefinition,
   type ProviderId,
 } from '@dg-agent/providers-catalog';
 import { ListModelsError, listModels } from '@dg-agent/providers-openai-http';
+import {
+  listModelsForProvider,
+  type PiAiModelInfo,
+  type PiAiProviderKey,
+} from '@dg-agent/providers-pi-http';
 import { HelpTip } from '../HelpTip.js';
 import { SettingLabel } from './SettingLabel.js';
 import { SettingSelect } from './SettingSelect.js';
 import { SettingToggle } from './SettingToggle.js';
 import strengthStyles from './SafetyTab.module.css';
+
+// '自定义' pinned last — every other provider stays in catalog order, both
+// for the unfiltered list and for search results, so it never crowds out
+// real providers near the top.
+const ORDERED_PROVIDER_DEFINITIONS: ProviderDefinition[] = [
+  ...PROVIDER_DEFINITIONS.filter((provider) => provider.id !== 'custom'),
+  ...PROVIDER_DEFINITIONS.filter((provider) => provider.id === 'custom'),
+];
 
 interface GeneralTabProps {
   settingsDraft: BrowserAppSettings;
@@ -120,6 +135,28 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
     }
 
     if (field.key === 'model') {
+      // Native/pi-ai-routed providers have no baseUrl to hit a `/models`
+      // endpoint on — pi-ai ships its own generated model catalog per
+      // provider instead, so the picker here is catalog-driven (offline,
+      // no network probe) rather than the OpenAI-compat picker's live
+      // `/models` fetch + "测试连接" button below.
+      if (selectedProviderDef?.dialect === 'pi-ai' && selectedProviderDef.piProviderKey) {
+        return (
+          <div key={field.key} className="grid gap-2">
+            <label htmlFor={fieldId} className="settings-inline-field">
+              <SettingLabel>{field.label}</SettingLabel>
+              <PiAiModelPicker
+                inputId={fieldId}
+                placeholder={field.placeholder}
+                providerKey={selectedProviderDef.piProviderKey as PiAiProviderKey}
+                value={settingsDraft.provider.model}
+                onChange={(next) => updateProviderField('model', next)}
+              />
+            </label>
+          </div>
+        );
+      }
+
       return (
         <div key={field.key} className="grid gap-2">
           <label htmlFor={fieldId} className="settings-inline-field">
@@ -272,22 +309,18 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
       <section className="settings-row-section">
         <div className="settings-row-card">
           <h3 className="settings-card-legend">模型选择</h3>
-          <div className="text-xs text-sm text-[var(--text-soft)]">
-            当前：
-            <span className="text-xs font-medium text-[var(--text)]">
-              {selectedProviderDef?.name ?? '未知'}
-            </span>
-            {settingsDraft.provider.model && (
-              <span className="text-xs ml-1 text-[var(--text-faint)]">
-                / {settingsDraft.provider.model}
-              </span>
-            )}
-          </div>
 
-          <ProviderScroller
+          <ProviderSelectDropdown
             currentProviderId={settingsDraft.provider.providerId}
             onSwitch={switchProvider}
           />
+
+          {settingsDraft.provider.model && (
+            <div className="text-xs text-sm text-[var(--text-faint)]">
+              当前模型：
+              <span className="text-[var(--text-soft)]">{settingsDraft.provider.model}</span>
+            </div>
+          )}
 
           {selectedProviderDef?.hint && (
             <div className="rounded-[8px] bg-[var(--accent-soft)] px-3 py-2 text-[12px] leading-relaxed text-[var(--text-soft)]">
@@ -441,6 +474,140 @@ function ModelPicker({
   );
 }
 
+interface PiAiModelPickerProps {
+  inputId: string;
+  placeholder?: string;
+  providerKey: PiAiProviderKey;
+  value: string;
+  onChange: (next: string) => void;
+}
+
+function formatTokenCount(value: number): string {
+  if (value >= 1_000_000) {
+    return `${Number((value / 1_000_000).toFixed(1)).toString()}M`;
+  }
+  if (value >= 1_000) {
+    return `${Math.round(value / 1000)}K`;
+  }
+  return String(value);
+}
+
+/**
+ * Model input for native/pi-ai-routed providers. Unlike `ModelPicker`
+ * (OpenAI-compat, live `/models` HTTP fetch), this always stays a free-text
+ * field — pi-ai's catalog is generated ahead of time and new model ids ship
+ * before it's regenerated, so forcing a dropdown-only choice would block
+ * users from typing a brand-new model id. "模型信息" is a manual, offline
+ * lookup against pi-ai's bundled catalog (no network request) that annotates
+ * the typed id with context window / max output / reasoning-support — the
+ * "surface pi-ai's model catalog metadata" ask, kept intentionally small.
+ */
+function PiAiModelPicker({
+  inputId,
+  placeholder,
+  providerKey,
+  value,
+  onChange,
+}: PiAiModelPickerProps) {
+  const [models, setModels] = useState<PiAiModelInfo[] | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Doubles as the staleness guard for `refresh()` below — `refresh()` is
+  // only ever started from a click handler, and any effect from an earlier
+  // render has already flushed by the time a *new* click can happen (React
+  // runs effects before the next user interaction is possible), so reading
+  // this ref from an awaited `refresh()` continuation is never one render
+  // behind a provider switch, even though it's only written inside an
+  // effect rather than during render (this project's react-hooks/refs lint
+  // rule forbids writing a ref's `.current` during render).
+  const lastProviderRef = useRef(providerKey);
+
+  useEffect(() => {
+    if (lastProviderRef.current !== providerKey) {
+      lastProviderRef.current = providerKey;
+      setModels(null);
+      setError(null);
+    }
+  }, [providerKey]);
+
+  async function refresh(): Promise<void> {
+    const requestedProviderKey = providerKey;
+    setLoading(true);
+    setError(null);
+    try {
+      const list = await listModelsForProvider(requestedProviderKey);
+      // Stale response guard: the user switched providers while this fetch
+      // was in flight. Applying it now would overwrite the newly-selected
+      // provider's (possibly already-loaded, possibly still-empty) state
+      // with data for a provider that isn't showing anymore.
+      if (lastProviderRef.current !== requestedProviderKey) return;
+      setModels(list);
+    } catch (caught) {
+      if (lastProviderRef.current !== requestedProviderKey) return;
+      setError(caught instanceof Error ? caught.message : '未知错误');
+      setModels(null);
+    } finally {
+      if (lastProviderRef.current === requestedProviderKey) {
+        setLoading(false);
+      }
+    }
+  }
+
+  const activeModel = models?.find((model) => model.id === value.trim());
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1 basis-[200px]">
+          <Input
+            id={inputId}
+            type="text"
+            value={value}
+            onChange={(event) => onChange(event.target.value)}
+            placeholder={placeholder}
+          />
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            void refresh();
+          }}
+          disabled={loading}
+          className="h-10 shrink-0 rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-strong)] px-3 text-xs font-medium text-[var(--text-soft)] transition-colors hover:text-[var(--text)] disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="查看模型信息"
+        >
+          {loading ? '加载中…' : '模型信息'}
+        </button>
+      </div>
+      {error && (
+        <div className="text-[12px] leading-relaxed text-[var(--text-faint)]">
+          无法读取模型目录：{error}
+        </div>
+      )}
+      {!error && models && (
+        <div className="text-[12px] leading-relaxed text-[var(--text-faint)]">
+          {activeModel ? (
+            <>
+              上下文 {formatTokenCount(activeModel.contextWindow)} · 最大输出{' '}
+              {formatTokenCount(activeModel.maxTokens)}
+              {activeModel.reasoning ? ' · 支持推理' : ''}
+            </>
+          ) : (
+            <>
+              目录中暂无该模型 id，将按输入的名称直接调用。已知模型：
+              {models
+                .slice(0, 5)
+                .map((model) => model.id)
+                .join('、')}
+              {models.length > 5 ? ' 等' : ''}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface ConnectionTestButtonProps {
   baseUrl: string;
   apiKey: string;
@@ -529,32 +696,114 @@ function ConnectionTestButton({ baseUrl, apiKey }: ConnectionTestButtonProps) {
   );
 }
 
-function ProviderScroller({
+function ProviderSelectDropdown({
   currentProviderId,
   onSwitch,
 }: {
   currentProviderId: ProviderId;
   onSwitch: (id: ProviderId) => void;
 }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    if (open) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [open]);
+
+  // Focus the search box fresh every time the panel opens. The query itself
+  // is reset from the trigger's click handler (see below), not here — doing
+  // it here would be a setState-in-effect (React discourages synchronous
+  // setState from an effect body).
+  useEffect(() => {
+    if (open) {
+      searchInputRef.current?.focus();
+    }
+  }, [open]);
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const filtered = normalizedQuery
+    ? ORDERED_PROVIDER_DEFINITIONS.filter(
+        (provider) =>
+          provider.name.toLowerCase().includes(normalizedQuery) ||
+          provider.id.toLowerCase().includes(normalizedQuery),
+      )
+    : ORDERED_PROVIDER_DEFINITIONS;
+
+  const current = getProviderDefinition(currentProviderId);
+
   return (
-    <div className="grid grid-cols-3 gap-2 sm:grid-cols-6 text-xs">
-      {PROVIDER_DEFINITIONS.map((provider) => {
-        const active = provider.id === currentProviderId;
-        return (
-          <button
-            key={provider.id}
-            type="button"
-            className={`rounded-full px-2 py-1.5 text-[13px] font-medium transition-all duration-150 ${
-              active
-                ? 'bg-[var(--accent)] text-[var(--button-text)]'
-                : 'bg-[var(--bg-strong)] text-[var(--text-soft)] hover:text-[var(--text)]'
-            } ${!provider.browserSupported ? 'opacity-50' : ''}`}
-            onClick={() => onSwitch(provider.id)}
-          >
-            {provider.name}
-          </button>
-        );
-      })}
+    <div className="relative" ref={containerRef}>
+      <button
+        type="button"
+        className="flex h-10 w-full items-center justify-between gap-2 rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-strong)] px-3 text-left text-sm text-[var(--text)] transition-colors hover:border-[var(--text-faint)]"
+        onClick={() => {
+          const next = !open;
+          setOpen(next);
+          if (next) setQuery('');
+        }}
+      >
+        <span className="truncate">{current?.name ?? '选择服务商'}</span>
+        <ChevronDown
+          className={cn(
+            'h-4 w-4 shrink-0 text-[var(--text-faint)] transition-transform duration-200',
+            open && 'rotate-180',
+          )}
+        />
+      </button>
+
+      {open && (
+        <div className="absolute left-0 top-full z-20 mt-1 w-full overflow-hidden rounded-[10px] border border-[var(--surface-border)] bg-[var(--bg-elevated)] shadow-lg">
+          <div className="border-b border-[var(--surface-border)] p-2">
+            <Input
+              ref={searchInputRef}
+              type="text"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="搜索 AI 服务商…"
+              className="h-9"
+            />
+          </div>
+          <div className="max-h-[280px] overflow-y-auto py-1">
+            {filtered.length === 0 ? (
+              <div className="px-3 py-2 text-[12px] text-[var(--text-faint)]">
+                未找到匹配的服务商
+              </div>
+            ) : (
+              filtered.map((provider) => {
+                const active = provider.id === currentProviderId;
+                return (
+                  <button
+                    key={provider.id}
+                    type="button"
+                    className={cn(
+                      'flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-[13px] transition-colors hover:bg-[var(--bg-soft)]',
+                      active ? 'text-[var(--accent)]' : 'text-[var(--text)]',
+                      !provider.browserSupported && 'opacity-50',
+                    )}
+                    onClick={() => {
+                      onSwitch(provider.id);
+                      setOpen(false);
+                    }}
+                  >
+                    <span className="truncate">{provider.name}</span>
+                    {active && <Check className="h-3.5 w-3.5 shrink-0 text-[var(--accent)]" />}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
