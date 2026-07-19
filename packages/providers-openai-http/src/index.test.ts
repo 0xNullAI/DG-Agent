@@ -205,4 +205,125 @@ describe('OpenAiHttpLlmClient', () => {
       expect(captured.headers?.['X-DG-Signature']).toBe('abc');
     });
   });
+
+  // Mirrors packages/providers-pi-http/src/index.test.ts's contract suite —
+  // same four cases (successful text reply, tool-call round-trip, aborted
+  // request, error response) exercised against the pi-ai-backed client, so
+  // both LlmClient implementations are held to the same observable
+  // behavior even though their wire formats differ.
+  describe('contract: successful text reply / tool-call / abort / error', () => {
+    it('resolves a successful text reply', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            choices: [{ message: { role: 'assistant', content: 'Hello world' } }],
+          }),
+          body: null,
+        }),
+      );
+
+      const client = new OpenAiHttpLlmClient({
+        apiKey: 'sk-test',
+        baseUrl: 'https://api.example.com/v1',
+        model: 'gpt-4o-mini',
+      });
+
+      const result = await client.runTurn(makeTurnInput());
+
+      expect(result.assistantMessage).toBe('Hello world');
+      expect(result.toolCalls).toEqual([]);
+    });
+
+    it('round-trips a tool call', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            choices: [
+              {
+                message: {
+                  role: 'assistant',
+                  content: null,
+                  tool_calls: [
+                    {
+                      id: 'call_1',
+                      type: 'function',
+                      function: {
+                        name: 'adjust_strength',
+                        arguments: '{"channel":"A","value":10}',
+                      },
+                    },
+                  ],
+                },
+              },
+            ],
+          }),
+          body: null,
+        }),
+      );
+
+      const client = new OpenAiHttpLlmClient({
+        apiKey: 'sk-test',
+        baseUrl: 'https://api.example.com/v1',
+        model: 'gpt-4o-mini',
+      });
+
+      const result = await client.runTurn(makeTurnInput());
+
+      expect(result.toolCalls).toEqual([
+        { id: 'call_1', name: 'adjust_strength', args: { channel: 'A', value: 10 } },
+      ]);
+    });
+
+    it('rejects when the request is aborted', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation(async (_url: string, init: RequestInit) => {
+          if (init.signal?.aborted) {
+            throw new DOMException('The operation was aborted.', 'AbortError');
+          }
+          return { ok: true, json: async () => MOCK_CHAT_RESPONSE, body: null };
+        }),
+      );
+
+      const client = new OpenAiHttpLlmClient({
+        apiKey: 'sk-test',
+        baseUrl: 'https://api.example.com/v1',
+        model: 'gpt-4o-mini',
+      });
+
+      const controller = new AbortController();
+      controller.abort();
+
+      await expect(
+        client.runTurn({ ...makeTurnInput(), abortSignal: controller.signal }),
+      ).rejects.toBeInstanceOf(Error);
+    });
+
+    it('rejects with a status-classifiable error on an HTTP error response', async () => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: false,
+          status: 401,
+          text: async () => '{"error":{"message":"invalid api key"}}',
+        }),
+      );
+
+      const client = new OpenAiHttpLlmClient({
+        apiKey: 'sk-test',
+        baseUrl: 'https://api.example.com/v1',
+        model: 'gpt-4o-mini',
+      });
+
+      // Already matches normalizeAssistantErrorMessage's
+      // `模型服务 HTTP 错误 (\d{3})` pattern directly — this is the reference
+      // shape providers-pi-http's classifyPiAiError reshapes pi-ai's own error
+      // strings into (`Provider HTTP error NNN: ...`).
+      await expect(client.runTurn(makeTurnInput())).rejects.toThrow(/模型服务 HTTP 错误 401/);
+    });
+  });
 });

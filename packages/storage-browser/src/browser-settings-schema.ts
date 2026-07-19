@@ -1,6 +1,35 @@
 import { z } from 'zod';
 
-const providerIds = ['free', 'qwen', 'deepseek', 'doubao', 'openai', 'custom'] as const;
+// Mirrors @dg-agent/providers-catalog's ProviderId. Duplicated here (rather
+// than imported) because this schema only needs the string literals for
+// persisted-settings validation — widening this list is purely additive, so
+// old persisted configs for the original six providers keep parsing
+// unmodified. Keep in sync when providers-catalog adds/removes an id.
+const providerIds = [
+  'free',
+  'qwen',
+  'deepseek',
+  'doubao',
+  'openai',
+  'custom',
+  'anthropic',
+  'google',
+  'openrouter',
+  'groq',
+  'moonshotai',
+  'moonshotai-cn',
+  'zai',
+  'zai-coding-cn',
+  'minimax',
+  'minimax-cn',
+  'xai',
+  'cerebras',
+  'together',
+  'huggingface',
+  'mistral',
+  'fireworks',
+  'xiaomi',
+] as const;
 
 export const settingsSchema = z.object({
   version: z.literal(1),
