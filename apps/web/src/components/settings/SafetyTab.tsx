@@ -36,10 +36,6 @@ const ADJUST_STEP_MIN = 1;
 const ADJUST_STEP_MAX = 200;
 const BURST_DURATION_MIN = 100;
 const BURST_DURATION_MAX = 20_000;
-const CIVET_THRESHOLD_MIN = 0.1;
-const CIVET_THRESHOLD_MAX = 50;
-const SENSOR_DEBOUNCE_MIN = 0;
-const SENSOR_DEBOUNCE_MAX = 60_000;
 
 function getStrengthTone(value: number): 'normal' | 'warning' | 'danger' {
   if (value > 150) return 'danger';
@@ -93,20 +89,6 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
     setSettingsDraft((current) => ({
       ...current,
       maxOpossumAdjustStep: clamp(value, ADJUST_STEP_MIN, ADJUST_STEP_MAX),
-    }));
-  }
-
-  function setCivetPressureDeltaThresholdKPa(value: number) {
-    setSettingsDraft((current) => ({
-      ...current,
-      civetPressureDeltaThresholdKPa: clamp(value, CIVET_THRESHOLD_MIN, CIVET_THRESHOLD_MAX),
-    }));
-  }
-
-  function setSensorTriggerDebounceMs(value: number) {
-    setSettingsDraft((current) => ({
-      ...current,
-      sensorTriggerDebounceMs: clamp(value, SENSOR_DEBOUNCE_MIN, SENSOR_DEBOUNCE_MAX),
     }));
   }
 
@@ -411,29 +393,6 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
             onChange={setOpossumAdjustStep}
           />
         </label>
-
-        <label htmlFor="civet-pressure-delta-threshold" className="settings-inline-field">
-          <SettingLabel>灵猫压力变化触发阈值（kPa）</SettingLabel>
-          <ConfigNumberField
-            id="civet-pressure-delta-threshold"
-            value={settingsDraft.civetPressureDeltaThresholdKPa}
-            min={CIVET_THRESHOLD_MIN}
-            max={CIVET_THRESHOLD_MAX}
-            onChange={setCivetPressureDeltaThresholdKPa}
-            allowDecimal
-          />
-        </label>
-
-        <label htmlFor="sensor-trigger-debounce" className="settings-inline-field">
-          <SettingLabel>传感器触发去抖间隔（ms）</SettingLabel>
-          <ConfigNumberField
-            id="sensor-trigger-debounce"
-            value={settingsDraft.sensorTriggerDebounceMs}
-            min={SENSOR_DEBOUNCE_MIN}
-            max={SENSOR_DEBOUNCE_MAX}
-            onChange={setSensorTriggerDebounceMs}
-          />
-        </label>
       </AdvancedSection>
     </div>
   );
@@ -553,7 +512,7 @@ function AdvancedSection({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ConfigNumberField({
+export function ConfigNumberField({
   id,
   value,
   min,
