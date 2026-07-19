@@ -8,9 +8,9 @@
   "dependencies": {
     "@dg-agent/core": "0.1.0",
     "@dg-agent/runtime": "0.1.0",
-    "@dg-kit/protocol": "^1.5.0",
-    "@dg-kit/transport-tauri-blec": "^1.5.0",
-    "@dg-kit/transport-webbluetooth": "^1.5.0"
+    "@dg-kit/protocol": "^1.6.0",
+    "@dg-kit/transport-tauri-blec": "^1.6.0",
+    "@dg-kit/transport-webbluetooth": "^1.6.0"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"

@@ -7,10 +7,13 @@ import {
 import {
   createEmptyDeviceState,
   createEmptySensorState,
+  type DeviceClient,
+  type DeviceKind,
   type PermissionDecision,
 } from '@dg-agent/core';
 import { connectAnyDgLabDevice } from '@dg-agent/agent-browser';
 import { createEmptyOpossumState } from '@dg-agent/device-webbluetooth';
+import type { CivetEdgingClient, OpossumClient, PawPrintsClient } from '@dg-agent/runtime';
 import { BrowserSafetyGuard } from './services/safety-guard.js';
 import { applyTheme, subscribeThemeChanges } from './services/theme.js';
 import type { UpdateCheckerStatus } from './services/update-checker.js';
@@ -71,9 +74,26 @@ export interface AppProps {
    * shell supplies a Tauri device factory and disables speech/bridge.
    */
   servicesOverrides?: ServicesOverrides;
+  /**
+   * Override for `connect()`'s device-picking step. Defaults to
+   * `connectAnyDgLabDevice()` (a single Web Bluetooth chooser scoped to all
+   * 4 kinds, auto-detected). `@dg-kit/transport-tauri-blec` doesn't expose
+   * an equivalent single cross-kind picker yet (needs a
+   * `TauriBlecDeviceClient.connectDevice()`-style passthrough added
+   * upstream first), so the Tauri Android shell supplies a kind-first
+   * implementation instead: it shows its own "which kind?" picker, then
+   * calls that kind's own client `.connect()` (each of which does its own
+   * scan+device-picker). See `apps/tauri-android/src/connect-any-device-tauri.ts`.
+   */
+  connectDeviceTauri?: (clients: {
+    device: DeviceClient;
+    opossum: OpossumClient;
+    pawPrints: PawPrintsClient;
+    civetEdging: CivetEdgingClient;
+  }) => Promise<{ kind: DeviceKind; name: string }>;
 }
 
-export function App({ servicesOverrides }: AppProps = {}) {
+export function App({ servicesOverrides, connectDeviceTauri }: AppProps = {}) {
   const activeSessionIdRef = useRef<string | null>(null);
   const bridgeSessionResolverRef = useRef<
     (origin: MessageOrigin) => Promise<string | null> | string | null
@@ -382,7 +402,8 @@ export function App({ servicesOverrides }: AppProps = {}) {
 
     try {
       setErrorMessage(null);
-      const { kind } = await connectAnyDgLabDevice({ device, opossum, pawPrints, civetEdging });
+      const pickDevice = connectDeviceTauri ?? connectAnyDgLabDevice;
+      const { kind } = await pickDevice({ device, opossum, pawPrints, civetEdging });
       setStatusMessage(`${DEVICE_KIND_DISPLAY_NAME[kind]}已连接`);
       await refreshCurrentSession(activeSessionId);
       return true;
@@ -405,6 +426,7 @@ export function App({ servicesOverrides }: AppProps = {}) {
     opossum,
     pawPrints,
     civetEdging,
+    connectDeviceTauri,
     liveDeviceState.connected,
     refreshCurrentSession,
   ]);

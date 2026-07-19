@@ -23,4 +23,12 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 tauri = { version = "2.10.3", features = [] }
 tauri-plugin-log = "2"
-tauri-plugin-blec = "0.4"
+# Pinned to the multi-device fork (0xNullAI/tauri-plugin-blec-multi) instead
+# of upstream crates.io — upstream tauri-plugin-blec only tracks a single
+# BLE connection at a time. Must stay in lockstep with the JS side's
+# @mnlphlp/plugin-blec dependency (@dg-kit/transport-tauri-blec's
+# package.json points at the same fork via a git URL, for the same reason:
+# the JS bindings now pass an `address` parameter the upstream 0.4 Rust
+# plugin doesn't understand). Interim measure until the fork is published to
+# crates.io or upstreamed.
+tauri-plugin-blec = { git = "https://github.com/0xNullAI/tauri-plugin-blec-multi.git", branch = "main" }
