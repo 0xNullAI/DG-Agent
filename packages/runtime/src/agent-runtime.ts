@@ -8,6 +8,7 @@ import type {
   SensorState,
   SessionStore,
   SessionTraceStore,
+  SourceType,
   WaveformLibrary,
 } from '@dg-agent/core';
 import type { OpossumState } from '@dg-kit/protocol';
@@ -354,14 +355,14 @@ export class AgentRuntime {
 
   async sendUserMessage(input: SendUserMessageInput): Promise<void> {
     if (this.isSessionDeleted(input.sessionId)) {
-      if (input.context.sourceType === 'system') {
+      if (isInternallyTriggeredSourceType(input.context.sourceType)) {
         return;
       }
       this.deletedSessionIds.delete(input.sessionId);
     }
 
     if (this.activeTurns.has(input.sessionId)) {
-      if (input.context.sourceType === 'system') {
+      if (isInternallyTriggeredSourceType(input.context.sourceType)) {
         this.enqueueSystemWork(input.sessionId, { kind: 'follow-up', input });
         return;
       }
@@ -780,18 +781,25 @@ export class AgentRuntime {
     await this.traces.append(trigger.sessionId, {
       kind: 'sensor-fired',
       turnId: `sensor-${trigger.firedAt}`,
-      sourceType: 'system',
+      sourceType: 'sensor',
       synthetic: true,
       detail: trigger.summary,
       firedAt: trigger.firedAt,
     });
 
+    // sourceType: 'sensor' (not 'system') deliberately — a sensor event is a
+    // real, physical signal the user caused (unlike a timer firing), so it's
+    // allowed to carry tools through runToolLoop's tool-list gate (which
+    // only empties tools for 'system'). All the usual safety layers still
+    // apply in full: filterToolDefinitionsByConnectedDevices, permission
+    // gate, policy clamps, per-turn caps — this only lifts the blanket
+    // "system turns never touch the device" rule for this one case.
     await this.sendUserMessage({
       sessionId: trigger.sessionId,
       text: buildSensorTriggerPrompt(trigger),
       context: {
         sessionId: trigger.sessionId,
-        sourceType: 'system',
+        sourceType: 'sensor',
         traceId: `sensor-${trigger.firedAt}`,
       },
       persistMessage: false,
@@ -937,16 +945,28 @@ function buildTimerTriggerPrompt(trigger: TimerFiredTrigger): string {
 /**
  * Mirrors `buildTimerTriggerPrompt`'s tone/structure: state what happened,
  * make explicit this isn't a real user message, then a guardrail line — but
- * "don't over-act" instead of "don't auto-operate the device", since a
- * sensor trigger (unlike a timer firing) is a plausible signal the user
- * actually wants a reaction to, just not an automatic one.
+ * unlike a timer firing, this turn's tools are NOT emptied (sourceType:
+ * 'sensor', not 'system' — see runToolLoop), so the guardrail here has to
+ * spell out how to use that access responsibly rather than just forbidding
+ * it: a sensor trigger is a plausible signal the user actually wants a
+ * reaction to, just not an automatic or repeated one. All the usual policy
+ * clamps/permission gate/per-turn caps still apply in full to any tool call
+ * made here — this prompt is guidance, not the safety boundary itself.
  */
 function buildSensorTriggerPrompt(trigger: SensorFiredTrigger): string {
   return [
     `[内部提醒] 传感器事件：${trigger.summary}。`,
     '这不是用户的新消息，用户没有提供新的反馈。',
-    '你可以选择是否响应，不要过度操作设备。',
+    '你可以按当前剧情自行判断是否需要用工具做出响应，但最多只推进一小步就停下观察，不要连续加码或反复触发；同样不得超过任何强度/次数上限。',
+    '如果只是想确认状态或不确定该不该动，直接不调用工具、简短观察即可。',
   ].join('\n');
+}
+
+/** Timer/sensor triggers are internal signals, not a direct user action —
+ * they must never resurrect a deleted session or bypass the single-active-turn
+ * invariant by throwing (queue instead, mirroring the existing 'system' case). */
+function isInternallyTriggeredSourceType(sourceType: SourceType): boolean {
+  return sourceType === 'system' || sourceType === 'sensor';
 }
 
 function getEphemeralDeniedTrigger(toolCall: { name: string }, output: string): string | null {

@@ -15,7 +15,7 @@ import {
   type RuntimeEvent,
 } from '@dg-agent/core';
 import { createBasicWaveformLibrary } from '@dg-agent/waveforms';
-import type { OpossumState, SensorState } from '@dg-kit/protocol';
+import type { OpossumState, PawPrintsReading, SensorState } from '@dg-kit/protocol';
 import type {
   CivetEdgingClient,
   OpossumClient,
@@ -1767,6 +1767,7 @@ class TestOpossumClient implements OpossumClient {
 class TestPawPrintsClient implements PawPrintsClient {
   private state: SensorState;
   ledCalls: number[] = [];
+  private readingListeners = new Set<(reading: PawPrintsReading) => void>();
 
   constructor(initialState: Partial<SensorState> = {}) {
     this.state = { connected: true, battery: 100, ...initialState };
@@ -1776,14 +1777,21 @@ class TestPawPrintsClient implements PawPrintsClient {
   async getState(): Promise<SensorState> {
     return this.state;
   }
-  subscribe(): () => void {
-    return () => {};
+  subscribe(listener: (reading: PawPrintsReading) => void): () => void {
+    this.readingListeners.add(listener);
+    return () => {
+      this.readingListeners.delete(listener);
+    };
   }
   onStateChanged(): () => void {
     return () => {};
   }
   async setIndicatorColor(color: number): Promise<void> {
     this.ledCalls.push(color);
+  }
+  /** Test hook: simulate a raw sensor reading reaching the SensorTriggerEngine. */
+  pushReading(reading: PawPrintsReading): void {
+    for (const listener of this.readingListeners) listener(reading);
   }
 }
 
@@ -2114,5 +2122,97 @@ describe('AgentRuntime sensor trigger opt-in gating', () => {
       runtime.setSensorTriggersEnabled('no-sensor-session', true),
     ).resolves.toBeUndefined();
     expect(await runtime.isSensorTriggersEnabledForSession('no-sensor-session')).toBe(true);
+  });
+});
+
+class SensorToolLlm implements LlmClient {
+  readonly toolCountsBySource: Array<{ sourceType: string; toolCount: number }> = [];
+
+  async runTurn(input: Parameters<LlmClient['runTurn']>[0]) {
+    this.toolCountsBySource.push({
+      sourceType: input.context.sourceType,
+      toolCount: input.tools.length,
+    });
+
+    if (input.context.sourceType === 'sensor') {
+      const hasToolOutput = input.conversation?.some(
+        (item) => item.kind === 'function_call_output',
+      );
+      if (!hasToolOutput) {
+        return {
+          assistantMessage: '感觉到了，稍微加强一点。',
+          toolCalls: [
+            {
+              id: 'tool-sensor-vibrate',
+              name: 'vibrate_start',
+              args: { channel: 'A', intensity: 5 },
+            },
+          ],
+        };
+      }
+      return { assistantMessage: '已经响应了传感器事件。' };
+    }
+
+    return { assistantMessage: '好的。' };
+  }
+}
+
+describe('AgentRuntime sensor trigger turns', () => {
+  it('a sensor-fired turn keeps tools available and can execute one', async () => {
+    const opossum = new TestOpossumClient();
+    const pawPrints = new TestPawPrintsClient();
+    const llm = new SensorToolLlm();
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      opossum,
+      pawPrints,
+      llm,
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    await runtime.setSensorTriggersEnabled('sensor-tools-session', true);
+
+    const responded = new Promise<void>((resolve) => {
+      const unsubscribe = runtime.subscribe((event) => {
+        if (event.type !== 'assistant-message-completed') return;
+        if (event.message.content !== '已经响应了传感器事件。') return;
+        unsubscribe();
+        resolve();
+      });
+    });
+
+    pawPrints.pushReading({ type: 'trigger', eventId: 1, parameterValue: 5 });
+
+    await responded;
+
+    expect(
+      llm.toolCountsBySource.some((entry) => entry.sourceType === 'sensor' && entry.toolCount > 0),
+    ).toBe(true);
+    const opossumState = await opossum.getState();
+    expect(opossumState.intensityA).toBe(5);
+  });
+
+  it('disabling sensor triggers before an event fires means no turn happens at all', async () => {
+    const pawPrints = new TestPawPrintsClient();
+    const llm = new SensorToolLlm();
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      pawPrints,
+      llm,
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    await runtime.setSensorTriggersEnabled('sensor-disabled-session', true);
+    await runtime.setSensorTriggersEnabled('sensor-disabled-session', false);
+
+    pawPrints.pushReading({ type: 'trigger', eventId: 1, parameterValue: 5 });
+    // Give any stray microtask/queued work a chance to run before asserting nothing happened.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(llm.toolCountsBySource).toHaveLength(0);
+    const session = await runtime.getSessionSnapshot('sensor-disabled-session');
+    expect(session.messages).toHaveLength(0);
   });
 });

@@ -22,7 +22,7 @@ import type {
 // Agent-only types (not shared with DG-MCP / DG-Chat)
 // ============================================================================
 
-export type SourceType = 'web' | 'qq' | 'telegram' | 'cli' | 'api' | 'system';
+export type SourceType = 'web' | 'qq' | 'telegram' | 'cli' | 'api' | 'system' | 'sensor';
 export type MessageRole = 'system' | 'user' | 'assistant';
 export type ModelContextStrategy = 'last-user-turn' | 'last-five-user-turns' | 'full-history';
 
