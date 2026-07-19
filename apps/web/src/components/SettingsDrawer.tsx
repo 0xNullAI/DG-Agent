@@ -54,7 +54,6 @@ export const SETTINGS_NAV_ITEMS: Array<{
     sections: {
       基本设置: '调整界面主题和会话上下文策略。',
       模型选择: '搜索并选择模型供应商，配置该供应商需要的参数。',
-      传感器触发: '爪印、灵猫传感器作为输入驱动 AI 响应的开关与阈值。',
     },
   },
   {
@@ -73,9 +72,11 @@ export const SETTINGS_NAV_ITEMS: Array<{
     description: '强度上限、权限和离开保护',
     icon: ShieldCheck,
     sections: {
-      最大强度上限: '限制每个通道允许输出的最高强度。',
+      郊狼最大强度上限: '限制郊狼每个通道允许输出的最高强度。',
+      负鼠最大强度上限: '限制负鼠每个通道允许输出的最高强度。',
       工具调用确认模式: '决定 AI 控制设备前需要怎样确认。',
       后台行为: '设置切换后台和启动安全确认行为。',
+      传感器触发: '爪印、灵猫传感器作为输入驱动 AI 响应的开关与阈值。',
     },
   },
   {
@@ -190,14 +191,7 @@ function SettingsTabContent({
 >) {
   switch (tab) {
     case 'general':
-      return (
-        <GeneralTab
-          settingsDraft={settingsDraft}
-          setSettingsDraft={setSettingsDraft}
-          sensorTriggersEnabled={sensorTriggersEnabled}
-          onToggleSensorTriggers={onToggleSensorTriggers}
-        />
-      );
+      return <GeneralTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
     case 'preset':
       return (
         <PresetSelector
@@ -207,7 +201,14 @@ function SettingsTabContent({
         />
       );
     case 'safety':
-      return <SafetyTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
+      return (
+        <SafetyTab
+          settingsDraft={settingsDraft}
+          setSettingsDraft={setSettingsDraft}
+          sensorTriggersEnabled={sensorTriggersEnabled}
+          onToggleSensorTriggers={onToggleSensorTriggers}
+        />
+      );
     case 'waveforms':
       return (
         <WaveformsPanel
