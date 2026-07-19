@@ -66,13 +66,11 @@ export function isBluetoothChooserCancelledError(error: unknown): boolean {
     .replace(/^(DOMException|TypeError|Error|AbortError):\s*/i, '');
   return (
     normalizedMessage.includes('User cancelled the requestDevice() chooser') ||
-    // Tauri Android's connect flow (apps/tauri-android/src/connect-any-device-tauri.ts):
-    // cancelling its own "which kind?" picker re-throws the message above
-    // verbatim, but cancelling the *device* picker one step further in
-    // (inside TauriBlecDeviceClient/TauriBlecOpossumClient/TauriBlecSensorClient's
-    // own scan+pick, from @dg-kit/transport-tauri-blec) throws this
-    // Chinese message instead — same "user backed out, not a real error"
-    // outcome, so it needs the same friendly treatment.
+    // Tauri Android's connect flow (apps/tauri-android/src/connect-any-device-tauri.ts)
+    // cancels via @dg-kit/transport-tauri-blec's requestDgLabDeviceTauri(),
+    // which throws this Chinese message instead of the Web Bluetooth one
+    // above — same "user backed out, not a real error" outcome, so it needs
+    // the same friendly treatment.
     normalizedMessage.includes('用户取消了设备选择')
   );
 }

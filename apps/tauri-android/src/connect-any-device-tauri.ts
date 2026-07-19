@@ -2,21 +2,32 @@
  * Tauri Android's `App.connectDeviceTauri` implementation — see the doc on
  * that prop in `apps/web/src/App.tsx`.
  *
- * `@dg-kit/transport-tauri-blec` doesn't expose a single cross-kind picker
- * the way `@dg-agent/device-webbluetooth`'s `requestDgLabDevice()` does for
- * Web Bluetooth: getting one scan to auto-detect which of the 4 kinds was
- * picked needs a `TauriBlecDeviceClient.connectDevice(device, server)`-style
- * passthrough on all 4 client kinds that doesn't exist upstream yet (DG-Kit
- * follow-up). Until then: ask the user which kind first (`showKindPicker`),
- * then call that kind's own client `.connect()` — each of
- * `TauriBlecDeviceClient`/`TauriBlecOpossumClient`/`TauriBlecPawPrintsClient`/
- * `TauriBlecCivetEdgingClient` already runs its own self-contained
- * scan + `showDevicePicker()` + plugin-blec connect, so this needs no new
- * DG-Kit surface.
+ * Mirrors `@dg-agent/agent-browser`'s `connectAnyDgLabDevice()` almost
+ * exactly: one shared scan+picker across all 4 DG-Lab device kinds
+ * (`@dg-kit/transport-tauri-blec`'s `requestDgLabDeviceTauri()`, the Tauri
+ * counterpart to Web Bluetooth's `requestDgLabDevice()`), the picked
+ * device's kind auto-detected, then routed to the matching client's
+ * `connectDevice(device, server)` passthrough. Previously this had to ask
+ * the user which kind first (`showKindPicker`) because no such passthrough
+ * existed on the Tauri clients — that gap is now closed upstream in
+ * DG-Kit (`TauriBlecDeviceClient`/`TauriBlecOpossumClient`/
+ * `TauriBlecPawPrintsClient`/`TauriBlecCivetEdgingClient` all implement
+ * `connectDevice()` now).
  */
 import type { DeviceClient, DeviceKind } from '@dg-agent/core';
-import type { CivetEdgingClient, OpossumClient, PawPrintsClient } from '@dg-agent/runtime';
-import { showKindPicker } from './components/show-kind-picker';
+import {
+  requestDgLabDeviceTauri,
+  type BluetoothDeviceLike,
+  type BluetoothRemoteGATTServerLike,
+  type RequestDgLabDeviceTauriOptions,
+} from '@dg-agent/device-tauri-ble';
+import {
+  DEVICE_KIND_DISPLAY_NAME,
+  type CivetEdgingClient,
+  type OpossumClient,
+  type PawPrintsClient,
+} from '@dg-agent/runtime';
+import { showDevicePicker } from './components/show-device-picker';
 
 export interface ConnectAnyDeviceTauriClients {
   device: DeviceClient;
@@ -25,42 +36,36 @@ export interface ConnectAnyDeviceTauriClients {
   civetEdging: CivetEdgingClient;
 }
 
-/**
- * Cancelling the kind picker throws this exact message so it's recognized
- * by `isBluetoothChooserCancelledError()` (extended to check for it — see
- * `apps/web/src/utils/ui-formatters.ts`) the same way a cancelled Web
- * Bluetooth chooser is, instead of surfacing as a red error.
- */
-const KIND_PICKER_CANCELLED_MESSAGE = 'User cancelled the requestDevice() chooser';
+interface SupportsConnectDevice {
+  connectDevice(device: BluetoothDeviceLike, server: BluetoothRemoteGATTServerLike): Promise<void>;
+}
+
+function supportsConnectDevice(value: unknown): value is SupportsConnectDevice {
+  return !!value && typeof (value as Partial<SupportsConnectDevice>).connectDevice === 'function';
+}
 
 export async function connectAnyDgLabDeviceTauri(
   clients: ConnectAnyDeviceTauriClients,
+  options?: Omit<RequestDgLabDeviceTauriOptions, 'selectDevice'>,
 ): Promise<{ kind: DeviceKind; name: string }> {
-  const kind = await showKindPicker();
-  if (!kind) {
-    throw new Error(KIND_PICKER_CANCELLED_MESSAGE);
+  const { kind, device, server } = await requestDgLabDeviceTauri({
+    selectDevice: showDevicePicker,
+    ...options,
+  });
+
+  const target: unknown =
+    kind === 'coyote'
+      ? clients.device
+      : kind === 'opossum'
+        ? clients.opossum
+        : kind === 'paw-prints'
+          ? clients.pawPrints
+          : clients.civetEdging;
+
+  if (!supportsConnectDevice(target)) {
+    throw new Error(`当前环境不支持连接${DEVICE_KIND_DISPLAY_NAME[kind]}设备`);
   }
 
-  switch (kind) {
-    case 'coyote': {
-      await clients.device.connect();
-      const state = await clients.device.getState();
-      return { kind, name: state.deviceName ?? '' };
-    }
-    case 'opossum': {
-      await clients.opossum.connect();
-      const state = await clients.opossum.getState();
-      return { kind, name: state.deviceName ?? '' };
-    }
-    case 'paw-prints': {
-      await clients.pawPrints.connect();
-      const state = await clients.pawPrints.getState();
-      return { kind, name: state.deviceName ?? '' };
-    }
-    case 'civet-edging': {
-      await clients.civetEdging.connect();
-      const state = await clients.civetEdging.getState();
-      return { kind, name: state.deviceName ?? '' };
-    }
-  }
+  await target.connectDevice(device, server);
+  return { kind, name: device.name ?? '' };
 }
