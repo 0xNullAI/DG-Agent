@@ -166,6 +166,8 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
       savedPromptPresets: settings.savedPromptPresets,
       maxStrengthA: settings.maxStrengthA,
       maxStrengthB: settings.maxStrengthB,
+      maxOpossumIntensityA: settings.maxOpossumIntensityA,
+      maxOpossumIntensityB: settings.maxOpossumIntensityB,
     }),
     toolCallConfig: {
       maxToolIterations: settings.maxToolIterations,

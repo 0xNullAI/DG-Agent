@@ -5,16 +5,19 @@ import type {
   LlmClient,
   Logger,
   PermissionService,
+  SensorState,
   SessionStore,
   SessionTraceStore,
   WaveformLibrary,
 } from '@dg-agent/core';
+import type { OpossumState } from '@dg-kit/protocol';
 import {
   createEmptyDeviceState,
   createMessage,
   isDeviceToolName,
   isSensorTriggersEnabled,
   mergeBridgeOriginMetadata,
+  withSensorLastReading,
   withSensorTriggersEnabled,
   type ActionContext,
   type ConversationMessage,
@@ -84,6 +87,12 @@ export interface AgentRuntimeOptions {
     context: ActionContext;
     isFirstIteration: boolean;
     turnToolCalls: readonly TurnToolCallSummary[];
+    /** Present only when an Opossum client is configured, connected or not. */
+    opossumState?: OpossumState;
+    /** Present only when a paw-prints client is configured, connected or not. */
+    pawPrintsState?: SensorState;
+    /** Present only when a civet-edging client is configured, connected or not. */
+    civetEdgingState?: SensorState;
   }) => string;
   waveformLibrary?: WaveformLibrary;
   sessionStore?: SessionStore;
@@ -485,6 +494,7 @@ export class AgentRuntime {
           context: input.context,
           isFirstIteration: iteration === 0,
           turnToolCalls: collectTurnToolCalls(turnState),
+          ...(await this.getAuxDeviceStatesForInstructions()),
         }) ?? '';
       const tools =
         input.context.sourceType === 'system'
@@ -687,6 +697,7 @@ export class AgentRuntime {
           context: input.context,
           isFirstIteration: false,
           turnToolCalls: collectTurnToolCalls(turnState),
+          ...(await this.getAuxDeviceStatesForInstructions()),
         }) ?? '',
       tools: [],
       conversation: buildConversationItems(
@@ -759,7 +770,13 @@ export class AgentRuntime {
     if (!(await this.isSensorTriggersEnabledForSession(trigger.sessionId))) {
       return;
     }
-    await this.ensureSession(trigger.sessionId);
+    const session = await this.ensureSession(trigger.sessionId);
+    session.metadata = withSensorLastReading(session.metadata, trigger.deviceKind, {
+      summary: trigger.summary,
+      firedAt: trigger.firedAt,
+    });
+    session.updatedAt = Date.now();
+    await this.saveSessionIfAvailable(session);
     await this.traces.append(trigger.sessionId, {
       kind: 'sensor-fired',
       turnId: `sensor-${trigger.firedAt}`,
@@ -779,6 +796,26 @@ export class AgentRuntime {
       },
       persistMessage: false,
     });
+  }
+
+  /**
+   * Fetches current Opossum/sensor state for `buildInstructions`, omitting a
+   * key entirely when that device kind was never configured for this runtime
+   * (as opposed to configured-but-disconnected, which still reports state —
+   * `buildInstructions` uses presence-vs-absence to decide whether to
+   * mention a device kind at all).
+   */
+  private async getAuxDeviceStatesForInstructions(): Promise<{
+    opossumState?: OpossumState;
+    pawPrintsState?: SensorState;
+    civetEdgingState?: SensorState;
+  }> {
+    const [opossumState, pawPrintsState, civetEdgingState] = await Promise.all([
+      this.options.opossum?.getState(),
+      this.options.pawPrints?.getState(),
+      this.options.civetEdging?.getState(),
+    ]);
+    return { opossumState, pawPrintsState, civetEdgingState };
   }
 
   private async ensureSession(sessionId: string): Promise<SessionSnapshot> {
