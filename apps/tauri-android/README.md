@@ -44,6 +44,33 @@ The `gen/android/` directory is regenerated and gitignored. After every regenera
    before `<application>`). The template explains each permission.
 2. Bump `gen/android/app/build.gradle.kts` `minSdk` to `26` (required by
    `@mnlphlp/plugin-blec`'s Android backend).
+3. Re-apply the release-signing config from
+   [`signing.gradle.kts.template`](./signing.gradle.kts.template) into
+   `gen/android/app/build.gradle.kts` — see "Release builds" below for why
+   this is needed and what it reads.
+
+## Release builds
+
+`gen/android/` is regenerated from scratch by `cargo tauri android init` and
+is gitignored, so the release-signing config isn't checked in anywhere — it
+has to be re-applied by hand after every regeneration (step 3 above), reading
+from [`signing.gradle.kts.template`](./signing.gradle.kts.template).
+
+To produce an installable release APK, set these environment variables
+before building (keystore path + passwords are kept outside the repo, not
+committed anywhere):
+
+```bash
+export DG_AGENT_KEYSTORE=/path/to/dg-agent-release.jks
+export DG_AGENT_ALIAS=dg-agent
+export DG_AGENT_STORE_PASS=...
+export DG_AGENT_KEY_PASS=...
+npm run android:build -- --apk --target aarch64
+```
+
+Without these set, `signingConfigs.release` has no `storeFile`, and Gradle
+either fails on the release build type or (for `debug`) it doesn't matter —
+debug builds always use the Android debug key regardless.
 
 ## Develop
 
@@ -78,7 +105,7 @@ DG-Lab Coyote 2.0 / 3.0
 
 ### Lifecycle safety
 
-Coyote V3 is state-retentive: once a strength is commanded, the device keeps running until a new packet arrives — *not* until the BLE link drops. On a normal browser tab this is invisible because the page's `setInterval` keeps ticking out new packets (throttled but alive) even when backgrounded.
+Coyote V3 is state-retentive: once a strength is commanded, the device keeps running until a new packet arrives — _not_ until the BLE link drops. On a normal browser tab this is invisible because the page's `setInterval` keeps ticking out new packets (throttled but alive) even when backgrounded.
 
 Android Tauri is different: when the user swipes home / locks the screen, the host activity hits `onPause` and the WebView is suspended. JS timers stop. The device keeps running at the last commanded strength until the BLE link eventually drops, which can take a long time.
 

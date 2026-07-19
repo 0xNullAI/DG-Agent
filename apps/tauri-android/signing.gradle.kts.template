@@ -1,0 +1,37 @@
+// Template for the release-signing block in
+// src-tauri/gen/android/app/build.gradle.kts.
+//
+// `cargo tauri android init` regenerates that file from scratch every
+// time, which drops this block along with everything else manually
+// added to it — same problem AndroidManifest.template.xml solves for
+// the manifest. After every regeneration, re-apply this by hand:
+//
+//   1. Add the `signingConfigs { ... }` block below inside the `android { }`
+//      block, anywhere before `buildTypes { }`.
+//   2. Inside `buildTypes { getByName("release") { ... } }`, add the line
+//      `signingConfig = signingConfigs.getByName("release")` (see below for
+//      where it goes relative to the existing `isMinifyEnabled`/`proguardFiles`
+//      lines).
+//
+// Reads the keystore path + passwords from environment variables rather than
+// a checked-in file — DG_AGENT_KEYSTORE/DG_AGENT_ALIAS/DG_AGENT_STORE_PASS/
+// DG_AGENT_KEY_PASS. The `if (ks != null)` guard means a debug build (or any
+// build run without these set) still works — it just produces an unsigned
+// release artifact rather than failing outright, which matters for CI/dev
+// builds that never intend to produce an installable release APK.
+//
+// signingConfigs {
+//     create("release") {
+//         val ks = System.getenv("DG_AGENT_KEYSTORE")
+//         if (ks != null) {
+//             storeFile = file(ks)
+//             storePassword = System.getenv("DG_AGENT_STORE_PASS")
+//             keyAlias = System.getenv("DG_AGENT_ALIAS")
+//             keyPassword = System.getenv("DG_AGENT_KEY_PASS")
+//         }
+//     }
+// }
+//
+// Then in buildTypes { getByName("release") { ... } }, add as the first line:
+//
+//     signingConfig = signingConfigs.getByName("release")
