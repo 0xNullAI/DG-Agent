@@ -177,6 +177,10 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
       burstRequiresActiveChannel: settings.burstRequiresActiveChannel,
       maxVibrateAdjustCallsPerTurn: settings.maxVibrateAdjustCallsPerTurn,
     },
+    sensorTriggerOptions: {
+      civetPressureDeltaThresholdKPa: settings.civetPressureDeltaThresholdKPa,
+      debounceMs: settings.sensorTriggerDebounceMs,
+    },
     modelContextStrategy: settings.modelContextStrategy,
     sessionStore: options.sessionStore,
     sessionTraceStore: options.sessionTraceStore,

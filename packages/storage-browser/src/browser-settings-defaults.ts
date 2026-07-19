@@ -6,11 +6,13 @@ import {
 } from '@dg-agent/providers-catalog';
 import {
   createDefaultToolCallConfig,
+  DEFAULT_CIVET_PRESSURE_DELTA_KPA,
   DEFAULT_MAX_ADJUST_STEP,
   DEFAULT_MAX_BURST_DURATION_MS,
   DEFAULT_MAX_COLD_START_STRENGTH,
   DEFAULT_MAX_OPOSSUM_ADJUST_STEP,
   DEFAULT_MAX_OPOSSUM_COLD_START_INTENSITY,
+  DEFAULT_SENSOR_TRIGGER_DEBOUNCE_MS,
   DEFAULT_USER_MAX_OPOSSUM_INTENSITY,
 } from '@dg-agent/runtime';
 import type {
@@ -81,6 +83,8 @@ export function defaultBrowserAppSettings(env: BrowserAppEnvLike = {}): BrowserA
     maxOpossumColdStartIntensity: DEFAULT_MAX_OPOSSUM_COLD_START_INTENSITY,
     maxOpossumAdjustStep: DEFAULT_MAX_OPOSSUM_ADJUST_STEP,
     maxVibrateAdjustCallsPerTurn: toolCallConfig.maxVibrateAdjustCallsPerTurn,
+    civetPressureDeltaThresholdKPa: DEFAULT_CIVET_PRESSURE_DELTA_KPA,
+    sensorTriggerDebounceMs: DEFAULT_SENSOR_TRIGGER_DEBOUNCE_MS,
     safetyStopOnLeave: true,
     rememberApiKey: false,
     modelLogEnabled: false,

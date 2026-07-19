@@ -32,6 +32,8 @@ export const settingsSchema = z.object({
   maxOpossumColdStartIntensity: z.number().int().min(0).max(200).optional(),
   maxOpossumAdjustStep: z.number().int().min(1).max(200).optional(),
   maxVibrateAdjustCallsPerTurn: z.number().int().min(1).optional(),
+  civetPressureDeltaThresholdKPa: z.number().min(0.1).max(50).optional(),
+  sensorTriggerDebounceMs: z.number().int().min(0).max(60_000).optional(),
   safetyStopOnLeave: z.boolean().optional(),
   rememberApiKey: z.boolean().optional(),
   modelLogEnabled: z.boolean().optional(),
