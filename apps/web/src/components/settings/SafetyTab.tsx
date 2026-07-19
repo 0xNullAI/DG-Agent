@@ -19,6 +19,8 @@ import styles from './SafetyTab.module.css';
 interface SafetyTabProps {
   settingsDraft: BrowserAppSettings;
   setSettingsDraft: Dispatch<SetStateAction<BrowserAppSettings>>;
+  sensorTriggersEnabled: boolean;
+  onToggleSensorTriggers: (enabled: boolean) => void;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -53,7 +55,26 @@ function getStrengthStatus(value: number): string {
   return '常规';
 }
 
-export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
+export function SafetyTab({
+  settingsDraft,
+  setSettingsDraft,
+  sensorTriggersEnabled,
+  onToggleSensorTriggers,
+}: SafetyTabProps) {
+  function setCivetPressureDeltaThresholdKPa(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      civetPressureDeltaThresholdKPa: clamp(value, CIVET_THRESHOLD_MIN, CIVET_THRESHOLD_MAX),
+    }));
+  }
+
+  function setSensorTriggerDebounceMs(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      sensorTriggerDebounceMs: clamp(value, SENSOR_DEBOUNCE_MIN, SENSOR_DEBOUNCE_MAX),
+    }));
+  }
+
   function setStrengthA(value: number) {
     setSettingsDraft((current) => ({
       ...current,
@@ -93,20 +114,6 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
     setSettingsDraft((current) => ({
       ...current,
       maxOpossumAdjustStep: clamp(value, ADJUST_STEP_MIN, ADJUST_STEP_MAX),
-    }));
-  }
-
-  function setCivetPressureDeltaThresholdKPa(value: number) {
-    setSettingsDraft((current) => ({
-      ...current,
-      civetPressureDeltaThresholdKPa: clamp(value, CIVET_THRESHOLD_MIN, CIVET_THRESHOLD_MAX),
-    }));
-  }
-
-  function setSensorTriggerDebounceMs(value: number) {
-    setSettingsDraft((current) => ({
-      ...current,
-      sensorTriggerDebounceMs: clamp(value, SENSOR_DEBOUNCE_MIN, SENSOR_DEBOUNCE_MAX),
     }));
   }
 
@@ -182,16 +189,14 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
 
   return (
     <div className="settings-panel-tab-content">
-      <section className="settings-row-card">
-        <h3 className="settings-card-legend">最大强度上限</h3>
+      <CollapsibleSection title="郊狼最大强度上限">
         <div className={styles.strengthControlList}>
           <StrengthControl channel="A" value={settingsDraft.maxStrengthA} onChange={setStrengthA} />
           <StrengthControl channel="B" value={settingsDraft.maxStrengthB} onChange={setStrengthB} />
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section className="settings-row-card">
-        <h3 className="settings-card-legend">负鼠最大强度上限</h3>
+      <CollapsibleSection title="负鼠最大强度上限">
         <div className={styles.strengthControlList}>
           <StrengthControl
             channel="A"
@@ -206,7 +211,7 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
             idPrefix="max-opossum-intensity"
           />
         </div>
-      </section>
+      </CollapsibleSection>
 
       <section className="settings-row-card">
         <h3 className="settings-card-legend">工具调用确认模式</h3>
@@ -274,6 +279,42 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
             }
           />
         </div>
+      </section>
+
+      <section className="settings-row-card grid gap-3">
+        <h3 className="settings-card-legend">传感器触发</h3>
+        <p className="text-[12px] leading-relaxed text-[var(--text-faint)]">
+          开启后，爪印按键触发或灵猫压力明显变化会作为内部提醒推送给
+          AI，由它自行判断是否响应；不会自动改变设备状态。默认关闭。
+        </p>
+        <SettingToggle
+          label="允许传感器事件驱动 AI 主动响应"
+          checked={sensorTriggersEnabled}
+          onCheckedChange={onToggleSensorTriggers}
+        />
+
+        <label htmlFor="civet-pressure-delta-threshold" className="settings-inline-field">
+          <SettingLabel>灵猫压力变化触发阈值（kPa）</SettingLabel>
+          <ConfigNumberField
+            id="civet-pressure-delta-threshold"
+            value={settingsDraft.civetPressureDeltaThresholdKPa}
+            min={CIVET_THRESHOLD_MIN}
+            max={CIVET_THRESHOLD_MAX}
+            onChange={setCivetPressureDeltaThresholdKPa}
+            allowDecimal
+          />
+        </label>
+
+        <label htmlFor="sensor-trigger-debounce" className="settings-inline-field">
+          <SettingLabel>传感器触发去抖间隔（ms）</SettingLabel>
+          <ConfigNumberField
+            id="sensor-trigger-debounce"
+            value={settingsDraft.sensorTriggerDebounceMs}
+            min={SENSOR_DEBOUNCE_MIN}
+            max={SENSOR_DEBOUNCE_MAX}
+            onChange={setSensorTriggerDebounceMs}
+          />
+        </label>
       </section>
 
       <AdvancedSection>
@@ -413,29 +454,6 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
             onChange={setOpossumAdjustStep}
           />
         </label>
-
-        <label htmlFor="civet-pressure-delta-threshold" className="settings-inline-field">
-          <SettingLabel>灵猫压力变化触发阈值（kPa）</SettingLabel>
-          <ConfigNumberField
-            id="civet-pressure-delta-threshold"
-            value={settingsDraft.civetPressureDeltaThresholdKPa}
-            min={CIVET_THRESHOLD_MIN}
-            max={CIVET_THRESHOLD_MAX}
-            onChange={setCivetPressureDeltaThresholdKPa}
-            allowDecimal
-          />
-        </label>
-
-        <label htmlFor="sensor-trigger-debounce" className="settings-inline-field">
-          <SettingLabel>传感器触发去抖间隔（ms）</SettingLabel>
-          <ConfigNumberField
-            id="sensor-trigger-debounce"
-            value={settingsDraft.sensorTriggerDebounceMs}
-            min={SENSOR_DEBOUNCE_MIN}
-            max={SENSOR_DEBOUNCE_MAX}
-            onChange={setSensorTriggerDebounceMs}
-          />
-        </label>
       </AdvancedSection>
     </div>
   );
@@ -454,6 +472,32 @@ function ToolLimitField({
 }) {
   return (
     <ConfigNumberField id={id} value={value} min={min} max={TOOL_LIMIT_MAX} onChange={onChange} />
+  );
+}
+
+function CollapsibleSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <section className="settings-row-card">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between text-left"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <h3 className="settings-card-legend mb-0">{title}</h3>
+        <div className="flex items-center gap-1">
+          <span className="text-[12px] text-[var(--text-faint)]">{open ? '收起' : '展开'}</span>
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 text-[var(--text-faint)] transition-transform duration-200',
+              open && 'rotate-180',
+            )}
+          />
+        </div>
+      </button>
+      {open && <div className="mt-3">{children}</div>}
+    </section>
   );
 }
 
@@ -529,7 +573,7 @@ function AdvancedSection({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ConfigNumberField({
+export function ConfigNumberField({
   id,
   value,
   min,

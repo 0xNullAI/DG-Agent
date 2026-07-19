@@ -862,9 +862,6 @@ export function App({ servicesOverrides, connectDeviceTauri }: AppProps = {}) {
                 onImportWaveformFromMarket={(waveform) => void importWaveformFromMarket(waveform)}
                 onRemoveWaveform={(id) => void removeWaveform(id)}
                 onEditWaveform={openWaveformEditor}
-                opossum={opossum}
-                pawPrints={pawPrints}
-                civetEdging={civetEdging}
                 sensorTriggersEnabled={sensorTriggersEnabled}
                 onToggleSensorTriggers={(enabled) => void toggleSensorTriggers(enabled)}
                 bridgeLogs={bridgeLogs}

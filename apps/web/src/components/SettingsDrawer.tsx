@@ -1,12 +1,10 @@
 import React from 'react';
 import type { BridgeLogEntry, BridgeManagerStatus } from '@dg-agent/bridge';
 import type { WaveformDefinition } from '@dg-agent/core';
-import type { CivetEdgingClient, OpossumClient, PawPrintsClient } from '@dg-agent/runtime';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import type { ModelLogTurn } from '../services/model-log-store.js';
 import {
   ArrowLeft,
-  Bluetooth,
   Bot,
   Database,
   FileSearch,
@@ -27,7 +25,6 @@ import { BridgeTab } from './settings/BridgeTab.js';
 import { BridgeLogsTab, ModelLogsTab } from './settings/LogsTab.js';
 import { VoiceTab } from './settings/VoiceTab.js';
 import { DataTab, type ExportableSession } from './settings/DataTab.js';
-import { DevicesTab } from './settings/DevicesTab.js';
 import { PresetSelector } from './PresetSelector.js';
 import { WaveformsPanel } from './WaveformsPanel.js';
 
@@ -36,7 +33,6 @@ export type SettingsModalTab =
   | 'preset'
   | 'safety'
   | 'waveforms'
-  | 'devices'
   | 'bridge'
   | 'voice'
   | 'data'
@@ -57,7 +53,7 @@ export const SETTINGS_NAV_ITEMS: Array<{
     icon: Settings2,
     sections: {
       基本设置: '调整界面主题和会话上下文策略。',
-      模型选择: '选择模型供应商，并配置该供应商需要的参数。',
+      模型选择: '搜索并选择模型供应商，配置该供应商需要的参数。',
     },
   },
   {
@@ -76,9 +72,11 @@ export const SETTINGS_NAV_ITEMS: Array<{
     description: '强度上限、权限和离开保护',
     icon: ShieldCheck,
     sections: {
-      最大强度上限: '限制每个通道允许输出的最高强度。',
+      郊狼最大强度上限: '限制郊狼每个通道允许输出的最高强度。',
+      负鼠最大强度上限: '限制负鼠每个通道允许输出的最高强度。',
       工具调用确认模式: '决定 AI 控制设备前需要怎样确认。',
       后台行为: '设置切换后台和启动安全确认行为。',
+      传感器触发: '爪印、灵猫传感器作为输入驱动 AI 响应的开关与阈值。',
     },
   },
   {
@@ -87,16 +85,6 @@ export const SETTINGS_NAV_ITEMS: Array<{
     description: '内置波形和自定义波形库',
     icon: Waves,
     sections: {},
-  },
-  {
-    value: 'devices',
-    label: '扩展设备',
-    description: '负鼠、爪印、灵猫的独立蓝牙连接',
-    icon: Bluetooth,
-    sections: {
-      扩展设备:
-        '独立连接或断开负鼠振动控制器、爪印传感器、灵猫传感器，互不影响，也不影响郊狼连接。',
-    },
   },
   {
     value: 'bridge',
@@ -144,7 +132,7 @@ export const SETTINGS_NAV_GROUPS: Array<{
   values: SettingsModalTab[];
 }> = [
   { label: '配置', values: ['general', 'preset', 'safety', 'waveforms'] },
-  { label: '扩展', values: ['devices', 'bridge', 'voice', 'data'] },
+  { label: '扩展', values: ['bridge', 'voice', 'data'] },
   { label: '日志', values: ['model-tool-logs', 'bridge-logs'] },
 ];
 
@@ -164,9 +152,6 @@ export interface SettingsDrawerProps {
   onImportWaveformFromMarket: (waveform: WaveformDefinition) => void | Promise<void>;
   onRemoveWaveform: (id: string) => void;
   onEditWaveform: (waveform: WaveformDefinition) => void;
-  opossum: OpossumClient;
-  pawPrints: PawPrintsClient;
-  civetEdging: CivetEdgingClient;
   sensorTriggersEnabled: boolean;
   onToggleSensorTriggers: (enabled: boolean) => void;
   bridgeLogs: BridgeLogEntry[];
@@ -190,9 +175,6 @@ function SettingsTabContent({
   onImportWaveformFromMarket,
   onRemoveWaveform,
   onEditWaveform,
-  opossum,
-  pawPrints,
-  civetEdging,
   sensorTriggersEnabled,
   onToggleSensorTriggers,
   bridgeLogs,
@@ -219,7 +201,14 @@ function SettingsTabContent({
         />
       );
     case 'safety':
-      return <SafetyTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
+      return (
+        <SafetyTab
+          settingsDraft={settingsDraft}
+          setSettingsDraft={setSettingsDraft}
+          sensorTriggersEnabled={sensorTriggersEnabled}
+          onToggleSensorTriggers={onToggleSensorTriggers}
+        />
+      );
     case 'waveforms':
       return (
         <WaveformsPanel
@@ -229,16 +218,6 @@ function SettingsTabContent({
           onImportFromMarket={onImportWaveformFromMarket}
           onRemove={(id) => onRemoveWaveform(id)}
           onEdit={onEditWaveform}
-        />
-      );
-    case 'devices':
-      return (
-        <DevicesTab
-          opossum={opossum}
-          pawPrints={pawPrints}
-          civetEdging={civetEdging}
-          sensorTriggersEnabled={sensorTriggersEnabled}
-          onToggleSensorTriggers={onToggleSensorTriggers}
         />
       );
     case 'bridge':
