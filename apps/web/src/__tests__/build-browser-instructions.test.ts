@@ -87,10 +87,10 @@ describe('createBuildBrowserInstructions', () => {
     const build = createBuildBrowserInstructions(makeSettings());
     const output = build(
       makeInput({
-        turnToolCalls: [{ name: 'adjust_strength', argsJson: '{"channel":"A","delta":5}' }],
+        turnToolCalls: [{ name: 'shock_adjust', argsJson: '{"channel":"A","delta":5}' }],
       }),
     );
-    expect(output).toContain('1. adjust_strength(');
+    expect(output).toContain('1. shock_adjust(');
     expect(output).toContain('声称已经完成的动作');
   });
 

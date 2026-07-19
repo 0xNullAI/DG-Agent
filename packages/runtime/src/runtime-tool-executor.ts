@@ -33,7 +33,15 @@ export function resolveRequiredDeviceKind(
   toolName: string,
   args: Record<string, unknown> | undefined,
 ): DeviceKind | null {
+  // The lower half of the coyote group is the pre-1.9.0 names — the
+  // registry's aliases still execute those, so the connection gate must
+  // keep recognizing them too.
   switch (toolName) {
+    case 'shock_start':
+    case 'shock_stop':
+    case 'shock_adjust':
+    case 'shock_change_wave':
+    case 'shock_burst':
     case 'start':
     case 'stop':
     case 'adjust_strength':
