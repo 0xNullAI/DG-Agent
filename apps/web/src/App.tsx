@@ -5,11 +5,12 @@ import {
   type MessageOrigin,
 } from '@dg-agent/bridge';
 import { createEmptyDeviceState, type PermissionDecision } from '@dg-agent/core';
+import { connectAnyDgLabDevice } from '@dg-agent/agent-browser';
 import { BrowserSafetyGuard } from './services/safety-guard.js';
 import { applyTheme, subscribeThemeChanges } from './services/theme.js';
 import type { UpdateCheckerStatus } from './services/update-checker.js';
 import { X } from 'lucide-react';
-import { BUILTIN_PROMPT_PRESETS } from '@dg-agent/runtime';
+import { BUILTIN_PROMPT_PRESETS, DEVICE_KIND_DISPLAY_NAME } from '@dg-agent/runtime';
 import { ChatPanel } from './components/ChatPanel.js';
 import { PermissionModal } from './components/PermissionModal.js';
 import { SafetyNoticeModal } from './components/SafetyNoticeModal.js';
@@ -116,6 +117,7 @@ export function App({ servicesOverrides }: AppProps = {}) {
     bridgeManager,
     serviceInitWarnings,
     resetPermissionGrants,
+    device,
     opossum,
     pawPrints,
     civetEdging,
@@ -332,13 +334,20 @@ export function App({ servicesOverrides }: AppProps = {}) {
     }
   }
 
+  /**
+   * Single unified connect entry point: one chooser scoped to all four
+   * DG-Lab device kinds, auto-detected and routed to the right client.
+   * Click again to add another device — each call opens its own chooser
+   * (Web Bluetooth's own security model requires an explicit click per
+   * prompt, never auto-repeated).
+   */
   const connect = useCallback(async (): Promise<boolean> => {
     if (!activeSessionId) return false;
 
     try {
       setErrorMessage(null);
-      await client.connectDevice(activeSessionId);
-      setStatusMessage('设备已连接');
+      const { kind } = await connectAnyDgLabDevice({ device, opossum, pawPrints, civetEdging });
+      setStatusMessage(`${DEVICE_KIND_DISPLAY_NAME[kind]}已连接`);
       await refreshCurrentSession(activeSessionId);
       return true;
     } catch (error) {
@@ -354,7 +363,15 @@ export function App({ servicesOverrides }: AppProps = {}) {
       setErrorMessage(formatUiErrorMessage(error));
       return false;
     }
-  }, [activeSessionId, client, liveDeviceState.connected, refreshCurrentSession]);
+  }, [
+    activeSessionId,
+    device,
+    opossum,
+    pawPrints,
+    civetEdging,
+    liveDeviceState.connected,
+    refreshCurrentSession,
+  ]);
 
   const _disconnect = useCallback(async (): Promise<void> => {
     try {

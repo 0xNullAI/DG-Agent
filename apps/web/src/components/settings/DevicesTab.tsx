@@ -143,7 +143,7 @@ export function DevicesTab({ opossum, pawPrints, civetEdging }: DevicesTabProps)
         <div className="settings-row-card grid gap-3">
           <h3 className="settings-card-legend">扩展设备</h3>
           <p className="text-[12px] leading-relaxed text-[var(--text-faint)]">
-            郊狼主机的蓝牙连接在聊天界面顶部单独管理。以下三种扩展设备各自独立连接/断开，互不影响，也不会影响郊狼的连接状态。
+            聊天界面顶部的连接按钮会自动识别并连接郊狼或以下任意扩展设备，重复点击可依次添加多个。也可以在这里单独连接某一种设备——三者各自独立连接/断开，互不影响，也不会影响郊狼的连接状态。
           </p>
 
           <AuxDeviceRow

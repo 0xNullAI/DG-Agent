@@ -15,6 +15,7 @@
 import { getWebBluetoothAvailability } from '@dg-kit/transport-webbluetooth';
 import type {
   BluetoothDeviceLike,
+  BluetoothRemoteGATTServerLike,
   NavigatorBluetoothLike,
   RequestDeviceOptionsLike,
   WebBluetoothConnectionContext,
@@ -71,6 +72,30 @@ export async function connectAuxDevice(
   }
 
   const server = await gatt.connect();
+  return attachAuxDevice(nextDevice, server, adapter, previousDevice, onGattDisconnected);
+}
+
+/**
+ * Attaches to an already-obtained `(device, server)` pair instead of
+ * running this helper's own `bluetooth.requestDevice()` chooser prompt —
+ * the aux-device counterpart to `@dg-kit/transport-webbluetooth`'s
+ * `WebBluetoothDeviceClient.connectDevice()`. Lets a caller that already
+ * ran ONE shared chooser scoped to every DG-Lab device kind (see
+ * `requestDgLabDevice()`) and identified the picked device's kind via
+ * `detectDeviceKind()` hand it straight to the matching client, instead of
+ * needing a second, kind-scoped chooser prompt. `gatt.connect()` must
+ * already have been called by the caller; this only runs the adapter
+ * handshake and the same replace-previous-device bookkeeping
+ * `connectAuxDevice()` does.
+ */
+export async function attachAuxDevice(
+  nextDevice: BluetoothDeviceLike,
+  server: BluetoothRemoteGATTServerLike,
+  adapter: ConnectableAdapter,
+  previousDevice: BluetoothDeviceLike | null,
+  onGattDisconnected: (event: Event) => void,
+): Promise<BluetoothDeviceLike> {
+  const gatt = nextDevice.gatt;
   const shouldReplacePrevious = !!previousDevice && previousDevice !== nextDevice;
 
   if (shouldReplacePrevious) {
@@ -83,7 +108,7 @@ export async function connectAuxDevice(
     if (shouldReplacePrevious && isGattConnected(previousDevice)) {
       previousDevice.addEventListener('gattserverdisconnected', onGattDisconnected);
     }
-    if (gatt.connected) {
+    if (gatt?.connected) {
       gatt.disconnect();
     }
     throw error;
