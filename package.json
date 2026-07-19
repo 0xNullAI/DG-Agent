@@ -1,6 +1,6 @@
 {
   "name": "dg-agent",
-  "version": "5.2.0",
+  "version": "5.2.1",
   "private": true,
   "type": "module",
   "packageManager": "npm@11.6.2",

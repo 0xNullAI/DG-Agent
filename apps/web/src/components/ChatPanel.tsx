@@ -55,6 +55,7 @@ interface ChatPanelProps {
   pawPrintsState: SensorState;
   civetEdgingState: SensorState;
   onConnect: () => void;
+  onDisconnectDevice: () => void;
   onDisconnectOpossum: () => void;
   onDisconnectPawPrints: () => void;
   onDisconnectCivetEdging: () => void;
@@ -151,6 +152,7 @@ export function ChatPanel({
   pawPrintsState,
   civetEdgingState,
   onConnect,
+  onDisconnectDevice,
   onDisconnectOpossum,
   onDisconnectPawPrints,
   onDisconnectCivetEdging,
@@ -301,8 +303,8 @@ export function ChatPanel({
               <DeviceStatusChip
                 icon={<Zap className="h-3.5 w-3.5 text-[var(--success)]" />}
                 battery={deviceState.battery}
-                onClick={onConnect}
-                title="重连设备"
+                onClick={onDisconnectDevice}
+                title="断开郊狼"
               >
                 <div className="flex gap-3 sm:gap-4">
                   <ChannelStrengthBar
@@ -360,6 +362,17 @@ export function ChatPanel({
             )}
           </div>
 
+          <Button
+            variant="secondary"
+            size="sm"
+            className="h-7 shrink-0 rounded-[8px] px-2 text-[12px] font-medium shadow-none sm:px-2.5"
+            onClick={onConnect}
+            aria-label="连接其他设备"
+            title="连接其他设备"
+          >
+            <Bluetooth className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline text-xs">连接</span>
+          </Button>
           <Button
             variant="destructive"
             size="sm"
