@@ -1,5 +1,5 @@
 {
-  "name": "@dg-agent/providers-pi-ai",
+  "name": "@dg-agent/providers-pi-http",
   "version": "0.1.0",
   "private": true,
   "type": "module",

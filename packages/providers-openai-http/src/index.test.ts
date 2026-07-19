@@ -206,7 +206,7 @@ describe('OpenAiHttpLlmClient', () => {
     });
   });
 
-  // Mirrors packages/providers-pi-ai/src/index.test.ts's contract suite —
+  // Mirrors packages/providers-pi-http/src/index.test.ts's contract suite —
   // same four cases (successful text reply, tool-call round-trip, aborted
   // request, error response) exercised against the pi-ai-backed client, so
   // both LlmClient implementations are held to the same observable
@@ -321,7 +321,7 @@ describe('OpenAiHttpLlmClient', () => {
 
       // Already matches normalizeAssistantErrorMessage's
       // `模型服务 HTTP 错误 (\d{3})` pattern directly — this is the reference
-      // shape providers-pi-ai's classifyPiAiError reshapes pi-ai's own error
+      // shape providers-pi-http's classifyPiAiError reshapes pi-ai's own error
       // strings into (`Provider HTTP error NNN: ...`).
       await expect(client.runTurn(makeTurnInput())).rejects.toThrow(/模型服务 HTTP 错误 401/);
     });

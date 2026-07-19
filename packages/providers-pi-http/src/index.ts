@@ -1,16 +1,26 @@
 import type { LlmClient, LlmTurnInput, LlmTurnResult } from '@dg-agent/core';
 import { z } from 'zod';
 import { classifyPiAiError } from './errors.js';
-import { listPiAiModels, loadPiAiProvider, resolvePiAiModel } from './registry.js';
+import {
+  PI_AI_PROVIDER_KEYS,
+  listPiAiModels,
+  loadPiAiProvider,
+  resolvePiAiModel,
+} from './registry.js';
 import { buildContext, extractReasoning, extractText, extractToolCalls } from './serialization.js';
 import type { PiAiModelInfo, PiAiProviderKey } from './types.js';
 
 export type { PiAiModelInfo, PiAiProviderKey } from './types.js';
+export { PI_AI_PROVIDER_KEYS } from './registry.js';
 
+// `providerKey` is validated against registry.ts's actual known loader keys
+// (not just "is a non-empty string") so a catalog/registry drift throws a
+// clear ZodError right here at construction time — see PI_AI_PROVIDER_KEYS'
+// doc comment in registry.ts for why that matters.
 const configSchema = z.object({
   apiKey: z.string().min(1),
   model: z.string().min(1),
-  providerKey: z.custom<PiAiProviderKey>((value) => typeof value === 'string' && value.length > 0),
+  providerKey: z.enum(PI_AI_PROVIDER_KEYS as [PiAiProviderKey, ...PiAiProviderKey[]]),
   temperature: z.number().min(0).max(2).default(0.3),
 });
 
@@ -74,15 +84,32 @@ export class PiAiLlmClient implements LlmClient {
       },
     });
 
-    // Drain the stream fully before reading `.result()`: pi-ai resolves
-    // `.result()` from the same synchronous `push()` call that delivers the
-    // terminal `done`/`error` event to this loop, so by the time the loop
-    // exits the result promise is already settled — no race between the two.
-    let accumulated = '';
-    for await (const event of eventStream) {
-      if (event.type === 'text_delta') {
-        accumulated += event.delta;
-        input.onTextDelta?.(accumulated);
+    // Mirrors OpenAiHttpLlmClient's `streaming = typeof input.onTextDelta ===
+    // 'function'` branch: only do incremental delta work when a caller
+    // actually wants progressive updates. pi-ai's transport always speaks
+    // SSE under the hood regardless (its `Provider.stream()` has no
+    // non-streaming request mode to opt into — verified against the
+    // installed package's dialect modules), so this doesn't change what
+    // goes over the wire the way the sibling client's `stream: false` does;
+    // it does avoid pointless per-event accumulation/callback overhead when
+    // nobody is listening, which is the behavior this app's `LlmClient`
+    // callers actually observe.
+    //
+    // When we do iterate: drain the stream fully before reading `.result()`
+    // — pi-ai resolves `.result()` from the same synchronous `push()` call
+    // that delivers the terminal `done`/`error` event to this loop, so by
+    // the time the loop exits the result promise is already settled, no
+    // race between the two. `.result()` resolves independently of whether
+    // anything ever iterates the stream (pi-ai's internal event queue isn't
+    // backpressured by consumption), so skipping the loop entirely below is
+    // safe too.
+    if (input.onTextDelta) {
+      let accumulated = '';
+      for await (const event of eventStream) {
+        if (event.type === 'text_delta') {
+          accumulated += event.delta;
+          input.onTextDelta(accumulated);
+        }
       }
     }
 

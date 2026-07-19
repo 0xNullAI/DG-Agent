@@ -43,6 +43,19 @@ const LOADERS: Record<PiAiProviderKey, () => Promise<Provider<Api>>> = {
   xiaomi: () => import('@earendil-works/pi-ai/providers/xiaomi').then((m) => m.xiaomiProvider()),
 };
 
+/**
+ * The authoritative set of provider keys this package actually knows how to
+ * load — `LOADERS`'s keys, exported so `index.ts`'s `configSchema` can
+ * validate a `providerKey` against it at `PiAiLlmClient` construction time
+ * instead of trusting `providers-catalog`'s loosely-typed (plain `string`)
+ * `piProviderKey` field. Without that check, a catalog/registry drift (typo,
+ * rename, a catalog entry added without a matching loader) would construct
+ * successfully and only fail later, deep inside `runTurn()`, as a confusing
+ * raw error that bypasses `create-browser-agent-client.ts`'s friendly
+ * Chinese config-error formatting entirely.
+ */
+export const PI_AI_PROVIDER_KEYS = Object.keys(LOADERS) as PiAiProviderKey[];
+
 const cache = new Map<PiAiProviderKey, Promise<Provider<Api>>>();
 
 /**
@@ -65,32 +78,78 @@ export function loadPiAiProvider(key: PiAiProviderKey): Promise<Provider<Api>> {
   return inflight;
 }
 
+// `Model.maxTokens` is not just informational — pi-ai's `anthropic-messages`
+// dialect sends it directly as the outbound `max_tokens` request field
+// whenever the caller doesn't pass `options.maxTokens` explicitly (verified
+// against the installed package: `anthropic-messages.js`'s `buildParams` does
+// `max_tokens: options?.maxTokens ?? model.maxTokens`, unconditionally — the
+// Anthropic Messages API has no "let the server pick" default to fall back
+// to). For a model id unrecognized by pi-ai's catalog, borrowing this number
+// from an arbitrary *other* model of the same provider (e.g. the first entry
+// in whatever order the catalog object happens to iterate) would silently
+// hand a real request a cap that has nothing to do with the actual model —
+// too low truncates real output, too high can get the request rejected by a
+// smaller model. A fixed, deliberately conservative constant, documented as
+// a guess, is safer than an unexamined borrowed one. `contextWindow` gets
+// the same treatment for the same reason (it clamps `maxTokens` down further
+// via pi-ai's `clampMaxTokensToContext`).
+const FALLBACK_MAX_TOKENS = 4096;
+const FALLBACK_CONTEXT_WINDOW = 32000;
+
 /**
  * Resolves a configured model id against the provider's static catalog.
- * Falls back to a conservative synthetic `Model` (borrowing `api` /
- * `contextWindow` / `maxTokens` from an existing catalog entry as a template
- * when one exists) for ids the catalog doesn't know yet — new model releases
- * routinely ship before pi-ai's generated catalog is regenerated, and this
- * app lets users type an arbitrary model id rather than only pick from a
- * dropdown.
+ * Falls back to a conservative synthetic `Model` for ids the catalog doesn't
+ * know yet — new model releases routinely ship before pi-ai's generated
+ * catalog is regenerated, and this app lets users type an arbitrary model id
+ * rather than only pick from a dropdown. `api` is still inferred from the
+ * provider's known models (the *most common* one, not just the first) since
+ * pi-ai needs a concrete dialect to dispatch to; every provider here except
+ * `fireworks`/`xai` only ever has one `api` value anyway, so this is exact
+ * for all but those two mixed-dialect providers.
  */
 export function resolvePiAiModel(provider: Provider<Api>, modelId: string): Model<Api> {
-  const known = provider.getModels().find((model) => model.id === modelId);
+  // providers-catalog's normalizeProviderSettings already trims
+  // ProviderSettings.model, so PiAiLlmClient's config.model arrives trimmed
+  // in the real app; trimming again here is a cheap, harmless guard for any
+  // caller that constructs a model id outside that path (tests, future
+  // consumers) so this lookup can't diverge from a UI-side comparison that
+  // also trims.
+  const trimmedModelId = modelId.trim();
+  const models = provider.getModels();
+  const known = models.find((model) => model.id === trimmedModelId);
   if (known) return known;
 
-  const template = provider.getModels()[0];
   return {
-    id: modelId,
-    name: modelId,
-    api: template?.api ?? 'openai-completions',
+    id: trimmedModelId,
+    name: trimmedModelId,
+    api: mostCommonApi(models),
     provider: provider.id,
     baseUrl: provider.baseUrl ?? '',
     reasoning: false,
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: template?.contextWindow ?? 128000,
-    maxTokens: template?.maxTokens ?? 8192,
+    contextWindow: FALLBACK_CONTEXT_WINDOW,
+    maxTokens: FALLBACK_MAX_TOKENS,
   };
+}
+
+function mostCommonApi(models: readonly Model<Api>[]): Api {
+  if (models.length === 0) return 'openai-completions';
+
+  const counts = new Map<Api, number>();
+  for (const model of models) {
+    counts.set(model.api, (counts.get(model.api) ?? 0) + 1);
+  }
+
+  let bestApi: Api = models[0]!.api;
+  let bestCount = 0;
+  for (const [api, count] of counts) {
+    if (count > bestCount) {
+      bestApi = api;
+      bestCount = count;
+    }
+  }
+  return bestApi;
 }
 
 export async function listPiAiModels(key: PiAiProviderKey): Promise<PiAiModelInfo[]> {

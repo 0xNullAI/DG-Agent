@@ -14,9 +14,14 @@ import { BrowserPermissionService } from '@dg-agent/permissions-browser';
 import {
   createFreeProxyHmacHeaders,
   resolveProviderRuntimeSettings,
+  type ProviderDialect,
 } from '@dg-agent/providers-catalog';
 import { OpenAiHttpLlmClient } from '@dg-agent/providers-openai-http';
-import { PiAiLlmClient, type PiAiProviderKey } from '@dg-agent/providers-pi-ai';
+import {
+  PI_AI_PROVIDER_KEYS,
+  PiAiLlmClient,
+  type PiAiProviderKey,
+} from '@dg-agent/providers-pi-http';
 import {
   OpossumPolicyEngine,
   PolicyEngine,
@@ -47,11 +52,49 @@ function isValidHttpUrl(value: string): boolean {
   }
 }
 
-function formatProviderConfigError(error: unknown, providerId: string): string {
+/**
+ * providers-catalog's `ProviderDefinition.piProviderKey` is deliberately
+ * typed as a loose `string` (so providers-catalog doesn't have to depend on
+ * providers-pi-http just for a literal union) — this is the one place that
+ * gap gets closed, against providers-pi-http's actual known loader keys, so a
+ * catalog/registry drift (typo, rename, a catalog entry added without a
+ * matching loader) shows a friendly Chinese message here instead of
+ * constructing successfully and only failing later, deep inside a chat
+ * turn's `runTurn()`.
+ */
+export function isPiAiProviderKey(value: string): value is PiAiProviderKey {
+  return (PI_AI_PROVIDER_KEYS as readonly string[]).includes(value);
+}
+
+/**
+ * Both `OpenAiHttpLlmClient` and `PiAiLlmClient` validate their config with
+ * zod and throw a `ZodError` on a bad shape; this turns that into a Chinese
+ * message for the settings UI. The two clients' `configSchema`s have
+ * different fields (`baseUrl` only exists for the openai-compat one,
+ * `providerKey` only for the pi-ai one), so which pattern is worth checking
+ * for depends on which dialect actually threw — without branching on
+ * `dialect`, a pi-ai config error would never match the openai-compat-only
+ * `/baseUrl/i` check and fall straight through to the generic branch, which
+ * dumps the raw (English/JSON-shaped) ZodError text into the otherwise
+ * all-Chinese settings UI.
+ */
+export function formatProviderConfigError(
+  error: unknown,
+  providerId: string,
+  dialect: ProviderDialect,
+): string {
   const providerLabel = `当前服务提供方“${providerId}”`;
 
-  if (error instanceof Error && /baseUrl/i.test(error.message)) {
+  if (dialect === 'openai-compat' && error instanceof Error && /baseUrl/i.test(error.message)) {
     return `${providerLabel}配置无效：接口地址不是有效的 URL`;
+  }
+
+  if (dialect === 'pi-ai' && error instanceof Error && /providerKey/i.test(error.message)) {
+    return `${providerLabel}配置无效：内部提供方标识不受支持，请重新选择服务提供方或联系开发者`;
+  }
+
+  if (dialect === 'pi-ai' && error instanceof Error) {
+    return `${providerLabel}配置无效：请检查 API 密钥与模型名称是否填写正确`;
   }
 
   if (error instanceof Error) {
@@ -97,26 +140,26 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
     );
   } else if (provider.dialect === 'pi-ai') {
     // Native/pi-ai-routed providers (Anthropic, Google, and the OpenAI-/
-    // Anthropic-compatible providers in providers-pi-ai's registry) have no
+    // Anthropic-compatible providers in providers-pi-http's registry) have no
     // baseUrl/endpoint concept — providers-catalog already clears those
     // fields for this dialect (see normalizeProviderSettings), so there is
     // no isValidHttpUrl() check to run here, unlike the openai-compat path
     // below.
-    if (!provider.piProviderKey) {
+    if (!provider.piProviderKey || !isPiAiProviderKey(provider.piProviderKey)) {
       llm = new UnavailableLlmClient(
-        `当前服务提供方“${config.provider.providerId}”配置无效：缺少 pi-ai 提供方标识`,
+        `当前服务提供方“${config.provider.providerId}”配置无效：内部提供方标识不受支持，请重新选择服务提供方或联系开发者`,
       );
     } else {
       try {
         llm = new PiAiLlmClient({
           apiKey: provider.apiKey,
           model: provider.model,
-          providerKey: provider.piProviderKey as PiAiProviderKey,
+          providerKey: provider.piProviderKey,
           temperature: settings.temperature,
         });
       } catch (error) {
         llm = new UnavailableLlmClient(
-          formatProviderConfigError(error, config.provider.providerId),
+          formatProviderConfigError(error, config.provider.providerId, provider.dialect),
         );
       }
     }
@@ -140,7 +183,9 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
         extraHeaders,
       });
     } catch (error) {
-      llm = new UnavailableLlmClient(formatProviderConfigError(error, config.provider.providerId));
+      llm = new UnavailableLlmClient(
+        formatProviderConfigError(error, config.provider.providerId, provider.dialect),
+      );
     }
   }
 

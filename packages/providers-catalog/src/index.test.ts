@@ -25,6 +25,22 @@ describe('providers-catalog', () => {
     expect(normalized.useStrict).toBe(false);
   });
 
+  it('trims whitespace from a typed model id', () => {
+    const withWhitespace = normalizeProviderSettings({
+      ...createProviderSettings('anthropic'),
+      model: '  claude-opus-4-5  ',
+    });
+    expect(withWhitespace.model).toBe('claude-opus-4-5');
+
+    // A whitespace-only model id is not a "real" model id — must fall back
+    // to the provider default like an empty string would.
+    const whitespaceOnly = normalizeProviderSettings({
+      ...createProviderSettings('anthropic'),
+      model: '   ',
+    });
+    expect(whitespaceOnly.model).toBe('claude-sonnet-4-5');
+  });
+
   it('maps the free provider to the browser proxy runtime settings', () => {
     const runtime = resolveProviderRuntimeSettings(createProviderSettings('free'));
 

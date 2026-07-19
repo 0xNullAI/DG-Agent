@@ -24,7 +24,7 @@ import {
   listModelsForProvider,
   type PiAiModelInfo,
   type PiAiProviderKey,
-} from '@dg-agent/providers-pi-ai';
+} from '@dg-agent/providers-pi-http';
 import { HelpTip } from '../HelpTip.js';
 import { SettingLabel } from './SettingLabel.js';
 import { SettingSelect } from './SettingSelect.js';
@@ -506,6 +506,14 @@ function PiAiModelPicker({
   const [models, setModels] = useState<PiAiModelInfo[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Doubles as the staleness guard for `refresh()` below — `refresh()` is
+  // only ever started from a click handler, and any effect from an earlier
+  // render has already flushed by the time a *new* click can happen (React
+  // runs effects before the next user interaction is possible), so reading
+  // this ref from an awaited `refresh()` continuation is never one render
+  // behind a provider switch, even though it's only written inside an
+  // effect rather than during render (this project's react-hooks/refs lint
+  // rule forbids writing a ref's `.current` during render).
   const lastProviderRef = useRef(providerKey);
 
   useEffect(() => {
@@ -517,15 +525,25 @@ function PiAiModelPicker({
   }, [providerKey]);
 
   async function refresh(): Promise<void> {
+    const requestedProviderKey = providerKey;
     setLoading(true);
     setError(null);
     try {
-      setModels(await listModelsForProvider(providerKey));
+      const list = await listModelsForProvider(requestedProviderKey);
+      // Stale response guard: the user switched providers while this fetch
+      // was in flight. Applying it now would overwrite the newly-selected
+      // provider's (possibly already-loaded, possibly still-empty) state
+      // with data for a provider that isn't showing anymore.
+      if (lastProviderRef.current !== requestedProviderKey) return;
+      setModels(list);
     } catch (caught) {
+      if (lastProviderRef.current !== requestedProviderKey) return;
       setError(caught instanceof Error ? caught.message : '未知错误');
       setModels(null);
     } finally {
-      setLoading(false);
+      if (lastProviderRef.current === requestedProviderKey) {
+        setLoading(false);
+      }
     }
   }
 

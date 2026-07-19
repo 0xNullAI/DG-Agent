@@ -176,6 +176,24 @@ describe('PiAiLlmClient (anthropic)', () => {
     expect(result.toolCalls).toBeUndefined();
   });
 
+  it('resolves the full text correctly when no onTextDelta callback is supplied', async () => {
+    // Regression: runTurn used to always iterate the stream for deltas
+    // regardless of whether a caller wanted them; this exercises the
+    // no-callback branch explicitly (the tool-call test below also hits it
+    // incidentally via makeTurnInput()'s default).
+    stubFetchOnce(() => anthropicSseResponse(ANTHROPIC_TEXT_REPLY_EVENTS));
+
+    const client = new PiAiLlmClient({
+      apiKey: 'sk-ant-test',
+      model: 'claude-sonnet-4-5',
+      providerKey: 'anthropic',
+    });
+
+    const result = await client.runTurn(makeTurnInput());
+
+    expect(result.assistantMessage).toBe('Hello world');
+  });
+
   it('round-trips a tool call', async () => {
     stubFetchOnce(() => anthropicSseResponse(ANTHROPIC_TOOL_CALL_EVENTS));
 

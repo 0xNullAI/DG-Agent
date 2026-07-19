@@ -32,7 +32,7 @@ export type ProviderEndpoint = 'responses' | 'chat/completions';
  *   Responses HTTP client in `providers-openai-http` (`free`/`qwen`/
  *   `deepseek`/`doubao`/`openai`/`custom` — unchanged by this field's
  *   introduction, still routed exactly as before).
- * - `pi-ai`: `providers-pi-ai`'s `PiAiLlmClient`, wrapping
+ * - `pi-ai`: `providers-pi-http`'s `PiAiLlmClient`, wrapping
  *   `@earendil-works/pi-ai`. `piProviderKey` then names which of pi-ai's
  *   built-in provider factories (`registry.ts` in that package) to load —
  *   pi-ai itself picks the right wire dialect (anthropic-messages /
@@ -58,7 +58,7 @@ export interface ProviderDefinition {
   dialect: ProviderDialect;
   /**
    * Loosely typed (not `PiAiProviderKey`) so this package doesn't have to
-   * depend on `providers-pi-ai` just for a string literal union — the
+   * depend on `providers-pi-http` just for a string literal union — the
    * dependency runs the other way (agent-browser depends on both and wires
    * them together). Only meaningful when `dialect === 'pi-ai'`.
    */
@@ -233,10 +233,10 @@ export const PROVIDER_DEFINITIONS: ProviderDefinition[] = [
       },
     ],
   },
-  // —— pi-ai-routed providers (@dg-agent/providers-pi-ai). Native Anthropic
+  // —— pi-ai-routed providers (@dg-agent/providers-pi-http). Native Anthropic
   // / Google first, then the OpenAI-/Anthropic-compatible-but-not-
   // `api.openai.com` providers, each CORS-checked live against its real
-  // host before being added (see providers-pi-ai's types.ts for the notes).
+  // host before being added (see providers-pi-http's types.ts for the notes).
   {
     id: 'anthropic',
     name: 'Claude (Anthropic)',
@@ -443,6 +443,17 @@ const DEFAULT_BASE_URL_BY_PROVIDER: Partial<Record<ProviderId, string>> = {
 export function normalizeProviderSettings(input: ProviderSettings): ProviderSettings {
   const normalized = { ...input };
   const definition = getProviderDefinition(normalized.providerId);
+
+  // Trim before the default-fallback checks below (a whitespace-only model
+  // id must fall back to the provider default, not survive as-is) and
+  // before this ever reaches PiAiLlmClient — otherwise a model id with
+  // incidental leading/trailing whitespace (e.g. pasted from somewhere) can
+  // show as "known" in the settings UI's catalog lookup (which trims for
+  // display) while resolving to a *different*, untrimmed, synthetic model
+  // at actual request time. Trimming once here, at the single place every
+  // persisted/draft `ProviderSettings.model` value passes through, is the
+  // one normalization every other reader can then rely on.
+  normalized.model = normalized.model.trim();
 
   if (normalized.providerId === 'free') {
     normalized.baseUrl = FREE_TRIAL_PROXY_URL + '/v1';
