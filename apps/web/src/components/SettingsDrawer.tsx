@@ -1,10 +1,12 @@
 import React from 'react';
 import type { BridgeLogEntry, BridgeManagerStatus } from '@dg-agent/bridge';
 import type { WaveformDefinition } from '@dg-agent/core';
+import type { CivetEdgingClient, OpossumClient, PawPrintsClient } from '@dg-agent/runtime';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import type { ModelLogTurn } from '../services/model-log-store.js';
 import {
   ArrowLeft,
+  Bluetooth,
   Bot,
   Database,
   FileSearch,
@@ -25,6 +27,7 @@ import { BridgeTab } from './settings/BridgeTab.js';
 import { BridgeLogsTab, ModelLogsTab } from './settings/LogsTab.js';
 import { VoiceTab } from './settings/VoiceTab.js';
 import { DataTab, type ExportableSession } from './settings/DataTab.js';
+import { DevicesTab } from './settings/DevicesTab.js';
 import { PresetSelector } from './PresetSelector.js';
 import { WaveformsPanel } from './WaveformsPanel.js';
 
@@ -33,6 +36,7 @@ export type SettingsModalTab =
   | 'preset'
   | 'safety'
   | 'waveforms'
+  | 'devices'
   | 'bridge'
   | 'voice'
   | 'data'
@@ -85,6 +89,16 @@ export const SETTINGS_NAV_ITEMS: Array<{
     sections: {},
   },
   {
+    value: 'devices',
+    label: '扩展设备',
+    description: '负鼠、爪印、灵猫的独立蓝牙连接',
+    icon: Bluetooth,
+    sections: {
+      扩展设备:
+        '独立连接或断开负鼠振动控制器、爪印传感器、灵猫传感器，互不影响，也不影响郊狼连接。',
+    },
+  },
+  {
     value: 'bridge',
     label: 'Bot',
     description: 'QQ、Telegram 和远程控制',
@@ -130,7 +144,7 @@ export const SETTINGS_NAV_GROUPS: Array<{
   values: SettingsModalTab[];
 }> = [
   { label: '配置', values: ['general', 'preset', 'safety', 'waveforms'] },
-  { label: '扩展', values: ['bridge', 'voice', 'data'] },
+  { label: '扩展', values: ['devices', 'bridge', 'voice', 'data'] },
   { label: '日志', values: ['model-tool-logs', 'bridge-logs'] },
 ];
 
@@ -150,6 +164,9 @@ export interface SettingsDrawerProps {
   onImportWaveformFromMarket: (waveform: WaveformDefinition) => void | Promise<void>;
   onRemoveWaveform: (id: string) => void;
   onEditWaveform: (waveform: WaveformDefinition) => void;
+  opossum: OpossumClient;
+  pawPrints: PawPrintsClient;
+  civetEdging: CivetEdgingClient;
   bridgeLogs: BridgeLogEntry[];
   bridgeStatus: BridgeManagerStatus | null;
   modelLogTurns: ModelLogTurn[];
@@ -171,6 +188,9 @@ function SettingsTabContent({
   onImportWaveformFromMarket,
   onRemoveWaveform,
   onEditWaveform,
+  opossum,
+  pawPrints,
+  civetEdging,
   bridgeLogs,
   bridgeStatus,
   modelLogTurns,
@@ -207,6 +227,8 @@ function SettingsTabContent({
           onEdit={onEditWaveform}
         />
       );
+    case 'devices':
+      return <DevicesTab opossum={opossum} pawPrints={pawPrints} civetEdging={civetEdging} />;
     case 'bridge':
       return <BridgeTab settingsDraft={settingsDraft} setSettingsDraft={setSettingsDraft} />;
     case 'voice':

@@ -20,6 +20,9 @@ import {
   PolicyEngine,
   createDefaultPolicyRules,
   createDefaultToolRegistryWithDeps,
+  type CivetEdgingClient,
+  type OpossumClient,
+  type PawPrintsClient,
 } from '@dg-agent/runtime';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { createBuildBrowserInstructions } from './build-browser-instructions.js';
@@ -58,6 +61,10 @@ function formatProviderConfigError(error: unknown, providerId: string): string {
 export interface CreateBrowserAgentClientOptions {
   settings: BrowserAppSettings;
   device: DeviceClient;
+  /** At most one connected auxiliary device of each kind, alongside Coyote. */
+  opossum?: OpossumClient;
+  pawPrints?: PawPrintsClient;
+  civetEdging?: CivetEdgingClient;
   sessionStore?: SessionStore;
   sessionTraceStore?: SessionTraceStore;
   waveformLibrary: WaveformLibrary;
@@ -111,6 +118,9 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
 
   return createEmbeddedAgentClient({
     device: options.device,
+    opossum: options.opossum,
+    pawPrints: options.pawPrints,
+    civetEdging: options.civetEdging,
     llm,
     toolRegistry: createDefaultToolRegistryWithDeps({
       waveformLibrary: options.waveformLibrary,

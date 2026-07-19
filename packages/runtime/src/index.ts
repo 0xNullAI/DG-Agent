@@ -1,5 +1,6 @@
 export * from './agent-runtime.js';
 export * from './default-policies.js';
+export * from './device-clients.js';
 export * from './device-command-queue.js';
 export * from './event-bus.js';
 export * from './in-memory-session-store.js';

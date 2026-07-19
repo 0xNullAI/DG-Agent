@@ -116,6 +116,9 @@ export function App({ servicesOverrides }: AppProps = {}) {
     bridgeManager,
     serviceInitWarnings,
     resetPermissionGrants,
+    opossum,
+    pawPrints,
+    civetEdging,
   } = useBrowserAppServices({
     resolveBridgeSessionId,
     settings,
@@ -760,6 +763,9 @@ export function App({ servicesOverrides }: AppProps = {}) {
                 onImportWaveformFromMarket={(waveform) => void importWaveformFromMarket(waveform)}
                 onRemoveWaveform={(id) => void removeWaveform(id)}
                 onEditWaveform={openWaveformEditor}
+                opossum={opossum}
+                pawPrints={pawPrints}
+                civetEdging={civetEdging}
                 bridgeLogs={bridgeLogs}
                 bridgeStatus={bridgeStatus}
                 modelLogTurns={modelLog.turns}
