@@ -18,7 +18,11 @@ export function DevicePicker({ open, devices, onSelect, onCancel }: Props) {
   return (
     <div className="dgaa-picker-backdrop" role="dialog" aria-modal="true">
       <div className="dgaa-picker-panel">
-        <header className="dgaa-picker-header">选择郊狼设备</header>
+        {/* Reused for all 4 device kinds (Coyote + the 3 aux kinds, each
+            scanning with its own name-prefix filter) — generic title since
+            the caller already told the user which kind via the preceding
+            kind picker. */}
+        <header className="dgaa-picker-header">选择设备</header>
         <ul className="dgaa-picker-list">
           {sorted.length === 0 ? (
             <li className="dgaa-picker-empty">未发现设备 — 请确认设备已开机并按住按键开启广播</li>

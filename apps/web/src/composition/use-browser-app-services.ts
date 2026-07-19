@@ -34,6 +34,21 @@ export type ServicesOverrides = Pick<
 > & {
   /** Skip the update-checker poll loop (no version.json on non-web shells). */
   disableUpdateChecker?: boolean;
+  /**
+   * Override hooks for the three auxiliary device clients, mirroring
+   * `createDeviceClient`'s pattern. Used by the Tauri Android shell to
+   * inject `TauriBlecOpossumClient`/`TauriBlecPawPrintsClient`/
+   * `TauriBlecCivetEdgingClient` (`@dg-kit/transport-tauri-blec`, via
+   * `@dg-agent/device-tauri-ble`) instead of the Web-Bluetooth-backed
+   * defaults. Only consulted when the corresponding client isn't already
+   * pre-built (mirrors `createDeviceClient`'s "only used when `device` is
+   * not supplied" rule at the `createBrowserServices()` level, one layer
+   * further out — here it's "only used when this hook hasn't already built
+   * one this render's lifetime").
+   */
+  createOpossumClient?: () => OpossumClient;
+  createPawPrintsClient?: () => PawPrintsClient;
+  createCivetEdgingClient?: () => CivetEdgingClient;
 };
 
 export interface UseBrowserAppServicesOptions {
@@ -87,26 +102,41 @@ export function useBrowserAppServices(
   // Same "build once, hold stable" pattern as `device` above — each of these
   // three auxiliary devices is independently connectable/disconnectable from
   // the UI, and settings-driven service rebuilds must not tear any of them
-  // down. No override hook (unlike `createDeviceClient`): none of these
-  // three kinds have a non-Web-Bluetooth transport yet, so there's nothing
-  // for a non-web shell to inject.
+  // down. Override hooks mirror `createDeviceClient`: the Tauri Android
+  // shell injects Tauri-backed clients instead of the Web-Bluetooth defaults.
+  const createOpossumClient = servicesOverrides?.createOpossumClient;
   const opossumRef = useRef<OpossumClient | null>(null);
   if (opossumRef.current === null) {
-    opossumRef.current = new WebBluetoothOpossumClient();
+    opossumRef.current = createOpossumClient
+      ? createOpossumClient()
+      : new WebBluetoothOpossumClient();
   }
   const opossum = opossumRef.current;
 
+  const createPawPrintsClient = servicesOverrides?.createPawPrintsClient;
   const pawPrintsRef = useRef<PawPrintsClient | null>(null);
   if (pawPrintsRef.current === null) {
-    pawPrintsRef.current = new WebBluetoothPawPrintsClient();
+    pawPrintsRef.current = createPawPrintsClient
+      ? createPawPrintsClient()
+      : new WebBluetoothPawPrintsClient();
   }
   const pawPrints = pawPrintsRef.current;
 
+  const createCivetEdgingClient = servicesOverrides?.createCivetEdgingClient;
   const civetEdgingRef = useRef<CivetEdgingClient | null>(null);
   if (civetEdgingRef.current === null) {
-    civetEdgingRef.current = new WebBluetoothCivetEdgingClient();
+    civetEdgingRef.current = createCivetEdgingClient
+      ? createCivetEdgingClient()
+      : new WebBluetoothCivetEdgingClient();
   }
   const civetEdging = civetEdgingRef.current;
+
+  const {
+    createOpossumClient: _createOpossumClient,
+    createPawPrintsClient: _createPawPrintsClient,
+    createCivetEdgingClient: _createCivetEdgingClient,
+    ...browserServicesOverrides
+  } = servicesOverrides ?? {};
 
   const services = useMemo(
     () =>
@@ -121,7 +151,7 @@ export function useBrowserAppServices(
           new Promise<PermissionDecision>((resolve) => {
             setPendingPermission({ input, resolve });
           }),
-        ...(servicesOverrides ?? {}),
+        ...browserServicesOverrides,
       }),
     [
       settings,
