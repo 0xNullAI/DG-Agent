@@ -1,7 +1,6 @@
 import React from 'react';
 import type { BridgeLogEntry, BridgeManagerStatus } from '@dg-agent/bridge';
 import type { WaveformDefinition } from '@dg-agent/core';
-import type { CivetEdgingClient, OpossumClient, PawPrintsClient } from '@dg-agent/runtime';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import type { ModelLogTurn } from '../services/model-log-store.js';
 import {
@@ -164,9 +163,6 @@ export interface SettingsDrawerProps {
   onImportWaveformFromMarket: (waveform: WaveformDefinition) => void | Promise<void>;
   onRemoveWaveform: (id: string) => void;
   onEditWaveform: (waveform: WaveformDefinition) => void;
-  opossum: OpossumClient;
-  pawPrints: PawPrintsClient;
-  civetEdging: CivetEdgingClient;
   sensorTriggersEnabled: boolean;
   onToggleSensorTriggers: (enabled: boolean) => void;
   bridgeLogs: BridgeLogEntry[];
@@ -190,9 +186,6 @@ function SettingsTabContent({
   onImportWaveformFromMarket,
   onRemoveWaveform,
   onEditWaveform,
-  opossum,
-  pawPrints,
-  civetEdging,
   sensorTriggersEnabled,
   onToggleSensorTriggers,
   bridgeLogs,
@@ -234,9 +227,6 @@ function SettingsTabContent({
     case 'devices':
       return (
         <DevicesTab
-          opossum={opossum}
-          pawPrints={pawPrints}
-          civetEdging={civetEdging}
           sensorTriggersEnabled={sensorTriggersEnabled}
           onToggleSensorTriggers={onToggleSensorTriggers}
         />

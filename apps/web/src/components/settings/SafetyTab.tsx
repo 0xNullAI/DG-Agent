@@ -182,16 +182,14 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
 
   return (
     <div className="settings-panel-tab-content">
-      <section className="settings-row-card">
-        <h3 className="settings-card-legend">最大强度上限</h3>
+      <CollapsibleSection title="郊狼最大强度上限">
         <div className={styles.strengthControlList}>
           <StrengthControl channel="A" value={settingsDraft.maxStrengthA} onChange={setStrengthA} />
           <StrengthControl channel="B" value={settingsDraft.maxStrengthB} onChange={setStrengthB} />
         </div>
-      </section>
+      </CollapsibleSection>
 
-      <section className="settings-row-card">
-        <h3 className="settings-card-legend">负鼠最大强度上限</h3>
+      <CollapsibleSection title="负鼠最大强度上限">
         <div className={styles.strengthControlList}>
           <StrengthControl
             channel="A"
@@ -206,7 +204,7 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
             idPrefix="max-opossum-intensity"
           />
         </div>
-      </section>
+      </CollapsibleSection>
 
       <section className="settings-row-card">
         <h3 className="settings-card-legend">工具调用确认模式</h3>
@@ -454,6 +452,32 @@ function ToolLimitField({
 }) {
   return (
     <ConfigNumberField id={id} value={value} min={min} max={TOOL_LIMIT_MAX} onChange={onChange} />
+  );
+}
+
+function CollapsibleSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <section className="settings-row-card">
+      <button
+        type="button"
+        className="flex w-full items-center justify-between text-left"
+        onClick={() => setOpen((current) => !current)}
+      >
+        <h3 className="settings-card-legend mb-0">{title}</h3>
+        <div className="flex items-center gap-1">
+          <span className="text-[12px] text-[var(--text-faint)]">{open ? '收起' : '展开'}</span>
+          <ChevronDown
+            className={cn(
+              'h-4 w-4 text-[var(--text-faint)] transition-transform duration-200',
+              open && 'rotate-180',
+            )}
+          />
+        </div>
+      </button>
+      {open && <div className="mt-3">{children}</div>}
+    </section>
   );
 }
 
