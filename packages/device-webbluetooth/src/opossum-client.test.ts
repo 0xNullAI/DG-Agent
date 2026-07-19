@@ -205,6 +205,45 @@ describe('WebBluetoothOpossumClient', () => {
     expect(setPatternSpy).not.toHaveBeenCalled();
   });
 
+  it('vibrateSetPattern maps to setVibrationPattern without touching intensity', async () => {
+    const { nav } = setup();
+    const client = new WebBluetoothOpossumClient({ navigatorRef: nav });
+    await client.connect();
+    await client.execute({ type: 'vibrateStart', channel: 'A', intensity: 50 });
+
+    const adapter = (client as unknown as { adapter: OpossumVibrateAdapter }).adapter;
+    const setPatternSpy = vi.spyOn(adapter, 'setVibrationPattern');
+
+    const result = await client.execute({
+      type: 'vibrateSetPattern',
+      channel: 'A',
+      pattern: 'wave',
+    });
+
+    expect(setPatternSpy).toHaveBeenCalledWith('A', OPOSSUM_VIBRATION_PATTERNS.wave);
+    expect(result.state.intensityA).toBe(50);
+  });
+
+  it('vibrateBurst maps to adapter.vibrateBurst with the given duration', async () => {
+    const { nav } = setup();
+    const client = new WebBluetoothOpossumClient({ navigatorRef: nav });
+    await client.connect();
+    await client.execute({ type: 'vibrateStart', channel: 'A', intensity: 30 });
+
+    const adapter = (client as unknown as { adapter: OpossumVibrateAdapter }).adapter;
+    const burstSpy = vi.spyOn(adapter, 'vibrateBurst');
+
+    const result = await client.execute({
+      type: 'vibrateBurst',
+      channel: 'A',
+      intensity: 90,
+      durationMs: 800,
+    });
+
+    expect(burstSpy).toHaveBeenCalledWith('A', 90, 800);
+    expect(result.state.intensityA).toBe(90);
+  });
+
   it('setIndicatorColor writes the LED packet with button reporting kept on', async () => {
     const { nav, device } = setup();
     const client = new WebBluetoothOpossumClient({ navigatorRef: nav });

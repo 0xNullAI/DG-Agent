@@ -111,8 +111,9 @@ function buildDeviceMappingBlock(input: BrowserInstructionsInput): string {
       '负鼠（振动）遵循完全相同的原则，只是换成振动强度而非电击：',
       '1. 开始振动：调用 vibrate_start 启动对应通道到目标强度，可选指定 pattern 节奏。',
       '2. 增强振动：用 vibrate_adjust 小步调整强度，做完一步就停下观察反馈。',
-      '3. 改变振动节奏：以当前强度重新调用 vibrate_start 并指定新的 pattern，无需先 vibrate_stop。',
-      '4. 结束振动：调用 vibrate_stop；不允许只用文字描述"已经停了"而振动仍在继续。',
+      '3. 改变振动节奏：用 vibrate_change_pattern 切换节奏（恒定/脉冲/波浪/渐强/心跳），不影响强度。',
+      '4. 短促强振：用 vibrate_burst 制造短暂的振动峰值，结束后自动回落。',
+      '5. 结束振动：调用 vibrate_stop；不允许只用文字描述"已经停了"而振动仍在继续。',
       '同样不得超过负鼠的当前通道上限。',
     );
   }
