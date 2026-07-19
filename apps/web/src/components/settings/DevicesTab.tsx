@@ -15,11 +15,14 @@ import type { CivetEdgingClient, OpossumClient, PawPrintsClient } from '@dg-agen
 import { Button } from '@/components/ui/button';
 import { useAuxDeviceState } from '../../hooks/use-aux-device-state.js';
 import { isBluetoothChooserCancelledError } from '../../utils/ui-formatters.js';
+import { SettingToggle } from './SettingToggle.js';
 
 export interface DevicesTabProps {
   opossum: OpossumClient;
   pawPrints: PawPrintsClient;
   civetEdging: CivetEdgingClient;
+  sensorTriggersEnabled: boolean;
+  onToggleSensorTriggers: (enabled: boolean) => void;
 }
 
 type AuxDeviceKind = 'opossum' | 'paw-prints' | 'civet-edging';
@@ -94,7 +97,13 @@ function AuxDeviceRow({
   );
 }
 
-export function DevicesTab({ opossum, pawPrints, civetEdging }: DevicesTabProps) {
+export function DevicesTab({
+  opossum,
+  pawPrints,
+  civetEdging,
+  sensorTriggersEnabled,
+  onToggleSensorTriggers,
+}: DevicesTabProps) {
   const opossumState = useAuxDeviceState<OpossumState>(opossum, createEmptyOpossumState());
   const pawPrintsState = useAuxDeviceState<SensorState>(pawPrints, createEmptySensorState());
   const civetEdgingState = useAuxDeviceState<SensorState>(civetEdging, createEmptySensorState());
@@ -180,6 +189,21 @@ export function DevicesTab({ opossum, pawPrints, civetEdging }: DevicesTabProps)
             error={errors['civet-edging']}
             onConnect={() => void handleConnect('civet-edging', civetEdging)}
             onDisconnect={() => void handleDisconnect('civet-edging', civetEdging)}
+          />
+        </div>
+      </section>
+
+      <section className="settings-row-section">
+        <div className="settings-row-card grid gap-3">
+          <h3 className="settings-card-legend">传感器触发</h3>
+          <p className="text-[12px] leading-relaxed text-[var(--text-faint)]">
+            开启后，爪印按键触发或灵猫压力明显变化会作为内部提醒推送给
+            AI，由它自行判断是否响应；不会自动改变设备状态。默认关闭。
+          </p>
+          <SettingToggle
+            label="允许传感器事件驱动 AI 主动响应"
+            checked={sensorTriggersEnabled}
+            onCheckedChange={onToggleSensorTriggers}
           />
         </div>
       </section>

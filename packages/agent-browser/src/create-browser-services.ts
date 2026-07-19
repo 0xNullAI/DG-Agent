@@ -148,6 +148,14 @@ class UnavailableAgentClient implements AgentClient {
     return Promise.resolve();
   }
 
+  setSensorTriggersEnabled(_sessionId: string, _enabled: boolean): Promise<void> {
+    return Promise.reject(new Error(this.message));
+  }
+
+  isSensorTriggersEnabledForSession(_sessionId: string): Promise<boolean> {
+    return Promise.resolve(false);
+  }
+
   emergencyStop(_sessionId: string): Promise<void> {
     return Promise.reject(new Error(this.message));
   }

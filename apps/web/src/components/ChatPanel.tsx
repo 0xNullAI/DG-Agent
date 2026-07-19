@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import type { DeviceState, SessionSnapshot } from '@dg-agent/core';
+import type { DeviceState, SensorState, SessionSnapshot } from '@dg-agent/core';
+import type { OpossumState } from '@dg-agent/device-webbluetooth';
 import type { PromptPreset, SavedPromptPreset } from '@dg-agent/runtime';
 import {
   ArrowUp,
@@ -12,10 +13,14 @@ import {
   Bluetooth,
   ChevronDown,
   Check,
+  Gauge,
   Mic,
   CircleStop,
   PanelLeft,
+  PawPrint,
   Settings,
+  Vibrate,
+  Zap,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,7 +48,15 @@ interface ChatPanelProps {
   deviceState: DeviceState;
   maxStrengthA: number;
   maxStrengthB: number;
+  opossumState: OpossumState;
+  maxOpossumIntensityA: number;
+  maxOpossumIntensityB: number;
+  pawPrintsState: SensorState;
+  civetEdgingState: SensorState;
   onConnect: () => void;
+  onDisconnectOpossum: () => void;
+  onDisconnectPawPrints: () => void;
+  onDisconnectCivetEdging: () => void;
   onEmergencyStop: () => void;
   onOpenSidebar: () => void;
   onOpenSettings: () => void;
@@ -131,7 +144,15 @@ export function ChatPanel({
   deviceState,
   maxStrengthA,
   maxStrengthB,
+  opossumState,
+  maxOpossumIntensityA,
+  maxOpossumIntensityB,
+  pawPrintsState,
+  civetEdgingState,
   onConnect,
+  onDisconnectOpossum,
+  onDisconnectPawPrints,
+  onDisconnectCivetEdging,
   onEmergencyStop,
   onOpenSidebar,
   onOpenSettings,
@@ -230,34 +251,40 @@ export function ChatPanel({
 
   return (
     <div className="relative flex w-full flex-1 flex-col overflow-hidden">
-      {/* ===== Top bar — only visible on non-lg when device NOT connected ===== */}
-      {!deviceState.connected && (
-        <header className="flex shrink-0 items-center justify-between px-2 py-2 lg:hidden">
-          <Button
-            variant="ghost"
-            size="icon"
-            className={ICON_BTN}
-            onClick={onOpenSidebar}
-            aria-label="历史记录"
-          >
-            <PanelLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-semibold text-[var(--text)]">DG-Agent</span>
-          <Button
-            variant="ghost"
-            size="icon"
-            className={ICON_BTN}
-            onClick={onOpenSettings}
-            aria-label="设置"
-          >
-            <Settings className="h-4 w-4" />
-          </Button>
-        </header>
-      )}
+      {/* ===== Top bar — only visible on non-lg when no device is connected ===== */}
+      {!deviceState.connected &&
+        !opossumState.connected &&
+        !pawPrintsState.connected &&
+        !civetEdgingState.connected && (
+          <header className="flex shrink-0 items-center justify-between px-2 py-2 lg:hidden">
+            <Button
+              variant="ghost"
+              size="icon"
+              className={ICON_BTN}
+              onClick={onOpenSidebar}
+              aria-label="历史记录"
+            >
+              <PanelLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm font-semibold text-[var(--text)]">DG-Agent</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={ICON_BTN}
+              onClick={onOpenSettings}
+              aria-label="设置"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          </header>
+        )}
 
-      {/* ===== Device status bar — only when connected ===== */}
-      {deviceState.connected && (
-        <div className="flex shrink-0 items-center gap-1.5 border-b border-[var(--surface-border)] bg-[var(--bg-elevated)] px-2 py-1.5 sm:gap-2 sm:px-3 sm:py-2">
+      {/* ===== Device status bar — shows whenever any of the four device kinds is connected ===== */}
+      {(deviceState.connected ||
+        opossumState.connected ||
+        pawPrintsState.connected ||
+        civetEdgingState.connected) && (
+        <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-[var(--surface-border)] bg-[var(--bg-elevated)] px-2 py-1.5 sm:gap-x-4 sm:px-3 sm:py-2">
           <Button
             variant="ghost"
             size="icon"
@@ -267,26 +294,103 @@ export function ChatPanel({
           >
             <PanelLeft className="h-4 w-4" />
           </Button>
-          <button
-            type="button"
-            className="flex shrink-0 items-center gap-1 rounded-[8px] px-1.5 py-1 text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] sm:gap-1.5 sm:px-2"
-            onClick={onConnect}
-            title="重连设备"
-          >
-            <Bluetooth className="h-3.5 w-3.5 text-[var(--success)]" />
-            <BatteryIcon level={deviceState.battery} />
-            <span className="hidden text-[11px] tabular-nums sm:inline">
-              {typeof deviceState.battery === 'number' ? `${deviceState.battery}%` : '--'}
-            </span>
-          </button>
-          <div className="flex flex-1 gap-6">
-            <ChannelStrengthBar channel="A" value={deviceState.strengthA} max={maxStrengthA} />
-            <ChannelStrengthBar channel="B" value={deviceState.strengthB} max={maxStrengthB} />
+
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5">
+            {deviceState.connected && (
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  className="flex shrink-0 items-center gap-1 rounded-[8px] px-1.5 py-1 text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] sm:gap-1.5 sm:px-2"
+                  onClick={onConnect}
+                  title="重连设备"
+                >
+                  <Zap className="h-3.5 w-3.5 text-[var(--success)]" />
+                  <BatteryIcon level={deviceState.battery} />
+                  <span className="hidden text-[11px] tabular-nums sm:inline">
+                    {typeof deviceState.battery === 'number' ? `${deviceState.battery}%` : '--'}
+                  </span>
+                </button>
+                <div className="flex gap-3 sm:gap-4">
+                  <ChannelStrengthBar
+                    channel="A"
+                    value={deviceState.strengthA}
+                    max={maxStrengthA}
+                  />
+                  <ChannelStrengthBar
+                    channel="B"
+                    value={deviceState.strengthB}
+                    max={maxStrengthB}
+                  />
+                </div>
+              </div>
+            )}
+
+            {opossumState.connected && (
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <button
+                  type="button"
+                  className="flex shrink-0 items-center gap-1 rounded-[8px] px-1.5 py-1 text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] sm:gap-1.5 sm:px-2"
+                  onClick={onDisconnectOpossum}
+                  title="断开负鼠"
+                >
+                  <Vibrate className="h-3.5 w-3.5 text-[var(--success)]" />
+                  <BatteryIcon level={opossumState.battery} />
+                  <span className="hidden text-[11px] tabular-nums sm:inline">
+                    {typeof opossumState.battery === 'number' ? `${opossumState.battery}%` : '--'}
+                  </span>
+                </button>
+                <div className="flex gap-3 sm:gap-4">
+                  <ChannelStrengthBar
+                    channel="A"
+                    value={opossumState.intensityA}
+                    max={maxOpossumIntensityA}
+                  />
+                  <ChannelStrengthBar
+                    channel="B"
+                    value={opossumState.intensityB}
+                    max={maxOpossumIntensityB}
+                  />
+                </div>
+              </div>
+            )}
+
+            {pawPrintsState.connected && (
+              <button
+                type="button"
+                className="flex shrink-0 items-center gap-1 rounded-[8px] px-1.5 py-1 text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] sm:gap-1.5 sm:px-2"
+                onClick={onDisconnectPawPrints}
+                title="断开爪印"
+              >
+                <PawPrint className="h-3.5 w-3.5 text-[var(--success)]" />
+                <BatteryIcon level={pawPrintsState.battery} />
+                <span className="hidden text-[11px] tabular-nums sm:inline">
+                  {typeof pawPrintsState.battery === 'number' ? `${pawPrintsState.battery}%` : '--'}
+                </span>
+              </button>
+            )}
+
+            {civetEdgingState.connected && (
+              <button
+                type="button"
+                className="flex shrink-0 items-center gap-1 rounded-[8px] px-1.5 py-1 text-[var(--text-soft)] transition-colors hover:bg-[var(--bg-soft)] sm:gap-1.5 sm:px-2"
+                onClick={onDisconnectCivetEdging}
+                title="断开灵猫"
+              >
+                <Gauge className="h-3.5 w-3.5 text-[var(--success)]" />
+                <BatteryIcon level={civetEdgingState.battery} />
+                <span className="hidden text-[11px] tabular-nums sm:inline">
+                  {typeof civetEdgingState.battery === 'number'
+                    ? `${civetEdgingState.battery}%`
+                    : '--'}
+                </span>
+              </button>
+            )}
           </div>
+
           <Button
             variant="destructive"
             size="sm"
-            className="ml-5 lg:mr-3 h-7 shrink-0 rounded-[8px] px-2 text-[12px] font-medium shadow-none sm:px-2.5"
+            className="h-7 shrink-0 rounded-[8px] px-2 text-[12px] font-medium shadow-none sm:px-2.5"
             onClick={onEmergencyStop}
             aria-label="紧急停止"
           >
