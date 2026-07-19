@@ -337,7 +337,7 @@ export function SafetyTab({
         </label>
 
         <label htmlFor="max-adjust-strength-calls-per-turn" className="settings-inline-field">
-          <SettingLabel>单轮强度调整次数上限</SettingLabel>
+          <SettingLabel>郊狼单轮电击调整次数上限</SettingLabel>
           <ToolLimitField
             id="max-adjust-strength-calls-per-turn"
             value={settingsDraft.maxAdjustStrengthCallsPerTurn}
@@ -346,7 +346,7 @@ export function SafetyTab({
         </label>
 
         <label htmlFor="max-cold-start-strength" className="settings-inline-field">
-          <SettingLabel>单次冷启动强度上限</SettingLabel>
+          <SettingLabel>郊狼单次冷启动强度上限</SettingLabel>
           <ConfigNumberField
             id="max-cold-start-strength"
             value={settingsDraft.maxColdStartStrength}
@@ -357,7 +357,7 @@ export function SafetyTab({
         </label>
 
         <label htmlFor="max-adjust-strength-step" className="settings-inline-field">
-          <SettingLabel>单次强度调整幅度上限</SettingLabel>
+          <SettingLabel>郊狼单次电击调整幅度上限</SettingLabel>
           <ConfigNumberField
             id="max-adjust-strength-step"
             value={settingsDraft.maxAdjustStrengthStep}
@@ -368,7 +368,7 @@ export function SafetyTab({
         </label>
 
         <label htmlFor="max-burst-calls-per-turn" className="settings-inline-field">
-          <SettingLabel>单轮突增次数上限（0 表示关闭突增）</SettingLabel>
+          <SettingLabel>郊狼单轮突增次数上限（0 表示关闭突增）</SettingLabel>
           <ToolLimitField
             id="max-burst-calls-per-turn"
             value={settingsDraft.maxBurstCallsPerTurn}
@@ -378,7 +378,7 @@ export function SafetyTab({
         </label>
 
         <label htmlFor="max-burst-duration-ms" className="settings-inline-field">
-          <SettingLabel>单次突增时长上限（ms）</SettingLabel>
+          <SettingLabel>郊狼单次突增时长上限（ms）</SettingLabel>
           <ConfigNumberField
             id="max-burst-duration-ms"
             value={settingsDraft.maxBurstDurationMs}
@@ -389,7 +389,7 @@ export function SafetyTab({
         </label>
 
         <label htmlFor="max-burst-strength-absolute" className="settings-inline-field">
-          <SettingLabel>突增绝对强度上限（0 = 不限）</SettingLabel>
+          <SettingLabel>郊狼突增绝对强度上限（0 = 不限）</SettingLabel>
           <ConfigNumberField
             id="max-burst-strength-absolute"
             value={settingsDraft.maxBurstStrengthAbsolute}
@@ -400,7 +400,7 @@ export function SafetyTab({
         </label>
 
         <label htmlFor="max-burst-strength-relative" className="settings-inline-field">
-          <SettingLabel>突增相对强度上限（当前 + N，0 = 不限）</SettingLabel>
+          <SettingLabel>郊狼突增相对强度上限（当前 + N，0 = 不限）</SettingLabel>
           <ConfigNumberField
             id="max-burst-strength-relative"
             value={settingsDraft.maxBurstStrengthRelative}
@@ -411,7 +411,7 @@ export function SafetyTab({
         </label>
 
         <div className="grid grid-cols-[1fr_auto] items-center gap-x-4 gap-y-3">
-          <SettingLabel>突增前必须先启动通道</SettingLabel>
+          <SettingLabel>郊狼突增前必须先启动通道</SettingLabel>
           <SettingToggle
             label=""
             checked={settingsDraft.burstRequiresActiveChannel}

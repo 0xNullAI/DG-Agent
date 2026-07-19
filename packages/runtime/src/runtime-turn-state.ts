@@ -84,6 +84,17 @@ export function collectTurnToolCalls(turnState: TurnState): TurnToolCallSummary[
   });
 }
 
+// Quotas must catch both the current shock_* names and the pre-1.9.0 ones —
+// the registry's aliases still execute old-name calls, so a quota keyed only
+// on the new name would let an aliased call bypass its per-turn cap.
+function isShockAdjustTool(toolName: string): boolean {
+  return toolName === 'shock_adjust' || toolName === 'adjust_strength';
+}
+
+function isShockBurstTool(toolName: string): boolean {
+  return toolName === 'shock_burst' || toolName === 'burst';
+}
+
 export function consumeTurnQuota(
   toolName: string,
   turnState: TurnState,
@@ -95,10 +106,10 @@ export function consumeTurnQuota(
   }
 
   if (
-    toolName === 'adjust_strength' &&
+    isShockAdjustTool(toolName) &&
     turnState.adjustStrengthCalls >= config.maxAdjustStrengthCallsPerTurn
   ) {
-    return `adjust_strength 本回合调用已达上限 (${config.maxAdjustStrengthCallsPerTurn} 次)，本次调用被拒绝。本回合已经调整过足够多次了，请直接回复用户，不要再继续爬升强度。`;
+    return `shock_adjust 本回合调用已达上限 (${config.maxAdjustStrengthCallsPerTurn} 次)，本次调用被拒绝。本回合已经调整过足够多次了，请直接回复用户，不要再继续爬升强度。`;
   }
 
   if (
@@ -108,24 +119,24 @@ export function consumeTurnQuota(
     return `vibrate_adjust 本回合调用已达上限 (${config.maxVibrateAdjustCallsPerTurn} 次)，本次调用被拒绝。本回合已经调整过足够多次了，请直接回复用户，不要再继续爬升强度。`;
   }
 
-  if (toolName === 'burst') {
+  if (isShockBurstTool(toolName)) {
     if (config.maxBurstCallsPerTurn === 0) {
-      return 'burst 已被用户在设置中关闭（单轮突增次数上限为 0），本次调用被拒绝。请改用 adjust_strength 逐步推进强度，不要再尝试 burst。';
+      return 'shock_burst 已被用户在设置中关闭（单轮突增次数上限为 0），本次调用被拒绝。请改用 shock_adjust 逐步推进强度，不要再尝试 shock_burst。';
     }
     const channel = normalizeBurstChannel(toolArgs);
     if (turnState.burstCallsByChannel[channel] >= config.maxBurstCallsPerTurn) {
-      return `burst 通道 ${channel} 本回合调用已达上限 (${config.maxBurstCallsPerTurn} 次)，本次调用被拒绝。同一通道的短时突增每回合只允许一次，请直接回复用户，不要重复触发。`;
+      return `shock_burst 通道 ${channel} 本回合调用已达上限 (${config.maxBurstCallsPerTurn} 次)，本次调用被拒绝。同一通道的短时突增每回合只允许一次，请直接回复用户，不要重复触发。`;
     }
   }
 
   turnState.totalToolCalls += 1;
-  if (toolName === 'adjust_strength') {
+  if (isShockAdjustTool(toolName)) {
     turnState.adjustStrengthCalls += 1;
   }
   if (toolName === 'vibrate_adjust') {
     turnState.vibrateAdjustCalls += 1;
   }
-  if (toolName === 'burst') {
+  if (isShockBurstTool(toolName)) {
     const channel = normalizeBurstChannel(toolArgs);
     turnState.burstCallsByChannel[channel] += 1;
   }
