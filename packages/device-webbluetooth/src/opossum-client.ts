@@ -10,12 +10,13 @@
 import { OpossumVibrateAdapter, type OpossumState } from '@dg-kit/protocol';
 import type {
   BluetoothDeviceLike,
+  BluetoothRemoteGATTServerLike,
   NavigatorBluetoothLike,
   RequestDeviceOptionsLike,
 } from '@dg-kit/protocol';
 import type { OpossumCommand } from '@dg-agent/core';
 import type { OpossumClient, OpossumCommandResult } from '@dg-agent/runtime';
-import { connectAuxDevice, disconnectAuxDevice } from './aux-device-connect.js';
+import { attachAuxDevice, connectAuxDevice, disconnectAuxDevice } from './aux-device-connect.js';
 import { OPOSSUM_REQUEST_DEVICE_OPTIONS } from './request-device-options.js';
 
 export interface WebBluetoothOpossumClientOptions {
@@ -39,6 +40,24 @@ export class WebBluetoothOpossumClient implements OpossumClient {
         navigatorRef: this.options.navigatorRef,
         requestDeviceOptions: this.options.requestDeviceOptions ?? OPOSSUM_REQUEST_DEVICE_OPTIONS,
       },
+      this.adapter,
+      this.device,
+      this.handleGattDisconnected,
+    );
+  }
+
+  /**
+   * Attach to an already-obtained `(device, server)` pair instead of
+   * running this client's own chooser prompt — see
+   * `aux-device-connect.ts`'s `attachAuxDevice()` doc comment.
+   */
+  async connectDevice(
+    device: BluetoothDeviceLike,
+    server: BluetoothRemoteGATTServerLike,
+  ): Promise<void> {
+    this.device = await attachAuxDevice(
+      device,
+      server,
       this.adapter,
       this.device,
       this.handleGattDisconnected,

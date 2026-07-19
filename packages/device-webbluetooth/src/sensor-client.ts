@@ -20,12 +20,13 @@ import {
 } from '@dg-kit/protocol';
 import type {
   BluetoothDeviceLike,
+  BluetoothRemoteGATTServerLike,
   NavigatorBluetoothLike,
   RequestDeviceOptionsLike,
 } from '@dg-kit/protocol';
 import type { SensorState } from '@dg-agent/core';
 import type { SensorDeviceClient } from '@dg-agent/runtime';
-import { connectAuxDevice, disconnectAuxDevice } from './aux-device-connect.js';
+import { attachAuxDevice, connectAuxDevice, disconnectAuxDevice } from './aux-device-connect.js';
 import {
   CIVET_EDGING_REQUEST_DEVICE_OPTIONS,
   PAW_PRINTS_REQUEST_DEVICE_OPTIONS,
@@ -52,6 +53,24 @@ export class WebBluetoothSensorClient<TReading> implements SensorDeviceClient<TR
         navigatorRef: this.options.navigatorRef,
         requestDeviceOptions: this.options.requestDeviceOptions,
       },
+      this.options.adapter,
+      this.device,
+      this.handleGattDisconnected,
+    );
+  }
+
+  /**
+   * Attach to an already-obtained `(device, server)` pair instead of
+   * running this client's own chooser prompt — see
+   * `aux-device-connect.ts`'s `attachAuxDevice()` doc comment.
+   */
+  async connectDevice(
+    device: BluetoothDeviceLike,
+    server: BluetoothRemoteGATTServerLike,
+  ): Promise<void> {
+    this.device = await attachAuxDevice(
+      device,
+      server,
       this.options.adapter,
       this.device,
       this.handleGattDisconnected,
