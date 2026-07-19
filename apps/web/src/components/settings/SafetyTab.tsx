@@ -64,8 +64,40 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
     }));
   }
 
+  function setOpossumIntensityA(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      maxOpossumIntensityA: clamp(value, STRENGTH_MIN, STRENGTH_MAX),
+    }));
+  }
+
+  function setOpossumIntensityB(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      maxOpossumIntensityB: clamp(value, STRENGTH_MIN, STRENGTH_MAX),
+    }));
+  }
+
+  function setOpossumColdStartIntensity(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      maxOpossumColdStartIntensity: clamp(value, COLD_START_MIN, COLD_START_MAX),
+    }));
+  }
+
+  function setOpossumAdjustStep(value: number) {
+    setSettingsDraft((current) => ({
+      ...current,
+      maxOpossumAdjustStep: clamp(value, ADJUST_STEP_MIN, ADJUST_STEP_MAX),
+    }));
+  }
+
   function setToolLimit(
-    key: 'maxToolIterations' | 'maxToolCallsPerTurn' | 'maxAdjustStrengthCallsPerTurn',
+    key:
+      | 'maxToolIterations'
+      | 'maxToolCallsPerTurn'
+      | 'maxAdjustStrengthCallsPerTurn'
+      | 'maxVibrateAdjustCallsPerTurn',
     value: number,
   ) {
     setSettingsDraft((current) => ({
@@ -137,6 +169,24 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
         <div className={styles.strengthControlList}>
           <StrengthControl channel="A" value={settingsDraft.maxStrengthA} onChange={setStrengthA} />
           <StrengthControl channel="B" value={settingsDraft.maxStrengthB} onChange={setStrengthB} />
+        </div>
+      </section>
+
+      <section className="settings-row-card">
+        <h3 className="settings-card-legend">负鼠最大强度上限</h3>
+        <div className={styles.strengthControlList}>
+          <StrengthControl
+            channel="A"
+            value={settingsDraft.maxOpossumIntensityA}
+            onChange={setOpossumIntensityA}
+            idPrefix="max-opossum-intensity"
+          />
+          <StrengthControl
+            channel="B"
+            value={settingsDraft.maxOpossumIntensityB}
+            onChange={setOpossumIntensityB}
+            idPrefix="max-opossum-intensity"
+          />
         </div>
       </section>
 
@@ -314,6 +364,37 @@ export function SafetyTab({ settingsDraft, setSettingsDraft }: SafetyTabProps) {
             }
           />
         </div>
+
+        <label htmlFor="max-vibrate-adjust-calls-per-turn" className="settings-inline-field">
+          <SettingLabel>负鼠单轮振动调整次数上限</SettingLabel>
+          <ToolLimitField
+            id="max-vibrate-adjust-calls-per-turn"
+            value={settingsDraft.maxVibrateAdjustCallsPerTurn}
+            onChange={(value) => setToolLimit('maxVibrateAdjustCallsPerTurn', value)}
+          />
+        </label>
+
+        <label htmlFor="max-opossum-cold-start" className="settings-inline-field">
+          <SettingLabel>负鼠单次冷启动强度上限</SettingLabel>
+          <ConfigNumberField
+            id="max-opossum-cold-start"
+            value={settingsDraft.maxOpossumColdStartIntensity}
+            min={COLD_START_MIN}
+            max={COLD_START_MAX}
+            onChange={setOpossumColdStartIntensity}
+          />
+        </label>
+
+        <label htmlFor="max-opossum-adjust-step" className="settings-inline-field">
+          <SettingLabel>负鼠单次振动调整幅度上限</SettingLabel>
+          <ConfigNumberField
+            id="max-opossum-adjust-step"
+            value={settingsDraft.maxOpossumAdjustStep}
+            min={ADJUST_STEP_MIN}
+            max={ADJUST_STEP_MAX}
+            onChange={setOpossumAdjustStep}
+          />
+        </label>
       </AdvancedSection>
     </div>
   );
@@ -468,13 +549,15 @@ function StrengthControl({
   channel,
   value,
   onChange,
+  idPrefix = 'max-strength',
 }: {
   channel: 'A' | 'B';
   value: number;
   onChange: (value: number) => void;
+  idPrefix?: string;
 }) {
   const tone = getStrengthTone(value);
-  const inputId = `max-strength-${channel.toLowerCase()}`;
+  const inputId = `${idPrefix}-${channel.toLowerCase()}`;
   const strengthStyle = {
     '--strength-value': `${(clamp(value, STRENGTH_MIN, STRENGTH_MAX) / STRENGTH_MAX) * 100}%`,
   } as CSSProperties;

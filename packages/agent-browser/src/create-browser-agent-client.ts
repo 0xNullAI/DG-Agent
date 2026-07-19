@@ -17,7 +17,9 @@ import {
 } from '@dg-agent/providers-catalog';
 import { OpenAiHttpLlmClient } from '@dg-agent/providers-openai-http';
 import {
+  OpossumPolicyEngine,
   PolicyEngine,
+  createDefaultOpossumPolicyRules,
   createDefaultPolicyRules,
   createDefaultToolRegistryWithDeps,
   type CivetEdgingClient,
@@ -130,6 +132,9 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
         maxAdjustStrengthCallsPerTurn: settings.maxAdjustStrengthCallsPerTurn,
         maxBurstDurationMs: settings.maxBurstDurationMs,
         maxBurstCallsPerTurn: settings.maxBurstCallsPerTurn,
+        maxVibrateStartIntensity: settings.maxOpossumColdStartIntensity,
+        maxVibrateAdjustStep: settings.maxOpossumAdjustStep,
+        maxVibrateAdjustCallsPerTurn: settings.maxVibrateAdjustCallsPerTurn,
       },
     }),
     permission:
@@ -148,6 +153,14 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
         maxBurstStrengthRelative: settings.maxBurstStrengthRelative,
       }),
     ),
+    opossumPolicyEngine: new OpossumPolicyEngine(
+      createDefaultOpossumPolicyRules({
+        maxIntensityA: settings.maxOpossumIntensityA,
+        maxIntensityB: settings.maxOpossumIntensityB,
+        maxColdStartIntensity: settings.maxOpossumColdStartIntensity,
+        maxAdjustStep: settings.maxOpossumAdjustStep,
+      }),
+    ),
     buildInstructions: createBuildBrowserInstructions({
       promptPresetId: settings.promptPresetId,
       savedPromptPresets: settings.savedPromptPresets,
@@ -160,6 +173,7 @@ export function createBrowserAgentClient(options: CreateBrowserAgentClientOption
       maxAdjustStrengthCallsPerTurn: settings.maxAdjustStrengthCallsPerTurn,
       maxBurstCallsPerTurn: settings.maxBurstCallsPerTurn,
       burstRequiresActiveChannel: settings.burstRequiresActiveChannel,
+      maxVibrateAdjustCallsPerTurn: settings.maxVibrateAdjustCallsPerTurn,
     },
     modelContextStrategy: settings.modelContextStrategy,
     sessionStore: options.sessionStore,

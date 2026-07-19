@@ -1839,6 +1839,26 @@ class OpossumVibrateAdjustLlm implements LlmClient {
   }
 }
 
+class RepeatedVibrateAdjustLlm implements LlmClient {
+  async runTurn() {
+    return {
+      assistantMessage: '连续调整负鼠振动',
+      toolCalls: [
+        {
+          id: 'tool-vibrate-adjust-1',
+          name: 'vibrate_adjust',
+          args: { channel: 'A', delta: 5 },
+        },
+        {
+          id: 'tool-vibrate-adjust-2',
+          name: 'vibrate_adjust',
+          args: { channel: 'A', delta: 5 },
+        },
+      ],
+    };
+  }
+}
+
 class SetIndicatorColorLlm implements LlmClient {
   constructor(private readonly deviceKind: string) {}
   async runTurn() {
@@ -1999,6 +2019,37 @@ describe('AgentRuntime multi-device (opossum / sensors)', () => {
     expect(session.messages.at(-1)?.content).toBe(
       '设备未连接，请先点击输入框旁的蓝牙图标连接灵猫。',
     );
+  });
+
+  it('enforces configurable per-turn vibrate_adjust quotas', async () => {
+    const opossum = new TestOpossumClient({ intensityA: 10 });
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      opossum,
+      llm: new RepeatedVibrateAdjustLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      toolCallConfig: {
+        maxToolIterations: 1,
+        maxVibrateAdjustCallsPerTurn: 1,
+      },
+    });
+    const events: RuntimeEvent[] = [];
+    runtime.subscribe((event) => events.push(event));
+
+    await runtime.sendUserMessage({
+      sessionId: 'test',
+      text: '负鼠继续加一点',
+      context: {
+        sessionId: 'test',
+        sourceType: 'cli',
+        traceId: 'trace-vibrate-quota',
+      },
+    });
+
+    const denied = events.filter((event) => event.type === 'tool-call-denied');
+    expect(denied).toHaveLength(1);
+    expect(denied[0] && 'reason' in denied[0] ? denied[0].reason : '').toContain('vibrate_adjust');
   });
 
   it('emergency stop also silences a connected opossum device', async () => {
