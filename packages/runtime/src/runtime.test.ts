@@ -132,7 +132,7 @@ class TestLlm implements LlmClient {
       toolCalls: [
         {
           id: 'tool-1',
-          name: 'start',
+          name: 'shock_start',
           args: {
             channel: 'A',
             strength: 50,
@@ -155,7 +155,7 @@ class CountingDeviceToolLlm implements LlmClient {
       toolCalls: [
         {
           id: 'tool-1',
-          name: 'start',
+          name: 'shock_start',
           args: {
             channel: 'A',
             strength: 20,
@@ -177,7 +177,7 @@ class TwoStepLlm implements LlmClient {
         toolCalls: [
           {
             id: 'tool-1',
-            name: 'start',
+            name: 'shock_start',
             args: {
               channel: 'A',
               strength: 30,
@@ -210,7 +210,7 @@ class InspectingTwoStepLlm implements LlmClient {
         toolCalls: [
           {
             id: 'tool-1',
-            name: 'start',
+            name: 'shock_start',
             args: {
               channel: 'A',
               strength: 30,
@@ -251,12 +251,12 @@ class RepeatedAdjustLlm implements LlmClient {
       toolCalls: [
         {
           id: 'tool-1',
-          name: 'adjust_strength',
+          name: 'shock_adjust',
           args: { channel: 'A', delta: 5 },
         },
         {
           id: 'tool-2',
-          name: 'adjust_strength',
+          name: 'shock_adjust',
           args: { channel: 'A', delta: 5 },
         },
       ],
@@ -271,7 +271,7 @@ class LargeAdjustLlm implements LlmClient {
       toolCalls: [
         {
           id: 'tool-large-adjust',
-          name: 'adjust_strength',
+          name: 'shock_adjust',
           args: { channel: 'A', delta: 25 },
         },
       ],
@@ -286,7 +286,7 @@ class LargeStartLlm implements LlmClient {
       toolCalls: [
         {
           id: 'tool-large-start',
-          name: 'start',
+          name: 'shock_start',
           args: {
             channel: 'A',
             strength: 30,
@@ -306,7 +306,7 @@ class BurstOnlyLlm implements LlmClient {
       toolCalls: [
         {
           id: 'tool-1',
-          name: 'burst',
+          name: 'shock_burst',
           args: { channel: 'A', strength: 40, durationMs: 1000 },
         },
       ],
@@ -321,7 +321,7 @@ class LongBurstLlm implements LlmClient {
       toolCalls: [
         {
           id: 'tool-long-burst',
-          name: 'burst',
+          name: 'shock_burst',
           args: { channel: 'A', strength: 40, durationMs: 3000 },
         },
       ],
@@ -347,7 +347,7 @@ class DuplicateAssistantLlm implements LlmClient {
         toolCalls: [
           {
             id: 'tool-1',
-            name: 'start',
+            name: 'shock_start',
             args: {
               channel: 'A',
               strength: 10,
@@ -430,7 +430,7 @@ class DeniedToolFollowUpLlm implements LlmClient {
       toolCalls: [
         {
           id: 'tool-denied-1',
-          name: 'start',
+          name: 'shock_start',
           args: {
             channel: 'A',
             strength: 10,
@@ -894,7 +894,7 @@ describe('AgentRuntime', () => {
     );
   });
 
-  it('enforces configurable per-turn adjust_strength quotas', async () => {
+  it('enforces configurable per-turn shock_adjust quotas', async () => {
     const runtime = new AgentRuntime({
       device: new TestDevice({ strengthA: 10, waveActiveA: true, currentWaveA: 'pulse_mid' }),
       llm: new RepeatedAdjustLlm(),
@@ -920,7 +920,48 @@ describe('AgentRuntime', () => {
 
     const denied = events.filter((event) => event.type === 'tool-call-denied');
     expect(denied).toHaveLength(1);
-    expect(denied[0] && 'reason' in denied[0] ? denied[0].reason : '').toContain('adjust_strength');
+    expect(denied[0] && 'reason' in denied[0] ? denied[0].reason : '').toContain('shock_adjust');
+  });
+
+  it('still executes a pre-1.9.0 tool name (adjust_strength) via the registry alias, counting toward the same quota', async () => {
+    class LegacyNameAdjustLlm implements LlmClient {
+      async runTurn() {
+        return {
+          assistantMessage: '按旧名调整',
+          toolCalls: [
+            { id: 'legacy-1', name: 'adjust_strength', args: { channel: 'A', delta: 5 } },
+            { id: 'legacy-2', name: 'adjust_strength', args: { channel: 'A', delta: 5 } },
+          ],
+        };
+      }
+    }
+
+    const device = new TestDevice({ strengthA: 10, waveActiveA: true, currentWaveA: 'pulse_mid' });
+    const runtime = new AgentRuntime({
+      device,
+      llm: new LegacyNameAdjustLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      toolCallConfig: {
+        maxToolIterations: 1,
+        maxAdjustStrengthCallsPerTurn: 1,
+      },
+    });
+    const events: RuntimeEvent[] = [];
+    runtime.subscribe((event) => events.push(event));
+
+    await runtime.sendUserMessage({
+      sessionId: 'legacy-alias',
+      text: '继续加一点',
+      context: { sessionId: 'legacy-alias', sourceType: 'cli', traceId: 'trace-legacy-alias' },
+    });
+
+    // First legacy-name call executed via the alias; the second hit the same
+    // shared per-turn quota rather than slipping past it under the old name.
+    const executed = events.filter((event) => event.type === 'device-command-executed');
+    expect(executed).toHaveLength(1);
+    const denied = events.filter((event) => event.type === 'tool-call-denied');
+    expect(denied).toHaveLength(1);
   });
 
   it('applies a configurable single-step adjust_strength cap', async () => {
@@ -1139,7 +1180,7 @@ describe('AgentRuntime', () => {
             toolCalls: [
               {
                 id: 'tool-clamp-feedback',
-                name: 'start',
+                name: 'shock_start',
                 args: { channel: 'A', strength: 30, waveformId: 'pulse_mid', loop: true },
               },
             ],
@@ -1654,7 +1695,7 @@ describe('AgentRuntime', () => {
               toolCalls: [
                 {
                   id: 'tool-legacy-start',
-                  name: 'start',
+                  name: 'shock_start',
                   args: { channel: 'A', strength: 8, waveform: 'pulse_mid', loop: true },
                 },
               ],
@@ -1686,7 +1727,7 @@ describe('AgentRuntime', () => {
           toolCalls: [
             {
               id: 'tool-legacy-burst',
-              name: 'burst',
+              name: 'shock_burst',
               args: { channel: 'A', strength: 35, duration_ms: 800 },
             },
           ],

@@ -9,12 +9,14 @@ function def(
   return { name, description: name, parameters };
 }
 
+// Mirrors what the real registry advertises post-1.9.0: shock_* only (the
+// pre-rename names survive as invisible aliases, not listed definitions).
 const ALL_DEFINITIONS: ToolDefinition[] = [
-  def('start'),
-  def('stop'),
-  def('adjust_strength'),
-  def('change_wave'),
-  def('burst'),
+  def('shock_start'),
+  def('shock_stop'),
+  def('shock_adjust'),
+  def('shock_change_wave'),
+  def('shock_burst'),
   def('vibrate_start'),
   def('vibrate_stop'),
   def('vibrate_adjust'),
@@ -43,7 +45,13 @@ describe('filterToolDefinitionsByConnectedDevices', () => {
     const connected = new Set<DeviceKind>(['coyote']);
     const result = filterToolDefinitionsByConnectedDevices(ALL_DEFINITIONS, connected);
     expect(names(result)).toEqual(
-      expect.arrayContaining(['start', 'stop', 'adjust_strength', 'change_wave', 'burst']),
+      expect.arrayContaining([
+        'shock_start',
+        'shock_stop',
+        'shock_adjust',
+        'shock_change_wave',
+        'shock_burst',
+      ]),
     );
     expect(names(result)).not.toEqual(expect.arrayContaining(['vibrate_start']));
   });
@@ -54,7 +62,7 @@ describe('filterToolDefinitionsByConnectedDevices', () => {
     expect(names(result)).toEqual(
       expect.arrayContaining(['vibrate_start', 'vibrate_stop', 'vibrate_adjust']),
     );
-    expect(names(result)).not.toEqual(expect.arrayContaining(['start']));
+    expect(names(result)).not.toEqual(expect.arrayContaining(['shock_start']));
   });
 
   it('drops set_indicator_color entirely when no LED-capable device is connected', () => {

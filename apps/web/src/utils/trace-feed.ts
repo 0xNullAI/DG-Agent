@@ -125,7 +125,10 @@ function describeClampDelta(original: DeviceCommand, adjusted: DeviceCommand): s
 
 function formatExecutedTrace(entry: RuntimeTraceEntry): string | null {
   if (!entry.toolName) return null;
+  // Each case also matches its pre-1.9.0 name so historical trace entries
+  // (persisted before the shock_* rename) keep rendering the rich form.
   switch (entry.toolName) {
+    case 'shock_start':
     case 'start': {
       const channel = typeof entry.args?.channel === 'string' ? entry.args.channel : '通道';
       const strength =
@@ -136,18 +139,21 @@ function formatExecutedTrace(entry: RuntimeTraceEntry): string | null {
           : typeof entry.args?.waveform === 'string'
             ? entry.args.waveform
             : '默认';
-      return `已执行：启动 ${channel}，强度 ${strength ?? 0}，波形 ${waveformId}`;
+      return `已执行：启动 ${channel} 电击，强度 ${strength ?? 0}，波形 ${waveformId}`;
     }
+    case 'shock_stop':
     case 'stop': {
       const channel = typeof entry.args?.channel === 'string' ? entry.args.channel : '';
-      return channel ? `已执行：停止 ${channel}` : '已执行：停止全部通道';
+      return channel ? `已执行：停止 ${channel} 电击` : '已执行：停止全部电击通道';
     }
+    case 'shock_adjust':
     case 'adjust_strength': {
       const channel = typeof entry.args?.channel === 'string' ? entry.args.channel : '通道';
       const delta =
         typeof entry.args?.delta === 'number' ? entry.args.delta : Number(entry.args?.delta ?? 0);
-      return `已执行：调整 ${channel} 强度 ${delta > 0 ? '+' : ''}${delta}`;
+      return `已执行：调整 ${channel} 电击强度 ${delta > 0 ? '+' : ''}${delta}`;
     }
+    case 'shock_change_wave':
     case 'change_wave': {
       const channel = typeof entry.args?.channel === 'string' ? entry.args.channel : '通道';
       const waveformId =
@@ -156,8 +162,9 @@ function formatExecutedTrace(entry: RuntimeTraceEntry): string | null {
           : typeof entry.args?.waveform === 'string'
             ? entry.args.waveform
             : '默认';
-      return `已执行：切换 ${channel} 波形为 ${waveformId}`;
+      return `已执行：切换 ${channel} 电击波形为 ${waveformId}`;
     }
+    case 'shock_burst':
     case 'burst': {
       const channel = typeof entry.args?.channel === 'string' ? entry.args.channel : '通道';
       const strength =
@@ -170,7 +177,7 @@ function formatExecutedTrace(entry: RuntimeTraceEntry): string | null {
           : typeof entry.args?.duration_ms === 'number'
             ? entry.args.duration_ms
             : Number(entry.args?.durationMs ?? entry.args?.duration_ms ?? 0);
-      return `已执行：${channel} 通道脉冲到 ${strength}，持续 ${durationMs}ms`;
+      return `已执行：${channel} 通道电击脉冲到 ${strength}，持续 ${durationMs}ms`;
     }
     default:
       return `已执行：${entry.toolDisplayName ?? entry.toolName}`;
