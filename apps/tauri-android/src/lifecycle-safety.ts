@@ -22,9 +22,37 @@
  */
 
 import type { DeviceClient } from '@dg-agent/core';
+import type {
+  BluetoothDeviceLike,
+  BluetoothRemoteGATTServerLike,
+} from '@dg-agent/device-tauri-ble';
 
 interface LifecycleListener {
   detach(): void;
+}
+
+/**
+ * `TauriBlecDeviceClient` implements `DeviceClient` but also has an extra
+ * `connectDevice()` passthrough (for the unified cross-kind picker) that
+ * isn't part of the `DeviceClient` interface. Since this wrapper builds its
+ * return value as an explicit object literal (deliberately, to avoid the
+ * "spreading a class instance drops prototype methods" trap — see
+ * `main.tsx`'s `withConnectPermissionHelp` doc comment for the general
+ * version of that bug), any method not named here gets silently dropped.
+ * `connectDevice` was added to `TauriBlecDeviceClient` after this wrapper
+ * was written and wasn't added to the explicit list, so every Coyote
+ * connection made through the unified picker failed with "当前环境不支持连接郊狼设备"
+ * — `supportsConnectDevice()` in `connect-any-device-tauri.ts` checked the
+ * wrapped client, found no `connectDevice`, and refused. Forwarding it here
+ * (when present) closes that gap without giving up the explicit-list safety
+ * this wrapper relies on elsewhere.
+ */
+interface ConnectDeviceCapable {
+  connectDevice(device: BluetoothDeviceLike, server: BluetoothRemoteGATTServerLike): Promise<void>;
+}
+
+function hasConnectDevice(value: unknown): value is ConnectDeviceCapable {
+  return !!value && typeof (value as Partial<ConnectDeviceCapable>).connectDevice === 'function';
 }
 
 type Stopper = () => Promise<void>;
@@ -88,7 +116,9 @@ async function attachTauriListener(stop: Stopper): Promise<LifecycleListener> {
  * The returned object is a transparent proxy: every other method is
  * forwarded unchanged.
  */
-export function wrapWithLifecycleSafety(client: DeviceClient): DeviceClient {
+export function wrapWithLifecycleSafety(
+  client: DeviceClient,
+): DeviceClient & Partial<ConnectDeviceCapable> {
   // Track the underlying client's connected state. Without this guard,
   // every lifecycle transition fires `client.emergencyStop()` — a no-op
   // when nothing is connected, but worse during connect-in-progress: if
@@ -121,7 +151,7 @@ export function wrapWithLifecycleSafety(client: DeviceClient): DeviceClient {
     tauriListener = l;
   });
 
-  const wrapped: DeviceClient = {
+  const wrapped: DeviceClient & Partial<ConnectDeviceCapable> = {
     connect: () => client.connect(),
     disconnect: async () => {
       try {
@@ -137,5 +167,8 @@ export function wrapWithLifecycleSafety(client: DeviceClient): DeviceClient {
     getState: () => client.getState(),
     onStateChanged: (l) => client.onStateChanged(l),
   };
+  if (hasConnectDevice(client)) {
+    wrapped.connectDevice = (device, server) => client.connectDevice(device, server);
+  }
   return wrapped;
 }

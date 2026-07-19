@@ -13,12 +13,14 @@
  * skipping it keeps this helper — and the two clients built on it — simple.
  */
 import { getWebBluetoothAvailability } from '@dg-kit/transport-webbluetooth';
-import type {
-  BluetoothDeviceLike,
-  BluetoothRemoteGATTServerLike,
-  NavigatorBluetoothLike,
-  RequestDeviceOptionsLike,
-  WebBluetoothConnectionContext,
+import {
+  runWithGattReadyRetry,
+  type BluetoothDeviceLike,
+  type BluetoothRemoteGATTServerLike,
+  type GattReadyRetryOptions,
+  type NavigatorBluetoothLike,
+  type RequestDeviceOptionsLike,
+  type WebBluetoothConnectionContext,
 } from '@dg-kit/protocol';
 
 /** Minimal shape both `OpossumVibrateAdapter` and the sensor adapters satisfy. */
@@ -30,6 +32,15 @@ export interface ConnectableAdapter {
 export interface AuxDeviceConnectOptions {
   navigatorRef?: NavigatorBluetoothLike;
   requestDeviceOptions: RequestDeviceOptionsLike;
+  /**
+   * Tuning for the GATT-not-ready retry wrapped around `adapter.onConnected()`
+   * — see `runWithGattReadyRetry`'s doc (`@dg-kit/protocol`). These three
+   * device kinds share the exact same GATT skeleton as Coyote, so they hit
+   * the identical "gatt.connect() resolves before service discovery"
+   * Web Bluetooth race. Defaults are fine for normal use; exposed mainly for
+   * tests.
+   */
+  gattReadyRetryOptions?: GattReadyRetryOptions;
 }
 
 /**
@@ -72,7 +83,14 @@ export async function connectAuxDevice(
   }
 
   const server = await gatt.connect();
-  return attachAuxDevice(nextDevice, server, adapter, previousDevice, onGattDisconnected);
+  return attachAuxDevice(
+    nextDevice,
+    server,
+    adapter,
+    previousDevice,
+    onGattDisconnected,
+    options.gattReadyRetryOptions,
+  );
 }
 
 /**
@@ -94,6 +112,7 @@ export async function attachAuxDevice(
   adapter: ConnectableAdapter,
   previousDevice: BluetoothDeviceLike | null,
   onGattDisconnected: (event: Event) => void,
+  gattReadyRetryOptions?: GattReadyRetryOptions,
 ): Promise<BluetoothDeviceLike> {
   const gatt = nextDevice.gatt;
   const shouldReplacePrevious = !!previousDevice && previousDevice !== nextDevice;
@@ -103,7 +122,10 @@ export async function attachAuxDevice(
   }
 
   try {
-    await adapter.onConnected({ device: nextDevice, server });
+    await runWithGattReadyRetry(
+      () => adapter.onConnected({ device: nextDevice, server }),
+      gattReadyRetryOptions ?? {},
+    );
   } catch (error) {
     if (shouldReplacePrevious && isGattConnected(previousDevice)) {
       previousDevice.addEventListener('gattserverdisconnected', onGattDisconnected);
