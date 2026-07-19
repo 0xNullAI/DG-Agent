@@ -60,6 +60,29 @@ export interface BridgeOriginMetadata {
 
 export const BRIDGE_ORIGIN_METADATA_KEY = 'bridgeOrigin';
 
+/**
+ * Opt-in gate for the Sensor Trigger Engine (packages/runtime's
+ * `SensorTriggerEngine`). Sensor-driven ephemeral prompts must never fire
+ * just because a sensor happens to be connected — the user has to explicitly
+ * turn this on per session, mirroring the "explicit consent, default off"
+ * pattern used elsewhere in this app (e.g. permissions-browser's timed
+ * grants). Stored on `session.metadata` rather than a global setting because
+ * "let sensor events interrupt the AI" is a per-conversation decision, same
+ * as bridge origin metadata above.
+ */
+export const SENSOR_TRIGGERS_METADATA_KEY = 'sensorTriggersEnabled';
+
+export function isSensorTriggersEnabled(metadata: Record<string, unknown> | undefined): boolean {
+  return metadata?.[SENSOR_TRIGGERS_METADATA_KEY] === true;
+}
+
+export function withSensorTriggersEnabled(
+  metadata: Record<string, unknown> | undefined,
+  enabled: boolean,
+): Record<string, unknown> {
+  return { ...(metadata ?? {}), [SENSOR_TRIGGERS_METADATA_KEY]: enabled };
+}
+
 export function getBridgeOriginMetadata(
   metadata: Record<string, unknown> | undefined,
 ): BridgeOriginMetadata | null {
@@ -113,7 +136,8 @@ export type RuntimeTraceEntryKind =
   | 'tool-denied'
   | 'tool-failed'
   | 'timer-scheduled'
-  | 'timer-fired';
+  | 'timer-fired'
+  | 'sensor-fired';
 
 export interface RuntimeTraceEntry {
   id: string;

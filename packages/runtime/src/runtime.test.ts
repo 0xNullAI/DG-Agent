@@ -11,9 +11,17 @@ import {
   type DeviceCommandResult,
   type DeviceState,
   type ModelContextStrategy,
+  type OpossumCommand,
   type RuntimeEvent,
 } from '@dg-agent/core';
 import { createBasicWaveformLibrary } from '@dg-agent/waveforms';
+import type { OpossumState, SensorState } from '@dg-kit/protocol';
+import type {
+  CivetEdgingClient,
+  OpossumClient,
+  OpossumCommandResult,
+  PawPrintsClient,
+} from './device-clients.js';
 
 class TestDevice implements DeviceClient {
   private state: DeviceState;
@@ -1695,5 +1703,365 @@ describe('AgentRuntime', () => {
     });
     const session = await runtime.getSessionSnapshot('legacy-burst');
     expect(session.deviceState.strengthA).toBe(35);
+  });
+});
+
+function createOpossumState(overrides: Partial<OpossumState> = {}): OpossumState {
+  return { connected: true, battery: 100, intensityA: 0, intensityB: 0, ...overrides };
+}
+
+class TestOpossumClient implements OpossumClient {
+  private state: OpossumState;
+  ledCalls: number[] = [];
+
+  constructor(initialState: Partial<OpossumState> = {}) {
+    this.state = createOpossumState(initialState);
+  }
+
+  async connect(): Promise<void> {
+    this.state = { ...this.state, connected: true };
+  }
+  async disconnect(): Promise<void> {
+    this.state = createOpossumState({ connected: false });
+  }
+  async getState(): Promise<OpossumState> {
+    return this.state;
+  }
+  async execute(command: OpossumCommand): Promise<OpossumCommandResult> {
+    if (command.type === 'vibrateStart') {
+      this.state =
+        command.channel === 'A'
+          ? { ...this.state, intensityA: command.intensity }
+          : { ...this.state, intensityB: command.intensity };
+    }
+    if (command.type === 'vibrateAdjust') {
+      const next =
+        command.channel === 'A'
+          ? Math.max(0, this.state.intensityA + command.delta)
+          : Math.max(0, this.state.intensityB + command.delta);
+      this.state =
+        command.channel === 'A'
+          ? { ...this.state, intensityA: next }
+          : { ...this.state, intensityB: next };
+    }
+    if (command.type === 'vibrateStop') {
+      this.state = command.channel
+        ? command.channel === 'A'
+          ? { ...this.state, intensityA: 0 }
+          : { ...this.state, intensityB: 0 }
+        : { ...this.state, intensityA: 0, intensityB: 0 };
+    }
+    return { state: this.state };
+  }
+  async emergencyStop(): Promise<void> {
+    this.state = { ...this.state, intensityA: 0, intensityB: 0 };
+  }
+  async setIndicatorColor(color: number): Promise<void> {
+    this.ledCalls.push(color);
+  }
+  onStateChanged(): () => void {
+    return () => {};
+  }
+}
+
+class TestPawPrintsClient implements PawPrintsClient {
+  private state: SensorState;
+  ledCalls: number[] = [];
+
+  constructor(initialState: Partial<SensorState> = {}) {
+    this.state = { connected: true, battery: 100, ...initialState };
+  }
+  async connect(): Promise<void> {}
+  async disconnect(): Promise<void> {}
+  async getState(): Promise<SensorState> {
+    return this.state;
+  }
+  subscribe(): () => void {
+    return () => {};
+  }
+  onStateChanged(): () => void {
+    return () => {};
+  }
+  async setIndicatorColor(color: number): Promise<void> {
+    this.ledCalls.push(color);
+  }
+}
+
+class TestCivetEdgingClient implements CivetEdgingClient {
+  private state: SensorState;
+
+  constructor(initialState: Partial<SensorState> = {}) {
+    this.state = { connected: true, battery: 100, ...initialState };
+  }
+  async connect(): Promise<void> {}
+  async disconnect(): Promise<void> {}
+  async getState(): Promise<SensorState> {
+    return this.state;
+  }
+  subscribe(): () => void {
+    return () => {};
+  }
+  onStateChanged(): () => void {
+    return () => {};
+  }
+  // Deliberately no setIndicatorColor override here in some tests to check
+  // the "client exists but doesn't support LED" branch; individual test
+  // classes add it where needed.
+}
+
+class OpossumVibrateStartLlm implements LlmClient {
+  async runTurn() {
+    return {
+      assistantMessage: '启动负鼠振动',
+      toolCalls: [
+        {
+          id: 'tool-vibrate-1',
+          name: 'vibrate_start',
+          args: { channel: 'A', intensity: 30 },
+        },
+      ],
+    };
+  }
+}
+
+class OpossumVibrateAdjustLlm implements LlmClient {
+  async runTurn() {
+    return {
+      assistantMessage: '调整负鼠振动',
+      toolCalls: [
+        {
+          id: 'tool-vibrate-adjust-1',
+          name: 'vibrate_adjust',
+          args: { channel: 'A', delta: 25 },
+        },
+      ],
+    };
+  }
+}
+
+class SetIndicatorColorLlm implements LlmClient {
+  constructor(private readonly deviceKind: string) {}
+  async runTurn() {
+    return {
+      assistantMessage: '设置指示灯',
+      toolCalls: [
+        {
+          id: 'tool-indicator-1',
+          name: 'set_indicator_color',
+          args: { deviceKind: this.deviceKind, color: 3 },
+        },
+      ],
+    };
+  }
+}
+
+describe('AgentRuntime multi-device (opossum / sensors)', () => {
+  it('clamps opossum cold-start intensity to the default cap and dispatches through the opossum plan', async () => {
+    const opossum = new TestOpossumClient();
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ connected: false }),
+      opossum,
+      llm: new OpossumVibrateStartLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      toolCallConfig: { maxToolIterations: 1 },
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'opossum-cold-start',
+      text: '启动负鼠 A 通道',
+      context: { sessionId: 'opossum-cold-start', sourceType: 'cli', traceId: 'trace-opossum-1' },
+    });
+
+    const state = await opossum.getState();
+    expect(state.intensityA).toBe(10); // DEFAULT_MAX_OPOSSUM_COLD_START_INTENSITY
+  });
+
+  it('applies the opossum step-adjust cap', async () => {
+    const opossum = new TestOpossumClient({ intensityA: 10 });
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ connected: false }),
+      opossum,
+      llm: new OpossumVibrateAdjustLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      toolCallConfig: { maxToolIterations: 1 },
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'opossum-step-cap',
+      text: '调高负鼠振动',
+      context: { sessionId: 'opossum-step-cap', sourceType: 'cli', traceId: 'trace-opossum-2' },
+    });
+
+    const state = await opossum.getState();
+    // current 10 + clamped delta (10, the default step cap) = 20, not 35.
+    expect(state.intensityA).toBe(20);
+  });
+
+  it('denies vibrate_start with a device-specific message when opossum is not connected, without touching coyote', async () => {
+    const llm = new OpossumVibrateStartLlm();
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ connected: true }),
+      // No opossum client registered at all.
+      llm,
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'opossum-disconnected',
+      text: '启动负鼠',
+      context: {
+        sessionId: 'opossum-disconnected',
+        sourceType: 'cli',
+        traceId: 'trace-opossum-disconnected',
+      },
+    });
+
+    const session = await runtime.getSessionSnapshot('opossum-disconnected');
+    expect(session.messages.at(-1)?.content).toBe(
+      '设备未连接，请先点击输入框旁的蓝牙图标连接负鼠。',
+    );
+  });
+
+  it('dispatches set_indicator_color to the paw-prints client', async () => {
+    const pawPrints = new TestPawPrintsClient();
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ connected: false }),
+      pawPrints,
+      llm: new SetIndicatorColorLlm('paw-prints'),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      toolCallConfig: { maxToolIterations: 1 },
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'indicator-paw-prints',
+      text: '把爪印灯光换成紫色',
+      context: {
+        sessionId: 'indicator-paw-prints',
+        sourceType: 'cli',
+        traceId: 'trace-indicator-1',
+      },
+    });
+
+    expect(pawPrints.ledCalls).toEqual([3]);
+  });
+
+  it('denies set_indicator_color when the client is connected but has no LED support', async () => {
+    const civetEdging = new TestCivetEdgingClient(); // no setIndicatorColor override
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ connected: true }),
+      civetEdging,
+      llm: new SetIndicatorColorLlm('civet-edging'),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+      toolCallConfig: { maxToolIterations: 1 },
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'indicator-civet-no-led',
+      text: '把灵猫灯光换成紫色',
+      context: {
+        sessionId: 'indicator-civet-no-led',
+        sourceType: 'cli',
+        traceId: 'trace-indicator-3',
+      },
+    });
+
+    const session = await runtime.getSessionSnapshot('indicator-civet-no-led');
+    expect(session.messages.at(-1)?.content).toBe(
+      '设备未连接，请先点击输入框旁的蓝牙图标连接灵猫。',
+    );
+  });
+
+  it('denies set_indicator_color when the targeted device kind is not connected, naming that device', async () => {
+    const runtime = new AgentRuntime({
+      device: new TestDevice({ connected: true }),
+      // civet-edging not registered.
+      llm: new SetIndicatorColorLlm('civet-edging'),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    await runtime.sendUserMessage({
+      sessionId: 'indicator-civet-missing',
+      text: '把灵猫灯光换成紫色',
+      context: {
+        sessionId: 'indicator-civet-missing',
+        sourceType: 'cli',
+        traceId: 'trace-indicator-2',
+      },
+    });
+
+    const session = await runtime.getSessionSnapshot('indicator-civet-missing');
+    expect(session.messages.at(-1)?.content).toBe(
+      '设备未连接，请先点击输入框旁的蓝牙图标连接灵猫。',
+    );
+  });
+
+  it('emergency stop also silences a connected opossum device', async () => {
+    const opossum = new TestOpossumClient({ intensityA: 40, intensityB: 20 });
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      opossum,
+      llm: new TestLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    await runtime.emergencyStop('any-session');
+
+    const state = await opossum.getState();
+    expect(state.intensityA).toBe(0);
+    expect(state.intensityB).toBe(0);
+  });
+});
+
+describe('AgentRuntime sensor trigger opt-in gating', () => {
+  it('defaults sensor triggers to disabled for a fresh session', async () => {
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      pawPrints: new TestPawPrintsClient(),
+      llm: new TestLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    expect(await runtime.isSensorTriggersEnabledForSession('fresh-session')).toBe(false);
+  });
+
+  it('persists the opt-in flag on session metadata once enabled', async () => {
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      pawPrints: new TestPawPrintsClient(),
+      llm: new TestLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    await runtime.setSensorTriggersEnabled('opt-in-session', true);
+    expect(await runtime.isSensorTriggersEnabledForSession('opt-in-session')).toBe(true);
+
+    await runtime.setSensorTriggersEnabled('opt-in-session', false);
+    expect(await runtime.isSensorTriggersEnabledForSession('opt-in-session')).toBe(false);
+  });
+
+  it('does not instantiate a trigger engine when no sensor client is registered, even if enabled', async () => {
+    const runtime = new AgentRuntime({
+      device: new TestDevice(),
+      // No pawPrints / civetEdging registered at all.
+      llm: new TestLlm(),
+      permission: new TestPermission(),
+      waveformLibrary: createBasicWaveformLibrary(),
+    });
+
+    // Should not throw, and the flag still persists even though nothing
+    // is subscribed yet.
+    await expect(
+      runtime.setSensorTriggersEnabled('no-sensor-session', true),
+    ).resolves.toBeUndefined();
+    expect(await runtime.isSensorTriggersEnabledForSession('no-sensor-session')).toBe(true);
   });
 });

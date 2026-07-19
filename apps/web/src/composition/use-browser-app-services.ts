@@ -7,7 +7,14 @@ import {
 } from '@dg-agent/agent-browser';
 import type { MessageOrigin } from '@dg-agent/bridge';
 import type { DeviceClient, PermissionDecision } from '@dg-agent/core';
-import { CoyoteProtocolAdapter, WebBluetoothDeviceClient } from '@dg-agent/device-webbluetooth';
+import {
+  CoyoteProtocolAdapter,
+  WebBluetoothCivetEdgingClient,
+  WebBluetoothDeviceClient,
+  WebBluetoothOpossumClient,
+  WebBluetoothPawPrintsClient,
+} from '@dg-agent/device-webbluetooth';
+import type { CivetEdgingClient, OpossumClient, PawPrintsClient } from '@dg-agent/runtime';
 import type { BrowserAppSettings } from '@dg-agent/storage-browser';
 import { BrowserUpdateChecker } from '../services/update-checker.js';
 
@@ -77,11 +84,38 @@ export function useBrowserAppServices(
   }
   const device = deviceRef.current;
 
+  // Same "build once, hold stable" pattern as `device` above — each of these
+  // three auxiliary devices is independently connectable/disconnectable from
+  // the UI, and settings-driven service rebuilds must not tear any of them
+  // down. No override hook (unlike `createDeviceClient`): none of these
+  // three kinds have a non-Web-Bluetooth transport yet, so there's nothing
+  // for a non-web shell to inject.
+  const opossumRef = useRef<OpossumClient | null>(null);
+  if (opossumRef.current === null) {
+    opossumRef.current = new WebBluetoothOpossumClient();
+  }
+  const opossum = opossumRef.current;
+
+  const pawPrintsRef = useRef<PawPrintsClient | null>(null);
+  if (pawPrintsRef.current === null) {
+    pawPrintsRef.current = new WebBluetoothPawPrintsClient();
+  }
+  const pawPrints = pawPrintsRef.current;
+
+  const civetEdgingRef = useRef<CivetEdgingClient | null>(null);
+  if (civetEdgingRef.current === null) {
+    civetEdgingRef.current = new WebBluetoothCivetEdgingClient();
+  }
+  const civetEdging = civetEdgingRef.current;
+
   const services = useMemo(
     () =>
       createBrowserServices({
         settings,
         device,
+        opossum,
+        pawPrints,
+        civetEdging,
         resolveBridgeSessionId,
         onPermissionRequest: (input) =>
           new Promise<PermissionDecision>((resolve) => {
@@ -89,7 +123,16 @@ export function useBrowserAppServices(
           }),
         ...(servicesOverrides ?? {}),
       }),
-    [settings, device, resolveBridgeSessionId, setPendingPermission, servicesOverrides],
+    [
+      settings,
+      device,
+      opossum,
+      pawPrints,
+      civetEdging,
+      resolveBridgeSessionId,
+      setPendingPermission,
+      servicesOverrides,
+    ],
   );
 
   // Release the previous AgentRuntime (device listener, in-flight turns,
