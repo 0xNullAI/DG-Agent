@@ -7,7 +7,11 @@
  * Coyote, minus the auto-reconnect option (see `aux-device-connect.ts`'s
  * doc comment for why that's intentionally out of scope here).
  */
-import { OpossumVibrateAdapter, type OpossumState } from '@dg-kit/protocol';
+import {
+  OpossumVibrateAdapter,
+  OPOSSUM_VIBRATION_PATTERNS,
+  type OpossumState,
+} from '@dg-kit/protocol';
 import type {
   BluetoothDeviceLike,
   BluetoothRemoteGATTServerLike,
@@ -77,6 +81,12 @@ export class WebBluetoothOpossumClient implements OpossumClient {
   async execute(command: OpossumCommand): Promise<OpossumCommandResult> {
     switch (command.type) {
       case 'vibrateStart':
+        if (command.pattern) {
+          this.adapter.setVibrationPattern(
+            command.channel,
+            OPOSSUM_VIBRATION_PATTERNS[command.pattern],
+          );
+        }
         await this.adapter.setIntensity(
           command.channel === 'A' ? command.intensity : 'unchanged',
           command.channel === 'B' ? command.intensity : 'unchanged',

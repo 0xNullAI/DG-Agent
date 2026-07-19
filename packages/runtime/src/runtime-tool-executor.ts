@@ -100,8 +100,7 @@ function narrowIndicatorColorDeviceKindEnum(
     properties?: Record<string, unknown>;
   };
   const deviceKindProperty = parameters.properties?.deviceKind as
-    | Record<string, unknown>
-    | undefined;
+    Record<string, unknown> | undefined;
   if (!deviceKindProperty) return definition;
 
   return {
@@ -121,6 +120,88 @@ function narrowIndicatorColorDeviceKindEnum(
 // the worst real chain — burst-strength-cap → user-strength-cap → step-adjust
 // → permission-gate — with one slot of safety margin.
 const POLICY_RESOLVE_MAX_ITERATIONS = 4;
+
+type PolicyLoopDecision<TCommand> =
+  | { type: 'allow' }
+  | { type: 'deny'; reason: string }
+  | { type: 'clamp'; command: TCommand; reason: string }
+  | { type: 'require-confirm'; reason: string };
+
+interface PolicyResolution<TCommand> {
+  /** Final command after any clamps (identical to the input if none fired). */
+  command: TCommand;
+  clampedFrom?: { command: TCommand; reason: string };
+  /** Individual clamp reasons, for callers that log more than the joined string. */
+  clampReasons: string[];
+  /** Set on a genuine `deny` decision, or (see `exhausted`) a non-convergent loop. */
+  denyReason?: string;
+  needsConfirm: boolean;
+  confirmReason: string;
+  /** True if the loop hit `maxIterations` without reaching allow/deny/require-confirm. */
+  exhausted: boolean;
+}
+
+const POLICY_NOT_CONVERGED_REASON = '策略评估未收敛（clamp 规则未稳定），本次调用被拒绝。';
+
+/**
+ * Repeatedly evaluates a policy decision, applying each `clamp` in turn,
+ * until it hits allow/deny/require-confirm or exhausts `maxIterations` — so
+ * a clamp doesn't short-circuit a later rule (especially permission-gate).
+ * The old code returned at the first non-null rule, which meant any clamp
+ * would skip the user's "每次询问" confirmation prompt (issue #65) and could
+ * mask a tighter cap from a later rule (e.g. channel strength cap after a
+ * burst-specific cap).
+ *
+ * `PolicyEngine`/`OpossumPolicyEngine` themselves stay separate, non-generic
+ * classes (see policy-engine.ts's doc comment on why) — this only extracts
+ * the loop that *consumes* whichever engine's decisions, which is identical
+ * between the two callers below regardless of command shape.
+ */
+function resolvePolicyDecision<TCommand>(
+  initialCommand: TCommand,
+  maxIterations: number,
+  evaluate: (command: TCommand) => PolicyLoopDecision<TCommand>,
+): PolicyResolution<TCommand> {
+  let command = initialCommand;
+  const clampReasons: string[] = [];
+  let needsConfirm = false;
+  let confirmReason = '';
+  let denyReason: string | undefined;
+  let exhausted = true;
+
+  for (let iter = 0; iter < maxIterations; iter += 1) {
+    const decision = evaluate(command);
+
+    if (decision.type === 'allow') {
+      exhausted = false;
+      break;
+    }
+    if (decision.type === 'deny') {
+      denyReason = decision.reason;
+      exhausted = false;
+      break;
+    }
+    if (decision.type === 'require-confirm') {
+      needsConfirm = true;
+      confirmReason = decision.reason;
+      exhausted = false;
+      break;
+    }
+    clampReasons.push(decision.reason);
+    command = decision.command;
+  }
+
+  if (exhausted) {
+    denyReason = POLICY_NOT_CONVERGED_REASON;
+  }
+
+  const clampedFrom =
+    clampReasons.length > 0
+      ? { command: initialCommand, reason: clampReasons.join('; ') }
+      : undefined;
+
+  return { command, clampedFrom, clampReasons, denyReason, needsConfirm, confirmReason, exhausted };
+}
 
 interface ScheduledTimer {
   sessionId: string;
@@ -468,47 +549,15 @@ export class RuntimeToolExecutor {
     throwIfAborted(abortSignal);
     const currentState = await opossum.getState();
 
-    // Same clamp-then-deny/confirm loop as executeDeviceCommand, run against
-    // the Opossum-specific policy engine instead. See that method's comment
-    // for why this re-evaluates in a loop rather than stopping at the first
-    // clamp.
-    const initialCommand = command;
-    const clampReasons: string[] = [];
-    let needsConfirm = false;
-    let confirmReason = '';
-    let denyReason: string | undefined;
-    let exhausted = true;
-
-    for (let iter = 0; iter < POLICY_RESOLVE_MAX_ITERATIONS; iter += 1) {
-      const decision = this.options.opossumPolicyEngine.evaluate({
+    const resolution = resolvePolicyDecision(command, POLICY_RESOLVE_MAX_ITERATIONS, (cmd) =>
+      this.options.opossumPolicyEngine.evaluate({
         context,
-        command,
+        command: cmd,
         deviceState: currentState,
-      });
-
-      if (decision.type === 'allow') {
-        exhausted = false;
-        break;
-      }
-      if (decision.type === 'deny') {
-        denyReason = decision.reason;
-        exhausted = false;
-        break;
-      }
-      if (decision.type === 'require-confirm') {
-        needsConfirm = true;
-        confirmReason = decision.reason;
-        exhausted = false;
-        break;
-      }
-      clampReasons.push(decision.reason);
-      command = decision.command;
-    }
-
-    const clampedFrom =
-      clampReasons.length > 0
-        ? { command: initialCommand, reason: clampReasons.join('; ') }
-        : undefined;
+      }),
+    );
+    command = resolution.command;
+    const { clampedFrom, needsConfirm, confirmReason } = resolution;
 
     if (clampedFrom) {
       this.options.logger.warn('Opossum command clamped by policy.', {
@@ -518,22 +567,17 @@ export class RuntimeToolExecutor {
       });
     }
 
-    if (exhausted) {
+    if (resolution.exhausted) {
       this.options.logger.error('Opossum policy clamp loop did not converge.', {
         sessionId: session.id,
         toolName: toolCall.name,
-        clampReasons,
+        clampReasons: resolution.clampReasons,
       });
-      return this.denyToolCall(
-        session,
-        toolCall,
-        '策略评估未收敛（clamp 规则未稳定），本次调用被拒绝。',
-        context,
-      );
+      return this.denyToolCall(session, toolCall, POLICY_NOT_CONVERGED_REASON, context);
     }
 
-    if (denyReason !== undefined) {
-      return this.denyToolCall(session, toolCall, denyReason, context);
+    if (resolution.denyReason !== undefined) {
+      return this.denyToolCall(session, toolCall, resolution.denyReason, context);
     }
 
     if (needsConfirm) {
@@ -698,51 +742,12 @@ export class RuntimeToolExecutor {
       return this.denyToolCall(session, toolCall, burstError, context);
     }
 
-    // Resolve the policy decision in a loop so that a clamp doesn't
-    // short-circuit later rules (especially permission-gate). The old code
-    // returned at the first non-null rule — that meant any clamp would skip
-    // the user's "每次询问" confirmation prompt (issue #65) and would also
-    // mask any tighter cap from a later rule (e.g. channel strength cap
-    // after a burst-specific cap). Now we re-evaluate the clamped command
-    // until no more clamps fire, then handle deny / require-confirm.
     const initialCommand = command;
-    const clampReasons: string[] = [];
-    let needsConfirm = false;
-    let confirmReason = '';
-    let denyReason: string | undefined;
-    let exhausted = true;
-
-    for (let iter = 0; iter < POLICY_RESOLVE_MAX_ITERATIONS; iter += 1) {
-      const decision = this.options.policyEngine.evaluate({
-        context,
-        command,
-        deviceState: currentState,
-      });
-
-      if (decision.type === 'allow') {
-        exhausted = false;
-        break;
-      }
-      if (decision.type === 'deny') {
-        denyReason = decision.reason;
-        exhausted = false;
-        break;
-      }
-      if (decision.type === 'require-confirm') {
-        needsConfirm = true;
-        confirmReason = decision.reason;
-        exhausted = false;
-        break;
-      }
-      // clamp
-      clampReasons.push(decision.reason);
-      command = decision.command;
-    }
-
-    const clampedFrom =
-      clampReasons.length > 0
-        ? { command: initialCommand, reason: clampReasons.join('; ') }
-        : undefined;
+    const resolution = resolvePolicyDecision(command, POLICY_RESOLVE_MAX_ITERATIONS, (cmd) =>
+      this.options.policyEngine.evaluate({ context, command: cmd, deviceState: currentState }),
+    );
+    command = resolution.command;
+    const { clampedFrom, needsConfirm, confirmReason } = resolution;
 
     if (clampedFrom) {
       this.options.logger.warn('Command clamped by policy.', {
@@ -760,22 +765,17 @@ export class RuntimeToolExecutor {
       });
     }
 
-    if (exhausted) {
+    if (resolution.exhausted) {
       this.options.logger.error('Policy clamp loop did not converge.', {
         sessionId: session.id,
         toolName: toolCall.name,
-        clampReasons,
+        clampReasons: resolution.clampReasons,
       });
-      return this.denyToolCall(
-        session,
-        toolCall,
-        '策略评估未收敛（clamp 规则未稳定），本次调用被拒绝。',
-        context,
-      );
+      return this.denyToolCall(session, toolCall, POLICY_NOT_CONVERGED_REASON, context);
     }
 
-    if (denyReason !== undefined) {
-      return this.denyToolCall(session, toolCall, denyReason, context);
+    if (resolution.denyReason !== undefined) {
+      return this.denyToolCall(session, toolCall, resolution.denyReason, context);
     }
 
     if (needsConfirm) {

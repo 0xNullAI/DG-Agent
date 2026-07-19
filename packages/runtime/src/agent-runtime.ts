@@ -48,6 +48,13 @@ import {
   type TimerFiredTrigger,
 } from './runtime-tool-executor.js';
 import {
+  createCivetPressureBuffer,
+  createPawPrintsTriggerBuffer,
+  summarizeCivetPressure,
+  summarizePawPrintsTriggers,
+  type SensorReadingBuffer,
+} from './sensor-reading-buffer.js';
+import {
   SensorTriggerEngine,
   type SensorFiredTrigger,
   type SensorTriggerEngineOptions,
@@ -94,6 +101,10 @@ export interface AgentRuntimeOptions {
     pawPrintsState?: SensorState;
     /** Present only when a civet-edging client is configured, connected or not. */
     civetEdgingState?: SensorState;
+    /** Rolling 60s trigger-count summary; absent until the buffer has at least one reading. */
+    pawPrintsSummary?: string;
+    /** Rolling 30s pressure trend summary; absent until the buffer has at least one reading. */
+    civetSummary?: string;
   }) => string;
   waveformLibrary?: WaveformLibrary;
   sessionStore?: SessionStore;
@@ -148,6 +159,9 @@ export class AgentRuntime {
   private readonly opossumQueue?: OpossumCommandQueue;
   private sensorTriggerEngine: SensorTriggerEngine | null = null;
   private sensorTriggerSessionId: string | null = null;
+  private readonly pawPrintsBuffer?: SensorReadingBuffer<{ eventId: number }>;
+  private readonly civetBuffer?: SensorReadingBuffer<number>;
+  private readonly disposeSensorBufferListeners: Array<() => void> = [];
   private disposed = false;
 
   constructor(private readonly options: AgentRuntimeOptions) {
@@ -189,12 +203,40 @@ export class AgentRuntime {
       if (this.disposed) return;
       this.events.emit({ type: 'device-state-changed', state });
     });
+
+    // Buffers subscribe unconditionally, independent of the opt-in Sensor
+    // Trigger Engine toggle — see sensor-reading-buffer.ts's doc comment for
+    // why a passive summary line is lower-stakes than the trigger engine's
+    // proactive prompts and doesn't need the same explicit consent gate.
+    if (options.pawPrints) {
+      this.pawPrintsBuffer = createPawPrintsTriggerBuffer();
+      const pawPrints = options.pawPrints;
+      const buffer = this.pawPrintsBuffer;
+      this.disposeSensorBufferListeners.push(
+        pawPrints.subscribe((reading) => {
+          if (reading.type !== 'trigger') return;
+          buffer.record({ eventId: reading.eventId });
+        }),
+      );
+    }
+    if (options.civetEdging) {
+      this.civetBuffer = createCivetPressureBuffer();
+      const buffer = this.civetBuffer;
+      this.disposeSensorBufferListeners.push(
+        options.civetEdging.subscribe((reading) => {
+          buffer.record(reading.kPa);
+        }),
+      );
+    }
   }
 
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
     this.disposeDeviceListener();
+    for (const unsubscribe of this.disposeSensorBufferListeners.splice(0)) {
+      unsubscribe();
+    }
     this.toolExecutor.cancelScheduledTimers();
     this.teardownSensorTriggerEngine();
     for (const controller of this.activeTurns.values()) {
@@ -794,9 +836,16 @@ export class AgentRuntime {
     // apply in full: filterToolDefinitionsByConnectedDevices, permission
     // gate, policy clamps, per-turn caps — this only lifts the blanket
     // "system turns never touch the device" rule for this one case.
+    const { pawPrintsSummary, civetSummary } = this.getSensorSummaries();
+    const trendSummary =
+      trigger.deviceKind === 'paw-prints'
+        ? pawPrintsSummary
+        : trigger.deviceKind === 'civet-edging'
+          ? civetSummary
+          : undefined;
     await this.sendUserMessage({
       sessionId: trigger.sessionId,
-      text: buildSensorTriggerPrompt(trigger),
+      text: buildSensorTriggerPrompt(trigger, trendSummary),
       context: {
         sessionId: trigger.sessionId,
         sourceType: 'sensor',
@@ -817,13 +866,25 @@ export class AgentRuntime {
     opossumState?: OpossumState;
     pawPrintsState?: SensorState;
     civetEdgingState?: SensorState;
+    pawPrintsSummary?: string;
+    civetSummary?: string;
   }> {
     const [opossumState, pawPrintsState, civetEdgingState] = await Promise.all([
       this.options.opossum?.getState(),
       this.options.pawPrints?.getState(),
       this.options.civetEdging?.getState(),
     ]);
-    return { opossumState, pawPrintsState, civetEdgingState };
+    const { pawPrintsSummary, civetSummary } = this.getSensorSummaries();
+    return { opossumState, pawPrintsState, civetEdgingState, pawPrintsSummary, civetSummary };
+  }
+
+  /** Synchronous — the buffers already hold everything they need in memory. */
+  private getSensorSummaries(): { pawPrintsSummary?: string; civetSummary?: string } {
+    return {
+      pawPrintsSummary:
+        summarizePawPrintsTriggers(this.pawPrintsBuffer?.windowEntries() ?? []) ?? undefined,
+      civetSummary: summarizeCivetPressure(this.civetBuffer?.windowEntries() ?? []) ?? undefined,
+    };
   }
 
   private async ensureSession(sessionId: string): Promise<SessionSnapshot> {
@@ -953,9 +1014,10 @@ function buildTimerTriggerPrompt(trigger: TimerFiredTrigger): string {
  * clamps/permission gate/per-turn caps still apply in full to any tool call
  * made here — this prompt is guidance, not the safety boundary itself.
  */
-function buildSensorTriggerPrompt(trigger: SensorFiredTrigger): string {
+function buildSensorTriggerPrompt(trigger: SensorFiredTrigger, trendSummary?: string): string {
   return [
     `[内部提醒] 传感器事件：${trigger.summary}。`,
+    ...(trendSummary ? [`近段汇总：${trendSummary}`] : []),
     '这不是用户的新消息，用户没有提供新的反馈。',
     '你可以按当前剧情自行判断是否需要用工具做出响应，但最多只推进一小步就停下观察，不要连续加码或反复触发；同样不得超过任何强度/次数上限。',
     '如果只是想确认状态或不确定该不该动，直接不调用工具、简短观察即可。',
