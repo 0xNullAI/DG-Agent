@@ -12,6 +12,7 @@ export * from '@dg-kit/core';
 import type {
   DeviceCommand,
   DeviceCommandResult,
+  DeviceKind,
   DeviceState,
   ToolCall,
   ToolDefinition,
@@ -81,6 +82,46 @@ export function withSensorTriggersEnabled(
   enabled: boolean,
 ): Record<string, unknown> {
   return { ...(metadata ?? {}), [SENSOR_TRIGGERS_METADATA_KEY]: enabled };
+}
+
+/**
+ * Most recent surfaced Sensor Trigger Engine event per sensor kind, kept on
+ * `session.metadata` so it survives reload the same way `bridgeOrigin` does.
+ * Used only for the prompt's "[当前设备状态]" block — informational context
+ * for the LLM, never re-derived into an automatic device action.
+ */
+export interface SensorLastReading {
+  summary: string;
+  firedAt: number;
+}
+
+export const SENSOR_LAST_READINGS_METADATA_KEY = 'sensorLastReadings';
+
+export function getSensorLastReading(
+  metadata: Record<string, unknown> | undefined,
+  kind: DeviceKind,
+): SensorLastReading | null {
+  const map = metadata?.[SENSOR_LAST_READINGS_METADATA_KEY];
+  if (!map || typeof map !== 'object') return null;
+  const entry = (map as Record<string, unknown>)[kind];
+  if (!entry || typeof entry !== 'object') return null;
+  const summary = (entry as Record<string, unknown>).summary;
+  const firedAt = (entry as Record<string, unknown>).firedAt;
+  if (typeof summary !== 'string' || typeof firedAt !== 'number') return null;
+  return { summary, firedAt };
+}
+
+export function withSensorLastReading(
+  metadata: Record<string, unknown> | undefined,
+  kind: DeviceKind,
+  reading: SensorLastReading,
+): Record<string, unknown> {
+  const existingMap = metadata?.[SENSOR_LAST_READINGS_METADATA_KEY];
+  const map = existingMap && typeof existingMap === 'object' ? existingMap : {};
+  return {
+    ...(metadata ?? {}),
+    [SENSOR_LAST_READINGS_METADATA_KEY]: { ...map, [kind]: reading },
+  };
 }
 
 export function getBridgeOriginMetadata(
