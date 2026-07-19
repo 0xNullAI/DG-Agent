@@ -77,13 +77,13 @@ export interface AppProps {
   /**
    * Override for `connect()`'s device-picking step. Defaults to
    * `connectAnyDgLabDevice()` (a single Web Bluetooth chooser scoped to all
-   * 4 kinds, auto-detected). `@dg-kit/transport-tauri-blec` doesn't expose
-   * an equivalent single cross-kind picker yet (needs a
-   * `TauriBlecDeviceClient.connectDevice()`-style passthrough added
-   * upstream first), so the Tauri Android shell supplies a kind-first
-   * implementation instead: it shows its own "which kind?" picker, then
-   * calls that kind's own client `.connect()` (each of which does its own
-   * scan+device-picker). See `apps/tauri-android/src/connect-any-device-tauri.ts`.
+   * 4 kinds, auto-detected). The Tauri Android shell supplies the matching
+   * Tauri implementation: `@dg-kit/transport-tauri-blec`'s
+   * `requestDgLabDeviceTauri()` runs one shared scan+picker across all 4
+   * kinds, auto-detects which was picked, and routes it to that kind's
+   * client via `connectDevice(device, server)` — the same one-click
+   * experience as web. See
+   * `apps/tauri-android/src/connect-any-device-tauri.ts`.
    */
   connectDeviceTauri?: (clients: {
     device: DeviceClient;

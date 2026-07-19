@@ -82,9 +82,13 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         },
         // The three auxiliary device kinds — previously Web Bluetooth only
         // (no override hook existed at all; see the comment this replaced
-        // in use-browser-app-services.ts). Each Tauri client below runs its
-        // own self-contained scan + showDevicePicker() + plugin-blec
-        // connect, same permission-prompt wrapping as Coyote above.
+        // in use-browser-app-services.ts). The unified connect flow
+        // (connectAnyDgLabDeviceTauri, below) attaches to these via
+        // connectDevice() after ONE shared scan+picker, so `selectDevice`/
+        // `scanDurationMs` here only matter if something falls back to a
+        // client's own self-contained .connect() (its own scan + picker +
+        // plugin-blec connect) — same permission-prompt wrapping as Coyote
+        // above either way.
         createOpossumClient: () =>
           withConnectPermissionHelp(
             new TauriBlecOpossumClient({ selectDevice: showDevicePicker, scanDurationMs: 8000 }),
@@ -101,7 +105,14 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             }),
           ),
       }}
-      connectDeviceTauri={connectAnyDgLabDeviceTauri}
+      // The unified picker's own permission check (inside
+      // requestDgLabDeviceTauri(), before any client's own .connect() ever
+      // runs) is what actually throws "未授予蓝牙权限" now — wrap it here so
+      // a denied prompt still surfaces the friendly modal, mirroring the
+      // per-client wrapping above.
+      connectDeviceTauri={(clients) =>
+        withBlePermissionHelp(() => connectAnyDgLabDeviceTauri(clients))
+      }
     />
   </React.StrictMode>,
 );
