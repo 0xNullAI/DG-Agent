@@ -201,8 +201,8 @@ function buildDeviceStatusBlock(
       '负鼠：',
       `  连接：${oConnection}`,
       `  电量：${oBattery}`,
-      `  A 通道：强度 ${o.intensityA} / 上限 ${capA}`,
-      `  B 通道：强度 ${o.intensityB} / 上限 ${capB}`,
+      `  A 通道：强度 ${o.intensityA} / 上限 ${capA}，节奏 ${formatOpossumPattern(o.patternA)}`,
+      `  B 通道：强度 ${o.intensityB} / 上限 ${capB}，节奏 ${formatOpossumPattern(o.patternB)}`,
     );
   }
 
@@ -231,6 +231,24 @@ function buildDeviceStatusBlock(
   }
 
   return lines.join('\n');
+}
+
+const OPOSSUM_PATTERN_LABELS: Record<string, string> = {
+  constant: '恒定',
+  pulse: '脉冲',
+  wave: '波浪',
+  ramp: '渐强',
+  heartbeat: '心跳',
+};
+
+/**
+ * Absent pattern = an advanced caller installed a raw custom envelope (or a
+ * pre-1.11.0 kit) — report it as 自定义 rather than guessing, mirroring how
+ * the Coyote line shows `-` for a channel with no current waveform.
+ */
+function formatOpossumPattern(pattern: string | undefined): string {
+  if (!pattern) return '自定义';
+  return OPOSSUM_PATTERN_LABELS[pattern] ?? pattern;
 }
 
 function buildSensorStatusLines(
