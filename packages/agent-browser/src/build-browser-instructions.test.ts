@@ -79,6 +79,8 @@ describe('createBuildBrowserInstructions', () => {
     expect(instructions).toContain('vibrate_stop');
     // Status block reports the configured user cap, not a hardcoded number.
     expect(instructions).toContain('强度 12 / 上限 40');
+    // No pattern in the fixture state — reported as 自定义 rather than guessed.
+    expect(instructions).toContain('节奏 自定义');
     expect(instructions).not.toContain('爪印');
     expect(instructions).not.toContain('灵猫');
   });
@@ -117,6 +119,24 @@ describe('createBuildBrowserInstructions', () => {
     );
 
     expect(instructions).toContain('最近读数：暂无');
+  });
+
+  it('shows the named opossum pattern per channel with a Chinese label', () => {
+    const build = createBuildBrowserInstructions(settings);
+    const instructions = build(
+      baseInput({
+        opossumState: {
+          ...createEmptyOpossumState(),
+          connected: true,
+          intensityA: 30,
+          patternA: 'heartbeat',
+          patternB: 'constant',
+        },
+      }),
+    );
+
+    expect(instructions).toContain('强度 30 / 上限 40，节奏 心跳');
+    expect(instructions).toContain('节奏 恒定');
   });
 
   it('includes a 近段汇总 line under 最近读数 when a rolling summary is provided', () => {
