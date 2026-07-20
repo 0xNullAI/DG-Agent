@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
-  OPOSSUM_VIBRATION_PATTERNS,
   V3_BATTERY_CHAR,
   V3_BATTERY_SERVICE,
   V3_NOTIFY_CHAR,
@@ -187,7 +186,7 @@ describe('WebBluetoothOpossumClient', () => {
 
     await client.execute({ type: 'vibrateStart', channel: 'A', intensity: 50, pattern: 'pulse' });
 
-    expect(setPatternSpy).toHaveBeenCalledWith('A', OPOSSUM_VIBRATION_PATTERNS.pulse);
+    expect(setPatternSpy).toHaveBeenCalledWith('A', 'pulse');
     const state = await client.getState();
     expect(state.intensityA).toBe(50);
   });
@@ -220,7 +219,7 @@ describe('WebBluetoothOpossumClient', () => {
       pattern: 'wave',
     });
 
-    expect(setPatternSpy).toHaveBeenCalledWith('A', OPOSSUM_VIBRATION_PATTERNS.wave);
+    expect(setPatternSpy).toHaveBeenCalledWith('A', 'wave');
     expect(result.state.intensityA).toBe(50);
   });
 
