@@ -10,6 +10,7 @@ export default defineConfig({
   test: {
     projects: [
       'apps/web',
+      'apps/tauri-android',
       {
         test: {
           name: 'packages',
