@@ -485,3 +485,112 @@ export async function listModels({
   ids.sort((a, b) => a.localeCompare(b));
   return ids;
 }
+
+export interface TestConnectionOptions {
+  baseUrl: string;
+  apiKey: string;
+  /** Model to probe with if `/models` fails; without one the `/models` error is surfaced as-is. */
+  model?: string;
+  signal?: AbortSignal;
+}
+
+export class ConnectionTestError extends Error {
+  constructor(
+    message: string,
+    public readonly cause?: unknown,
+  ) {
+    super(message);
+    this.name = 'ConnectionTestError';
+  }
+}
+
+/**
+ * Verify a provider config is actually reachable. Some OpenAI-compatible
+ * providers (e.g. Doubao/Ark) don't implement `/models` reliably even
+ * though `/chat/completions` works fine, so a bare `listModels()` call
+ * reports "failed" on a config that a real user turn would succeed with.
+ * This tries `/models` first (cheap, no token cost) and only falls back to
+ * a minimal real chat completion — the actual path a user turn takes — when
+ * that fails and a model id is available to probe with.
+ */
+export async function testConnection({
+  baseUrl,
+  apiKey,
+  model,
+  signal,
+}: TestConnectionOptions): Promise<void> {
+  let modelsError: unknown;
+  try {
+    await listModels({ baseUrl, apiKey, signal });
+    return;
+  } catch (error) {
+    if ((error as { name?: string } | null)?.name === 'AbortError') {
+      throw error;
+    }
+    if (!model) {
+      throw error;
+    }
+    modelsError = error;
+  }
+
+  await probeChatCompletion({ baseUrl, apiKey, model, signal, modelsError });
+}
+
+async function probeChatCompletion({
+  baseUrl,
+  apiKey,
+  model,
+  signal,
+  modelsError,
+}: {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  signal?: AbortSignal;
+  modelsError: unknown;
+}): Promise<void> {
+  const trimmedBase = baseUrl.replace(/\/+$/, '');
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (apiKey) {
+    headers.Authorization = `Bearer ${apiKey}`;
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${trimmedBase}/chat/completions`, {
+      method: 'POST',
+      headers,
+      signal,
+      body: JSON.stringify({
+        model,
+        messages: [{ role: 'user', content: 'ping' }],
+        max_tokens: 4,
+        stream: false,
+      }),
+    });
+  } catch (error) {
+    if ((error as { name?: string } | null)?.name === 'AbortError') {
+      throw error;
+    }
+    throw new ConnectionTestError('网络错误，无法连接模型服务', error);
+  }
+
+  if (!response.ok) {
+    let detail = '';
+    try {
+      detail = (await response.text()).slice(0, 200);
+    } catch {
+      // ignore body read failure
+    }
+    const modelsMessage = modelsError instanceof Error ? modelsError.message : '';
+    throw new ConnectionTestError(
+      `模型列表接口不可用${modelsMessage ? `（${modelsMessage}）` : ''}，对话接口请求也失败（HTTP ${response.status}）${detail ? `：${detail}` : ''}`,
+    );
+  }
+
+  try {
+    await response.json();
+  } catch (error) {
+    throw new ConnectionTestError('对话接口响应不是有效的 JSON', error);
+  }
+}
