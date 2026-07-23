@@ -1,6 +1,11 @@
 import { createEmptyDeviceState } from '@dg-agent/core';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { OpenAiHttpLlmClient } from './index.js';
+import {
+  ConnectionTestError,
+  ListModelsError,
+  OpenAiHttpLlmClient,
+  testConnection,
+} from './index.js';
 
 const EMPTY_SESSION = {
   id: 'test',
@@ -325,5 +330,83 @@ describe('OpenAiHttpLlmClient', () => {
       // strings into (`Provider HTTP error NNN: ...`).
       await expect(client.runTurn(makeTurnInput())).rejects.toThrow(/模型服务 HTTP 错误 401/);
     });
+  });
+});
+
+// Doubao/Ark and similar providers don't implement `/models` reliably even
+// though `/chat/completions` works fine — testConnection falls back to a
+// real minimal chat completion in that case rather than reporting failure.
+describe('testConnection', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('resolves from /models alone without probing chat completions', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ data: [{ id: 'gpt-4o-mini' }] }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await testConnection({
+      baseUrl: 'https://api.example.com/v1',
+      apiKey: 'sk-test',
+      model: 'gpt-4o-mini',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls[0]?.[0]).toContain('/models');
+  });
+
+  it('falls back to a chat completion probe when /models fails and a model is given', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/models')) {
+        return { ok: false, status: 404, text: async () => 'not found' };
+      }
+      return { ok: true, json: async () => ({ choices: [{ message: { content: 'pong' } }] }) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await testConnection({
+      baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+      apiKey: 'ark-test',
+      model: 'doubao-seed-2-0-mini-250415',
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(fetchMock.mock.calls[1]?.[0]).toContain('/chat/completions');
+  });
+
+  it('rejects with a combined error when both /models and the chat probe fail', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes('/models')) {
+        return { ok: false, status: 404, text: async () => 'no models route' };
+      }
+      return { ok: false, status: 401, text: async () => 'invalid api key' };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      testConnection({
+        baseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+        apiKey: 'bad-key',
+        model: 'doubao-seed-2-0-mini-250415',
+      }),
+    ).rejects.toBeInstanceOf(ConnectionTestError);
+  });
+
+  it('rejects with the original /models error when no model is available to probe with', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 404, text: async () => 'no models route' }),
+    );
+
+    await expect(
+      testConnection({ baseUrl: 'https://ark.cn-beijing.volces.com/api/v3', apiKey: 'ark-test' }),
+    ).rejects.toBeInstanceOf(ListModelsError);
   });
 });
