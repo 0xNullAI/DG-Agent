@@ -8,6 +8,7 @@ import {
   TauriBlecCivetEdgingClient,
 } from '@dg-agent/device-tauri-ble';
 import { showDevicePicker } from './components/show-device-picker';
+import { UpdateBanner } from './components/UpdateBanner';
 import { connectAnyDgLabDeviceTauri } from './connect-any-device-tauri';
 import { wrapWithLifecycleSafety } from './lifecycle-safety';
 import { installAndroidShellBehaviours, withBlePermissionHelp } from './android-shell';
@@ -56,6 +57,7 @@ function withConnectPermissionHelp<T extends { connect(): Promise<void> }>(inner
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
+    <UpdateBanner />
     <App
       servicesOverrides={{
         disableSpeech: true,
