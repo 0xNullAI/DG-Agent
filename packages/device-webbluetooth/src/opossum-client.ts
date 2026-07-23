@@ -75,37 +75,8 @@ export class WebBluetoothOpossumClient implements OpossumClient {
   }
 
   async execute(command: OpossumCommand): Promise<OpossumCommandResult> {
-    switch (command.type) {
-      case 'vibrateStart':
-        if (command.pattern) {
-          this.adapter.setVibrationPattern(command.channel, command.pattern);
-        }
-        await this.adapter.setIntensity(
-          command.channel === 'A' ? command.intensity : 'unchanged',
-          command.channel === 'B' ? command.intensity : 'unchanged',
-        );
-        break;
-      case 'vibrateStop':
-        if (command.channel) {
-          await this.adapter.setIntensity(
-            command.channel === 'A' ? 0 : 'unchanged',
-            command.channel === 'B' ? 0 : 'unchanged',
-          );
-        } else {
-          await this.adapter.emergencyStop();
-        }
-        break;
-      case 'vibrateAdjust':
-        await this.adapter.adjustIntensity(command.channel, command.delta);
-        break;
-      case 'vibrateSetPattern':
-        this.adapter.setVibrationPattern(command.channel, command.pattern);
-        break;
-      case 'vibrateBurst':
-        await this.adapter.vibrateBurst(command.channel, command.intensity, command.durationMs);
-        break;
-    }
-    return { state: this.adapter.getState() };
+    const state = await this.adapter.execute(command);
+    return { state };
   }
 
   async emergencyStop(): Promise<void> {
