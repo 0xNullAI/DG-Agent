@@ -21,7 +21,12 @@ import {
   type ProviderFieldDefinition,
   type ProviderId,
 } from '@dg-agent/providers-catalog';
-import { ListModelsError, listModels } from '@dg-agent/providers-openai-http';
+import {
+  ConnectionTestError,
+  ListModelsError,
+  listModels,
+  testConnection,
+} from '@dg-agent/providers-openai-http';
 import {
   listModelsForProvider,
   type PiAiModelInfo,
@@ -173,9 +178,10 @@ export function GeneralTab({ settingsDraft, setSettingsDraft }: GeneralTabProps)
                 <ConnectionTestButton
                   // Remount when config changes so stale results / aborted requests
                   // are cleared — avoids setState-in-effect lint rules.
-                  key={`${settingsDraft.provider.baseUrl}|${settingsDraft.provider.apiKey}`}
+                  key={`${settingsDraft.provider.baseUrl}|${settingsDraft.provider.apiKey}|${settingsDraft.provider.model}`}
                   baseUrl={settingsDraft.provider.baseUrl}
                   apiKey={settingsDraft.provider.apiKey}
+                  model={settingsDraft.provider.model}
                 />
               }
             />
@@ -611,6 +617,7 @@ function PiAiModelPicker({
 interface ConnectionTestButtonProps {
   baseUrl: string;
   apiKey: string;
+  model: string;
 }
 
 type ConnectionTestStatus =
@@ -623,7 +630,7 @@ type ConnectionTestStatus =
 // rather than a shared hook with ModelPicker — the picker tracks a cached
 // model list that this button does not need, and conflating their lifecycles
 // would force one side to ignore half the state.
-function ConnectionTestButton({ baseUrl, apiKey }: ConnectionTestButtonProps) {
+function ConnectionTestButton({ baseUrl, apiKey, model }: ConnectionTestButtonProps) {
   const [status, setStatus] = useState<ConnectionTestStatus>({ kind: 'idle' });
   const abortRef = useRef<AbortController | null>(null);
 
@@ -644,7 +651,7 @@ function ConnectionTestButton({ baseUrl, apiKey }: ConnectionTestButtonProps) {
     setStatus({ kind: 'testing' });
     const start = performance.now();
     try {
-      await listModels({ baseUrl, apiKey, signal: controller.signal });
+      await testConnection({ baseUrl, apiKey, model, signal: controller.signal });
       if (controller.signal.aborted) return;
       const latencyMs = Math.round(performance.now() - start);
       setStatus({ kind: 'success', latencyMs });
@@ -652,7 +659,7 @@ function ConnectionTestButton({ baseUrl, apiKey }: ConnectionTestButtonProps) {
       if (controller.signal.aborted) return;
       if ((caught as { name?: string } | null)?.name === 'AbortError') return;
       const message =
-        caught instanceof ListModelsError
+        caught instanceof ListModelsError || caught instanceof ConnectionTestError
           ? caught.message
           : caught instanceof Error
             ? caught.message
