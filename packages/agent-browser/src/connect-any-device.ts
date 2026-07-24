@@ -7,10 +7,10 @@
  *
  * Falls back to a clear error (rather than a silent no-op) when the active
  * `device`/`opossum`/`pawPrints`/`civetEdging` client doesn't support
- * attaching a pre-chosen device — this only happens on the Tauri Android
- * shell today, where `device` is a `TauriBlecDeviceClient` (no
- * `connectDevice()` yet) and the three aux clients have no Tauri transport
- * at all (see DG-Chat's `DeviceSession` doc comment for the same gap).
+ * attaching a pre-chosen device. `@dg-kit/transport-tauri-blec` ships all
+ * four kinds' Tauri clients (see `connect-any-device-tauri.ts`, which uses
+ * this same pattern), so in practice this only fires against a
+ * caller-supplied client that genuinely doesn't implement `connectDevice()`.
  */
 import type { DeviceClient, DeviceKind } from '@dg-agent/core';
 import {
